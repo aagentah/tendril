@@ -452,8 +452,8 @@ const Controls = ({ onControlPress }) => {
 
   // Two pre-made library JSONs
   const libraryFiles = [
-    { label: "one.json", url: "src/assets/json/one.json" },
-    { label: "two.json", url: "src/assets/json/two.json" },
+    { label: "one.json", url: "/json/one.json" },
+    { label: "two.json", url: "/json/two.json" },
   ];
 
   return (
