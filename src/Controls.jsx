@@ -735,9 +735,9 @@ const Controls = ({ onControlPress }) => {
                     Path Config
                   </div>
                   <div className="p-4">
-                    <p className="text-sm mb-4 text-white">
+                    {/* <p className="text-sm mb-4 text-white">
                       Configure the selected path here.
-                    </p>
+                    </p> */}
                     <button
                       onClick={resetPath}
                       className="text-red-600 cursor-pointer"
@@ -757,9 +757,9 @@ const Controls = ({ onControlPress }) => {
                       Branch Config
                     </div>
                     <div className="p-4">
-                      <p className="text-sm mb-4 text-white">
+                      {/* <p className="text-sm mb-4 text-white">
                         Configure the selected branch here.
-                      </p>
+                      </p> */}
                       <div className="flex flex-wrap gap-3">
                         {Object.keys(selectedBranch.effectConfig).map(
                           (paramName) => {

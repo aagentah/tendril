@@ -81,7 +81,9 @@ const Hex = memo(
     }
 
     if (isPathSelected && !(isPlaying && sampleName)) {
-      fillColor = "orange";
+      fillColor = "#171717";
+      strokeWidth = 4;
+      strokeColor = "grey";
     }
 
     if (isBranchSelected) {
@@ -96,11 +98,11 @@ const Hex = memo(
       fillColor = "blue";
     }
 
-    if (isPath && lastHexInPath) {
-      strokeColor = "red";
-      strokeOpacity = 1;
-      strokeWidth = 1;
-    }
+    // if (isPath && lastHexInPath) {
+    //   strokeColor = "red";
+    //   strokeOpacity = 1;
+    //   strokeWidth = 1;
+    // }
 
     if (effect.type === "fx" && isBranch && lastHexInPath) {
       strokeColor = "white";
@@ -115,13 +117,13 @@ const Hex = memo(
     }
 
     if (isHexSelected) {
-      strokeColor = "green";
+      strokeColor = "grey";
       strokeWidth = 4;
     }
 
     // If a hex is selected for sample-moving, highlight potential targets
     if (anyHexSelected && isPathSelected && !sampleName && isHovered) {
-      fillColor = "green";
+      fillColor = "grey";
     }
 
     // Determine opacity
@@ -150,12 +152,15 @@ const Hex = memo(
     let cursor = "";
     if (isHexSelected) {
       cursor = "cursor-pointer";
+      fillColor = "grey";
     } else if (selectedSample.name && isPath && isHovered) {
       cursor = "cursor-crosshair";
-      fillColor = "green";
+      fillColor = "grey";
     } else if (isPath && selectedSample.name && !draftPath.length) {
       cursor = "cursor-crosshair";
-      fillColor = "orange";
+      fillColor = "#171717";
+      strokeWidth = 4;
+      strokeColor = "grey";
     } else if (selectedSample.name && isPath) {
       cursor = "cursor-crosshair";
       fillColor = "darkred";
