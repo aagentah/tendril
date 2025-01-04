@@ -29,13 +29,11 @@ import {
   sampleStore,
   sampleToNoteMap,
   effectStore,
+  effectDraftPathAtom,
+  draftPathAtom,
 } from "./App";
 import { updateHexProperties } from "./hexUtils";
 
-/**
- * Controls component with Play/Pause functionality and additional controls.
- * @param {Object} props - (optional) If you pass `onControlPress`, it will close the mobile panel automatically.
- */
 const Controls = ({ onControlPress }) => {
   const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
@@ -43,6 +41,8 @@ const Controls = ({ onControlPress }) => {
   const [hexes, setHexes] = useAtom(hexesAtom);
   const [paths, setPaths] = useAtom(pathsAtom);
   const [branches, setBranches] = useAtom(branchesAtom);
+  const [, setEffectDraftPath] = useAtom(effectDraftPathAtom);
+  const [, setDraftPath] = useAtom(draftPathAtom);
   const [selectedEffect, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
 
@@ -55,14 +55,18 @@ const Controls = ({ onControlPress }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingArmed, setIsRecordingArmed] = useState(false);
 
-  // Load user samples on mount
+  // Library toggle
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  // -----------------------
+  //   Lifecycle / Setup
+  // -----------------------
   useEffect(() => {
     getAllUserSamples().then((samples) => {
       setUserSamples(samples);
     });
   }, [setUserSamples]);
 
-  // Initialize recorder
   useEffect(() => {
     recorderRef.current = new Tone.Recorder();
     Tone.getDestination().connect(recorderRef.current);
@@ -74,7 +78,6 @@ const Controls = ({ onControlPress }) => {
     };
   }, []);
 
-  // Auto-start recording if armed
   useEffect(() => {
     const handleRecordingStart = async () => {
       if (isRecordingArmed && isAudioPlaying && !isRecording) {
@@ -87,9 +90,166 @@ const Controls = ({ onControlPress }) => {
   }, [isAudioPlaying, isRecordingArmed, isRecording]);
 
   // -----------------------
-  //       Main Methods
+  //   Helpers for JSON I/O
   // -----------------------
 
+  /**
+   * Encodes an ArrayBuffer to a base64 string.
+   */
+  function encodeArrayBufferToBase64(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  /**
+   * Decodes a base64 string to an ArrayBuffer.
+   */
+  function decodeBase64ToArrayBuffer(base64) {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  /**
+   * Applies loaded JSON state to the current Jotai stores.
+   */
+  function loadStateFromObject(loadedState) {
+    if (isAudioPlaying) {
+      togglePlay();
+    }
+
+    // Reconstruct user samples
+    const reconstructedSamples = [];
+    for (const s of loadedState.userSamples || []) {
+      if (s.base64) {
+        const arrayBuffer = decodeBase64ToArrayBuffer(s.base64);
+        reconstructedSamples.push({
+          id: s.id,
+          name: s.name,
+          note: s.note,
+          data: arrayBuffer,
+          url: URL.createObjectURL(
+            new Blob([arrayBuffer], { type: "audio/*" })
+          ),
+        });
+      } else {
+        reconstructedSamples.push(s);
+      }
+    }
+
+    // Update atoms with loaded state
+    setBpm(loadedState.bpm);
+    setHexes(loadedState.hexes);
+    setPaths(loadedState.paths);
+    setBranches(loadedState.branches);
+    setUserSamples(reconstructedSamples);
+
+    // Clear selectedEffect
+    setSelectedEffect({ type: null, name: null });
+
+    // Clear effectDraftPath
+    setEffectDraftPath([]);
+
+    // Clear draftPath
+    setDraftPath([]);
+
+    // Deselect all hexes by clearing selection-related properties
+    setHexes((prevHexes) =>
+      updateHexProperties(prevHexes, () => true, {
+        isHexSelected: false,
+        isPathSelected: false,
+        isBranchSelected: false,
+        isPathDraft: false,
+        isEffectDraft: false,
+      })
+    );
+  }
+
+  /**
+   * Loads state from local file input (existing functionality).
+   */
+  const handleLoad = (e) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const loadedState = JSON.parse(event.target.result);
+        loadStateFromObject(loadedState);
+
+        // Clean up file input
+        e.target.value = null;
+      } catch (err) {
+        console.error("Error parsing or loading JSON state:", err);
+      }
+    };
+    reader.readAsText(file);
+
+    onControlPress?.();
+  };
+
+  /**
+   * Loads state from a given URL (our "Library" functionality).
+   */
+  async function handleLibraryLoad(url) {
+    try {
+      const response = await fetch(url);
+      const loadedState = await response.json();
+      loadStateFromObject(loadedState);
+      setShowLibrary(false);
+    } catch (err) {
+      console.error("Error fetching or loading JSON state from URL:", err);
+    }
+  }
+
+  // -----------------------
+  //   Save / Load (Manual)
+  // -----------------------
+  const handleSave = () => {
+    // Convert userSamples data into base64
+    const userSamplesData = userSamples.map((sample) => {
+      const base64 = sample.data
+        ? encodeArrayBufferToBase64(sample.data)
+        : null;
+      return {
+        id: sample.id,
+        name: sample.name,
+        note: sample.note,
+        base64,
+      };
+    });
+
+    const stateToSave = {
+      bpm,
+      hexes,
+      paths,
+      branches,
+      userSamples: userSamplesData,
+    };
+
+    const jsonString = JSON.stringify(stateToSave, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "tendril-sequencer-state.json";
+    link.click();
+
+    URL.revokeObjectURL(url);
+    onControlPress?.();
+  };
+
+  // -----------------------
+  //   Main Playback Logic
+  // -----------------------
   const togglePlay = async () => {
     if (isAudioPlaying) {
       // If we're recording, stop the recording first
@@ -141,7 +301,7 @@ const Controls = ({ onControlPress }) => {
       // Arm the recording
       setIsRecordingArmed(!isRecordingArmed);
 
-      // If playing, start immediately
+      // If already playing, start recording immediately
       if (isAudioPlaying) {
         await recorderRef.current.start();
         setIsRecording(true);
@@ -153,12 +313,11 @@ const Controls = ({ onControlPress }) => {
   };
 
   // -----------------------
-  // Path/Branch Deletion
+  //   Path/Branch Deletion
   // -----------------------
   const anyPathSelected = _.some(hexes, (hex) => hex.isPathSelected);
   const anyBranchSelected = _.some(hexes, (hex) => hex.isBranchSelected);
 
-  // Reset the selected path
   const resetPath = () => {
     const selectedHex = _.find(hexes, (hex) => hex.isPathSelected);
     if (!selectedHex) return;
@@ -206,7 +365,6 @@ const Controls = ({ onControlPress }) => {
     );
   };
 
-  // Delete the selected branch
   const deleteSelectedBranch = () => {
     const selectedHex = hexes.find((hex) => hex.isBranchSelected);
     if (!selectedHex) return;
@@ -234,7 +392,6 @@ const Controls = ({ onControlPress }) => {
     );
   };
 
-  // If a branch is selected
   const selectedBranchHex = hexes.find((hex) => hex.isBranchSelected);
   let selectedBranch = null;
   if (selectedBranchHex) {
@@ -243,13 +400,12 @@ const Controls = ({ onControlPress }) => {
     );
   }
 
-  // The effect definition
   const selectedEffectDefinition = effectStore.find(
     (effect) => effect.name === selectedBranch?.effect.name
   );
 
   // -----------------------
-  //  File Upload Handling
+  //   File Upload Handling
   // -----------------------
   async function handleFileUpload(e) {
     const files = e.target.files;
@@ -269,7 +425,7 @@ const Controls = ({ onControlPress }) => {
         await addUserSample({
           name: cleanName,
           data: arrayBuffer,
-          note: null, // Handled via fallback in addUserSample
+          note: null, // fallback in addUserSample
         });
       } catch (err) {
         console.error("Error adding sample to IndexedDB:", err);
@@ -284,7 +440,6 @@ const Controls = ({ onControlPress }) => {
     e.target.value = null;
   }
 
-  // Remove from DB
   const handleRemoveUserSample = async (id) => {
     await removeUserSample(id);
     const updated = await getAllUserSamples();
@@ -294,103 +449,59 @@ const Controls = ({ onControlPress }) => {
   // -----------------------
   //       Rendering
   // -----------------------
+
+  // Two pre-made library JSONs
+  const libraryFiles = [
+    { label: "one.json", url: "src/assets/json/one.json" },
+    { label: "two.json", url: "src/assets/json/two.json" },
+  ];
+
   return (
     <div className="mt-4 flex flex-col items-center space-y-4 max-w-md mx-auto">
-      {/* If no path/branch config is selected, show the sample tabs & effects */}
-      {!anyPathSelected &&
-      !(anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
-        <div className="w-full flex flex-col items-center justify-center space-y-4">
-          {/* Samples Box */}
-          <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-            {/* Label */}
-            <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-              Samples
-            </div>
-
-            {/* Tab Buttons */}
-            <div className="flex items-center justify-start px-4 py-2 space-x-4 bg-neutral-900">
-              <button
-                className={`text-xs px-2 py-1 border ${
-                  activeSamplesTab === "default"
-                    ? "bg-neutral-800 border-neutral-800"
-                    : "border-neutral-800 text-neutral-400"
-                }`}
-                onClick={() => setActiveSamplesTab("default")}
-              >
-                Default
-              </button>
-              <button
-                className={`text-xs px-2 py-1 border ${
-                  activeSamplesTab === "user"
-                    ? "bg-neutral-800 border-neutral-800"
-                    : "border-neutral-800 text-neutral-400"
-                }`}
-                onClick={() => setActiveSamplesTab("user")}
-              >
-                User Uploaded
-              </button>
-            </div>
-
-            {/* Content: default vs user samples */}
-            {activeSamplesTab === "default" && (
-              <div className="p-4">
-                <div className="flex flex-wrap gap-3">
-                  {_.map(sampleStore, (sample) => (
-                    <button
-                      key={sample.name}
-                      onClick={() => {
-                        if (selectedSample.name === sample.name) {
-                          setSelectedSample({ name: null, click: 0 });
-                        } else {
-                          setSelectedSample({ name: sample.name, click: 1 });
-                          setSelectedEffect({ type: null, name: null });
-                        }
-                        setHexes((prevHexes) =>
-                          updateHexProperties(
-                            prevHexes,
-                            (hex) =>
-                              hex.isPathSelected ||
-                              hex.isBranchSelected ||
-                              hex.isHexSelected,
-                            {
-                              isPathSelected: false,
-                              isBranchSelected: false,
-                              isHexSelected: false,
-                            }
-                          )
-                        );
-                        onControlPress?.();
-                      }}
-                      className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
-                        selectedSample.name === sample.name
-                          ? "bg-red-800"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {sample.name}
-                    </button>
-                  ))}
+      {/* Show either the main Samples/Effects UI OR the Library Panel */}
+      {!showLibrary ? (
+        <>
+          {/* If no path/branch config is selected, show the sample tabs & effects */}
+          {!anyPathSelected &&
+          !(anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
+            <div className="w-full flex flex-col items-center justify-center space-y-4">
+              {/* Samples Box */}
+              <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                  Samples
                 </div>
-              </div>
-            )}
 
-            {activeSamplesTab === "user" && (
-              <div className="p-4 overflow-y-scroll h-40 space-y-4">
-                {/* File Upload (multiple) */}
-                <input
-                  type="file"
-                  accept="audio/*"
-                  multiple
-                  onChange={handleFileUpload}
-                  className="block w-full text-xxs text-neutral-300 file:mr-4 file:text-xxs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
-                />
+                {/* Tab Buttons */}
+                <div className="flex items-center justify-start px-4 py-2 space-x-4 bg-neutral-900">
+                  <button
+                    className={`text-xs px-2 py-1 border ${
+                      activeSamplesTab === "default"
+                        ? "bg-neutral-800 border-neutral-800"
+                        : "border-neutral-800 text-neutral-400"
+                    }`}
+                    onClick={() => setActiveSamplesTab("default")}
+                  >
+                    Default
+                  </button>
+                  <button
+                    className={`text-xs px-2 py-1 border ${
+                      activeSamplesTab === "user"
+                        ? "bg-neutral-800 border-neutral-800"
+                        : "border-neutral-800 text-neutral-400"
+                    }`}
+                    onClick={() => setActiveSamplesTab("user")}
+                  >
+                    User Uploaded
+                  </button>
+                </div>
 
-                {/* User Samples List */}
-                {userSamples && userSamples.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {userSamples.map((sample) => (
-                      <div key={sample.id} className="flex flex-col relative">
+                {/* Content: default vs user samples */}
+                {activeSamplesTab === "default" && (
+                  <div className="p-4">
+                    <div className="flex flex-wrap gap-3">
+                      {_.map(sampleStore, (sample) => (
                         <button
+                          key={sample.name}
                           onClick={() => {
                             if (selectedSample.name === sample.name) {
                               setSelectedSample({ name: null, click: 0 });
@@ -425,353 +536,500 @@ const Controls = ({ onControlPress }) => {
                         >
                           {sample.name}
                         </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-neutral-500">
-                    No user samples yet. Upload to get started.
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                <hr className="border-neutral-800" />
+                {activeSamplesTab === "user" && (
+                  <div className="p-4 overflow-y-scroll h-40 space-y-4">
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="block w-full text-xxs text-neutral-300 file:mr-4 file:text-xxs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
+                    />
 
-                <div className="text-xs text-neutral-500">
-                  Please note all samples are saved locally to your browser
-                  storage and are not permanently uploaded.
+                    {userSamples && userSamples.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {userSamples.map((sample) => (
+                          <div
+                            key={sample.id}
+                            className="flex flex-col relative"
+                          >
+                            <button
+                              onClick={() => {
+                                if (selectedSample.name === sample.name) {
+                                  setSelectedSample({ name: null, click: 0 });
+                                } else {
+                                  setSelectedSample({
+                                    name: sample.name,
+                                    click: 1,
+                                  });
+                                  setSelectedEffect({ type: null, name: null });
+                                }
+                                setHexes((prevHexes) =>
+                                  updateHexProperties(
+                                    prevHexes,
+                                    (hex) =>
+                                      hex.isPathSelected ||
+                                      hex.isBranchSelected ||
+                                      hex.isHexSelected,
+                                    {
+                                      isPathSelected: false,
+                                      isBranchSelected: false,
+                                      isHexSelected: false,
+                                    }
+                                  )
+                                );
+                                onControlPress?.();
+                              }}
+                              className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                                selectedSample.name === sample.name
+                                  ? "bg-red-800"
+                                  : "text-red-400"
+                              }`}
+                            >
+                              {sample.name}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-neutral-500">
+                        No user samples yet. Upload to get started.
+                      </div>
+                    )}
+
+                    <hr className="border-neutral-800" />
+
+                    <div className="text-xs text-neutral-500">
+                      Please note all samples are saved locally to your browser
+                      storage and are not permanently uploaded.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Effects Box */}
+              <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                  Effects
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* FX Section */}
+                  <div className="flex flex-wrap gap-3">
+                    {_.map(
+                      effectStore,
+                      (effect) =>
+                        effect.type === "fx" && (
+                          <button
+                            key={effect.name}
+                            disabled={!paths.length}
+                            onClick={() => {
+                              if (selectedEffect?.name === effect.name) {
+                                setSelectedEffect(null);
+                              } else {
+                                setSelectedEffect({
+                                  type: effect.type,
+                                  name: effect.name,
+                                });
+                                setSelectedSample({ name: null, click: 0 });
+                              }
+                              setHexes((prevHexes) =>
+                                updateHexProperties(
+                                  prevHexes,
+                                  (hex) =>
+                                    hex.isPathSelected ||
+                                    hex.isBranchSelected ||
+                                    hex.isHexSelected,
+                                  {
+                                    isPathSelected: false,
+                                    isBranchSelected: false,
+                                    isHexSelected: false,
+                                  }
+                                )
+                              );
+                              onControlPress?.();
+                            }}
+                            className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                              selectedEffect?.name === effect.name
+                                ? "bg-neutral-300 text-black"
+                                : "text-neutral-300"
+                            } ${!paths.length ? "opacity-50" : ""}`}
+                          >
+                            {effect.name}
+                          </button>
+                        )
+                    )}
+                  </div>
+
+                  {/* Utility Effects Section */}
+                  <div className="flex flex-wrap gap-3">
+                    {_.map(
+                      effectStore,
+                      (effect) =>
+                        effect.type === "utility" && (
+                          <button
+                            key={effect.name}
+                            disabled={!paths.length}
+                            onClick={() => {
+                              if (selectedEffect?.name === effect.name) {
+                                setSelectedEffect(null);
+                              } else {
+                                setSelectedEffect({
+                                  type: effect.type,
+                                  name: effect.name,
+                                });
+                                setSelectedSample({ name: null, click: 0 });
+                              }
+                              setHexes((prevHexes) =>
+                                updateHexProperties(
+                                  prevHexes,
+                                  (hex) =>
+                                    hex.isPathSelected ||
+                                    hex.isBranchSelected ||
+                                    hex.isHexSelected,
+                                  {
+                                    isPathSelected: false,
+                                    isBranchSelected: false,
+                                    isHexSelected: false,
+                                  }
+                                )
+                              );
+                              onControlPress?.();
+                            }}
+                            className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                              selectedEffect?.name === effect.name
+                                ? "bg-blue-800"
+                                : "text-blue-400"
+                            } ${!paths.length ? "opacity-50" : ""}`}
+                          >
+                            {effect.name}
+                          </button>
+                        )
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          {/* Effects Box */}
+          {/* Path/Branch Config UI */}
+          {(anyPathSelected ||
+            (anyBranchSelected &&
+              selectedBranch &&
+              selectedEffectDefinition)) && (
+            <div className="w-full flex flex-col items-center justify-center">
+              {/* Path Config */}
+              {anyPathSelected && (
+                <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                  <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                    Path Config
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm mb-4 text-white">
+                      Configure the selected path here.
+                    </p>
+                    <button
+                      onClick={resetPath}
+                      className="text-red-600 cursor-pointer"
+                    >
+                      Delete Path
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Branch Config */}
+              {anyBranchSelected &&
+                selectedBranch &&
+                selectedEffectDefinition && (
+                  <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                    <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                      Branch Config
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm mb-4 text-white">
+                        Configure the selected branch here.
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {Object.keys(selectedBranch.effectConfig).map(
+                          (paramName) => {
+                            const param =
+                              selectedBranch.effectConfig[paramName];
+                            const effectParam =
+                              selectedEffectDefinition.config[paramName];
+
+                            if (effectParam.options) {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <select
+                                    className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1"
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: e.target.value,
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  >
+                                    {effectParam.options.map((option) => (
+                                      <option
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            } else if (typeof param.value === "number") {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={effectParam.max || 1}
+                                    step={effectParam.step || 0.01}
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: parseFloat(
+                                                    e.target.value
+                                                  ),
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  />
+                                  <span className="ml-2 text-sm text-white">
+                                    {param.value}
+                                  </span>
+                                </div>
+                              );
+                            } else if (typeof param.value === "string") {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white"
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: e.target.value,
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              );
+                            }
+                            return null;
+                          }
+                        )}
+                      </div>
+                      <span
+                        onClick={deleteSelectedBranch}
+                        className="text-red-600 mt-4 cursor-pointer"
+                      >
+                        Delete Branch
+                      </span>
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
+          {/* Controls Box (Play, BPM, Record, Save/Load) */}
           <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
             <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-              Effects
+              Controls
             </div>
-            <div className="p-4 space-y-4">
-              {/* FX Section */}
-              <div className="flex flex-wrap gap-3">
-                {_.map(
-                  effectStore,
-                  (effect) =>
-                    effect.type === "fx" && (
-                      <button
-                        key={effect.name}
-                        disabled={!paths.length}
-                        onClick={() => {
-                          if (selectedEffect?.name === effect.name) {
-                            setSelectedEffect(null);
-                          } else {
-                            setSelectedEffect({
-                              type: effect.type,
-                              name: effect.name,
-                            });
-                            setSelectedSample({ name: null, click: 0 });
-                          }
-                          setHexes((prevHexes) =>
-                            updateHexProperties(
-                              prevHexes,
-                              (hex) =>
-                                hex.isPathSelected ||
-                                hex.isBranchSelected ||
-                                hex.isHexSelected,
-                              {
-                                isPathSelected: false,
-                                isBranchSelected: false,
-                                isHexSelected: false,
-                              }
-                            )
-                          );
-                          onControlPress?.();
-                        }}
-                        className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
-                          selectedEffect?.name === effect.name
-                            ? "bg-neutral-300 text-black"
-                            : "text-neutral-300"
-                        } ${!paths.length ? "opacity-50" : ""}`}
-                      >
-                        {effect.name}
-                      </button>
-                    )
-                )}
-              </div>
+            <div className="p-4">
+              <div className="w-full flex flex-col items-center justify-center space-y-4">
+                <div className="flex space-x-2 text-sm">
+                  <button
+                    onClick={togglePlay}
+                    disabled={!paths.length}
+                    className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center gap-2 ${
+                      !paths.length ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {isAudioPlaying ? (
+                      <FaStop size={12} />
+                    ) : (
+                      <FaPlay size={12} />
+                    )}
+                    {isAudioPlaying ? "Stop" : "Play"}
+                  </button>
 
-              {/* Utility Effects Section */}
-              <div className="flex flex-wrap gap-3">
-                {_.map(
-                  effectStore,
-                  (effect) =>
-                    effect.type === "utility" && (
-                      <button
-                        key={effect.name}
-                        disabled={!paths.length}
-                        onClick={() => {
-                          if (selectedEffect?.name === effect.name) {
-                            setSelectedEffect(null);
-                          } else {
-                            setSelectedEffect({
-                              type: effect.type,
-                              name: effect.name,
-                            });
-                            setSelectedSample({ name: null, click: 0 });
-                          }
-                          setHexes((prevHexes) =>
-                            updateHexProperties(
-                              prevHexes,
-                              (hex) =>
-                                hex.isPathSelected ||
-                                hex.isBranchSelected ||
-                                hex.isHexSelected,
-                              {
-                                isPathSelected: false,
-                                isBranchSelected: false,
-                                isHexSelected: false,
-                              }
-                            )
-                          );
-                          onControlPress?.();
-                        }}
-                        className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
-                          selectedEffect?.name === effect.name
-                            ? "bg-blue-800"
-                            : "text-blue-400"
-                        } ${!paths.length ? "opacity-50" : ""}`}
-                      >
-                        {effect.name}
-                      </button>
-                    )
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Path/Branch Config UI */}
-      {anyPathSelected ||
-      (anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
-        <div className="w-full flex flex-col items-center justify-center">
-          {/* Path Config Box */}
-          {anyPathSelected && (
-            <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-              <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                Path Config
-              </div>
-              <div className="p-4">
-                <p className="text-sm mb-4 text-white">
-                  Configure the selected path here.
-                </p>
-                <button
-                  onClick={resetPath}
-                  className="text-red-600 cursor-pointer"
-                >
-                  Delete Path
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Branch Config Box */}
-          {anyBranchSelected && selectedBranch && selectedEffectDefinition && (
-            <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-              <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                Branch Config
-              </div>
-              <div className="p-4">
-                <p className="text-sm mb-4 text-white">
-                  Configure the selected branch here.
-                </p>
-                {/* Render controls for effect config */}
-                <div className="flex flex-wrap gap-3">
-                  {Object.keys(selectedBranch.effectConfig).map((paramName) => {
-                    const param = selectedBranch.effectConfig[paramName];
-                    const effectParam =
-                      selectedEffectDefinition.config[paramName];
-
-                    if (effectParam.options) {
-                      return (
-                        <div key={paramName} className="mb-2">
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            {paramName}
-                          </label>
-                          <select
-                            className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1"
-                            value={param.value}
-                            onChange={(e) => {
-                              setBranches((prevBranches) =>
-                                prevBranches.map((branch) => {
-                                  if (branch.id === selectedBranch.id) {
-                                    return {
-                                      ...branch,
-                                      effectConfig: {
-                                        ...branch.effectConfig,
-                                        [paramName]: {
-                                          ...param,
-                                          value: e.target.value,
-                                        },
-                                      },
-                                    };
-                                  }
-                                  return branch;
-                                })
-                              );
-                            }}
-                          >
-                            {effectParam.options.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    } else if (typeof param.value === "number") {
-                      return (
-                        <div key={paramName} className="mb-2">
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            {paramName}
-                          </label>
-                          <input
-                            type="range"
-                            min={0}
-                            max={effectParam.max || 1}
-                            step={effectParam.step || 0.01}
-                            value={param.value}
-                            onChange={(e) => {
-                              setBranches((prevBranches) =>
-                                prevBranches.map((branch) => {
-                                  if (branch.id === selectedBranch.id) {
-                                    return {
-                                      ...branch,
-                                      effectConfig: {
-                                        ...branch.effectConfig,
-                                        [paramName]: {
-                                          ...param,
-                                          value: parseFloat(e.target.value),
-                                        },
-                                      },
-                                    };
-                                  }
-                                  return branch;
-                                })
-                              );
-                            }}
-                          />
-                          <span className="ml-2 text-sm text-white">
-                            {param.value}
-                          </span>
-                        </div>
-                      );
-                    } else if (typeof param.value === "string") {
-                      return (
-                        <div key={paramName} className="mb-2">
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            {paramName}
-                          </label>
-                          <input
-                            type="text"
-                            className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white"
-                            value={param.value}
-                            onChange={(e) => {
-                              setBranches((prevBranches) =>
-                                prevBranches.map((branch) => {
-                                  if (branch.id === selectedBranch.id) {
-                                    return {
-                                      ...branch,
-                                      effectConfig: {
-                                        ...branch.effectConfig,
-                                        [paramName]: {
-                                          ...param,
-                                          value: e.target.value,
-                                        },
-                                      },
-                                    };
-                                  }
-                                  return branch;
-                                })
-                              );
-                            }}
-                          />
-                        </div>
-                      );
+                  <button
+                    onClick={toggleRecording}
+                    disabled={
+                      (isAudioPlaying && !isRecordingArmed && !isRecording) ||
+                      !paths.length
                     }
-                    return null;
-                  })}
+                    className={`px-4 py-2 bg-transparent border rounded focus:outline-none flex items-center gap-2 
+                      ${
+                        isRecording
+                          ? "border-red-500 text-red-500"
+                          : isRecordingArmed
+                          ? "border-orange-500 text-orange-500"
+                          : "border-white text-white"
+                      }
+                      ${
+                        isAudioPlaying && !isRecordingArmed && !isRecording
+                          ? "opacity-50 cursor-not-allowed"
+                          : "opacity-100 cursor-pointer"
+                      }
+                      ${!paths.length ? "opacity-50 cursor-not-allowed" : ""}
+                    `}
+                  >
+                    {isRecording ? (
+                      <FaMicrophoneSlash size={12} />
+                    ) : (
+                      <FaMicrophone size={12} />
+                    )}
+                    {isRecording ? "Stop" : "Rec"}
+                  </button>
+
+                  <button
+                    disabled={!paths.length}
+                    onClick={handleSave}
+                    className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none  ${
+                      !paths.length ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Save
+                  </button>
+
+                  <label
+                    htmlFor="loadState"
+                    className="cursor-pointer px-4 py-2 bg-transparent border border-gwhite text-gwhite rounded focus:outline-none"
+                  >
+                    Load
+                    <input
+                      id="loadState"
+                      type="file"
+                      accept=".json"
+                      onChange={handleLoad}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <div className="flex items-center justify-center gap-x-4 relative">
+                    <input
+                      className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      type="number"
+                      value={bpm}
+                      onChange={(e) =>
+                        setBpm(Math.min(parseInt(e.target.value) || 40, 999))
+                      }
+                      min="40"
+                      max="999"
+                    />
+                    <div className="absolute text-xs text-neutral-500 right-4 mt-0.5 pointer-events-none">
+                      BPM
+                    </div>
+                  </div>
                 </div>
-                <span
-                  onClick={deleteSelectedBranch}
-                  className="text-red-600 mt-4 cursor-pointer"
-                >
-                  Delete Branch
-                </span>
               </div>
             </div>
-          )}
-        </div>
-      ) : null}
+          </div>
 
-      {/* Controls Box (Play, BPM, Record) */}
-      <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-        <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-          Controls
-        </div>
-        <div className="p-4">
-          <div className="w-full flex flex-col items-center justify-center">
-            <div className="flex space-x-4">
-              <button
-                onClick={togglePlay}
-                disabled={!paths.length}
-                className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center gap-2  ${
-                  !paths.length ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                {isAudioPlaying ? <FaStop size={20} /> : <FaPlay size={20} />}
-                {isAudioPlaying ? "Stop" : "Play"}
-              </button>
-
-              <input
-                className="bg-transparent border border-white text-white px-2 rounded"
-                type="number"
-                value={bpm}
-                onChange={(e) => setBpm(Number(e.target.value))}
-                min="40"
-                max="240"
-              />
-
-              <button
-                onClick={toggleRecording}
-                disabled={
-                  (isAudioPlaying && !isRecordingArmed && !isRecording) ||
-                  !paths.length
-                }
-                className={`px-4 py-2 bg-transparent border rounded focus:outline-none flex items-center gap-2 
-                  ${
-                    isRecording
-                      ? "border-red-500 text-red-500"
-                      : isRecordingArmed
-                      ? "border-orange-500 text-orange-500"
-                      : "border-white text-white"
-                  }
-                  ${
-                    isAudioPlaying && !isRecordingArmed && !isRecording
-                      ? "opacity-50 cursor-not-allowed"
-                      : "opacity-100 cursor-pointer"
-                  }
-                   ${!paths.length ? "opacity-50 cursor-not-allowed" : ""}
-                `}
-              >
-                {isRecording ? (
-                  <FaMicrophoneSlash size={20} />
-                ) : (
-                  <FaMicrophone size={20} />
-                )}
-                {isRecording ? "Stop" : "Record"}
-              </button>
+          {/* "Pre-load sequences made by others" Label */}
+          <div className="w-full mt-4 flex justify-center items-center">
+            <div
+              className="text-neutral-500 underline text-sm cursor-pointer"
+              onClick={() => setShowLibrary(true)}
+            >
+              Pre-load sequences made by others.
             </div>
           </div>
+        </>
+      ) : (
+        // -----------------------
+        //   Library Panel
+        // -----------------------
+        <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+          <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+            Library
+          </div>
+          <div className="p-4">
+            <p className="text-sm mb-4 text-white">
+              Select a shared track to load:
+            </p>
+            <div className="flex flex-col gap-3">
+              {libraryFiles.map((file) => (
+                <button
+                  key={file.url}
+                  className="text-neutral-500 underline text-left"
+                  onClick={() => handleLibraryLoad(file.url)}
+                >
+                  {file.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="mt-6 px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
+              onClick={() => setShowLibrary(false)}
+            >
+              Back
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

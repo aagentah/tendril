@@ -42,10 +42,6 @@ import HexGrid from "./Grid";
 //  Sample Assets, Mappings, and Effect Store
 // -------------------------------------------
 
-// You already had older sample lines commented out;
-// keep or remove them as needed.
-// Here, keep the current store:
-
 import cymbal1 from "./assets/samples/Cymbal-1.wav";
 import cymbal2 from "./assets/samples/Cymbal-2.wav";
 import hat1 from "./assets/samples/Hat-1.wav";
@@ -924,9 +920,20 @@ const App = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
       <div className="flex flex-wrap w-full max-w-screen-xl">
-        <h1 className="visible lg:hidden absolute top-8 left-0 right-0 text-lg my-4 text-center mx-auto">
-          tendril.aagentah.tech
-        </h1>
+        <div className="visible lg:hidden absolute top-8 left-0 right-0 text-lg my-4 text-center mx-auto">
+          <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+          <p className="text-center text-sm text-neutral-500">
+            Made by{" "}
+            <a
+              className="text-neutral-500 underline"
+              href="https://daniel.aagentah.tech/"
+              target="_blank"
+            >
+              daniel.aagentah
+            </a>
+          </p>
+        </div>
+
         <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
           <div style={{ position: "relative" }}>
             {/* Render the Grid and P5Overlay */}
@@ -936,9 +943,18 @@ const App = () => {
         </div>
         <div className="w-full lg:w-1/2 flex justify-center items-center">
           <MobileControlsPanel onCloseRef={closeControlsRef}>
-            <h1 className="text-lg my-4 text-center mx-auto">
-              tendril.aagentah.tech
-            </h1>
+            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+            <p className="text-center text-sm text-neutral-500">
+              Made by{" "}
+              <a
+                className="text-neutral-500 underline"
+                href="https://daniel.aagentah.tech/"
+                target="_blank"
+              >
+                daniel.aagentah
+              </a>
+            </p>
+
             {/* Controls panel */}
             <Controls
               selectedSample={selectedSample}
