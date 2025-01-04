@@ -935,7 +935,7 @@ const App = () => {
         </div>
 
         <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             {/* Render the Grid and P5Overlay */}
             <HexGrid />
             <P5Overlay />

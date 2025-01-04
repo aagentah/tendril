@@ -478,7 +478,7 @@ const Controls = ({ onControlPress }) => {
                 </div>
 
                 {/* Tab Buttons */}
-                <div className="flex items-center justify-start px-4 py-2 space-x-4 bg-neutral-900">
+                <div className="flex items-center justify-start p-4 pb-0 space-x-4 bg-neutral-900">
                   <button
                     className={`text-xs px-2 py-1 border ${
                       activeSamplesTab === "default"
@@ -903,7 +903,7 @@ const Controls = ({ onControlPress }) => {
             </div>
             <div className="p-4">
               <div className="w-full flex flex-col items-center justify-center space-y-4">
-                <div className="flex space-x-2 text-sm">
+                <div className="flex flex-wrap sm:flex-nowrap justify-start md:justify-center gap-4 md:gap-2 text-sm">
                   <button
                     onClick={togglePlay}
                     disabled={!paths.length}
@@ -973,7 +973,7 @@ const Controls = ({ onControlPress }) => {
                     />
                   </label>
 
-                  <div className="flex items-center justify-center gap-x-4 relative">
+                  <div className="flex items-center justify-center gap-x-4 relative h-[38px]">
                     <input
                       className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       type="number"
