@@ -534,7 +534,7 @@ const Controls = ({ onControlPress }) => {
                             );
                             onControlPress?.();
                           }}
-                          className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                          className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
                             selectedSample.name === sample.name
                               ? "bg-red-800"
                               : "text-red-400"
@@ -554,7 +554,7 @@ const Controls = ({ onControlPress }) => {
                       accept="audio/*"
                       multiple
                       onChange={handleFileUpload}
-                      className="block w-full text-xxs text-neutral-300 file:mr-4 file:text-xxs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
+                      className="block w-full text-xs text-neutral-300 file:mr-4 file:text-xs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
                     />
 
                     {userSamples && userSamples.length > 0 ? (
@@ -591,7 +591,7 @@ const Controls = ({ onControlPress }) => {
                                 );
                                 onControlPress?.();
                               }}
-                              className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                              className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
                                 selectedSample.name === sample.name
                                   ? "bg-red-800"
                                   : "text-red-400"
@@ -659,7 +659,7 @@ const Controls = ({ onControlPress }) => {
                               );
                               onControlPress?.();
                             }}
-                            className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
                               selectedEffect?.name === effect.name
                                 ? "bg-neutral-300 text-black"
                                 : "text-neutral-300"
@@ -706,7 +706,7 @@ const Controls = ({ onControlPress }) => {
                               );
                               onControlPress?.();
                             }}
-                            className={`inline-flex py-1 px-2 text-xxs border cursor-pointer ${
+                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
                               selectedEffect?.name === effect.name
                                 ? "bg-blue-800"
                                 : "text-blue-400"
