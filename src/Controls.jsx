@@ -58,6 +58,9 @@ const Controls = ({ onControlPress }) => {
   // Library toggle
   const [showLibrary, setShowLibrary] = useState(false);
 
+  // Library loading indicator
+  const [libraryLoading, setLibraryLoading] = useState(false);
+
   // -----------------------
   //   Lifecycle / Setup
   // -----------------------
@@ -199,6 +202,7 @@ const Controls = ({ onControlPress }) => {
    * Loads state from a given URL (our "Library" functionality).
    */
   async function handleLibraryLoad(url) {
+    setLibraryLoading(true);
     try {
       const response = await fetch(url);
       const loadedState = await response.json();
@@ -206,6 +210,8 @@ const Controls = ({ onControlPress }) => {
       setShowLibrary(false);
     } catch (err) {
       console.error("Error fetching or loading JSON state from URL:", err);
+    } finally {
+      setLibraryLoading(false);
     }
   }
 
@@ -1009,6 +1015,8 @@ const Controls = ({ onControlPress }) => {
             <p className="text-sm mb-4 text-white">
               Select a shared track to load:
             </p>
+            {/* Loading Indicator */}
+
             <div className="flex flex-col gap-3">
               {libraryFiles.map((file) => (
                 <button
@@ -1021,12 +1029,40 @@ const Controls = ({ onControlPress }) => {
               ))}
             </div>
 
-            <button
-              className="mt-6 px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
-              onClick={() => setShowLibrary(false)}
-            >
-              Back
-            </button>
+            <div className="mt-6 flex items-end h-8">
+              {libraryLoading ? (
+                <div className="flex items-center gap-2 text-sm text-white">
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <button
+                  className="px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
+                  onClick={() => setShowLibrary(false)}
+                >
+                  Back
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
