@@ -27,7 +27,6 @@ import {
   addUserSample,
   removeUserSample,
   sampleStore,
-  sampleToNoteMap,
   effectStore,
   effectDraftPathAtom,
   draftPathAtom,
@@ -136,7 +135,7 @@ const Controls = ({ onControlPress }) => {
         reconstructedSamples.push({
           id: s.id,
           name: s.name,
-          note: s.note,
+          // Remove note: s.note,
           data: arrayBuffer,
           url: URL.createObjectURL(
             new Blob([arrayBuffer], { type: "audio/*" })
@@ -227,7 +226,7 @@ const Controls = ({ onControlPress }) => {
       return {
         id: sample.id,
         name: sample.name,
-        note: sample.note,
+        // Remove note: sample.note,
         base64,
       };
     });

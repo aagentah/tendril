@@ -83,28 +83,6 @@ export const sampleStore = [
   { name: "Sweep-3", url: sweep3 },
 ];
 
-// Mapping samples to notes
-export const sampleToNoteMap = {
-  "Cymbal-1": "C4",
-  "Cymbal-2": "C#4",
-  "Hat-1": "D4",
-  "Hat-2": "D#4",
-  "Kick-1": "E4",
-  "Kick-2": "F4",
-  "Pad-1": "F#4",
-  "Pad-2": "G4",
-  "Pad-3": "G#4",
-  "Pad-4": "A4",
-  "Rim-1": "A#4",
-  "Rim-2": "B4",
-  "Snare-1": "C5",
-  "Snare-2": "C#5",
-  "Snare-3": "D5",
-  "Sweep-1": "D#5",
-  "Sweep-2": "E5",
-  "Sweep-3": "F5",
-};
-
 // Effect store
 export const effectStore = [
   {
@@ -374,44 +352,6 @@ const utilityHandlers = {
   },
 };
 
-/**
- * Utility to generate a unique note for user-uploaded samples.
- */
-export function getFallbackNote(sampleName, existingUserSamples) {
-  const defaultNotes = new Set(Object.values(sampleToNoteMap));
-  const usedNotes = new Set([
-    ...existingUserSamples.map((sample) => sample.note),
-    ...defaultNotes,
-  ]);
-
-  const noteSequence = [
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-  ];
-  const startOctave = 4;
-  const endOctave = 7;
-
-  for (let octave = startOctave; octave <= endOctave; octave++) {
-    for (const note of noteSequence) {
-      const fullNote = `${note}${octave}`;
-      if (!usedNotes.has(fullNote)) {
-        return fullNote;
-      }
-    }
-  }
-  return "C6";
-}
-
 // -----------------
 //   IndexedDB Init
 // -----------------
@@ -534,30 +474,6 @@ const App = () => {
     );
   }, [paths, setCurrentIndices]);
 
-  const sampleMap = useMemo(() => {
-    // Merge built-in and user samples
-    const mergedSamples = [...sampleStore, ...userSamples];
-
-    return _.reduce(
-      mergedSamples,
-      (acc, sample) => {
-        // If built-in
-        if (sampleStore.includes(sample)) {
-          const note = sampleToNoteMap[sample.name];
-          if (note) {
-            acc[note] = sample.url;
-          }
-        }
-        // If user
-        else if (sample.note) {
-          acc[sample.note] = sample.url;
-        }
-        return acc;
-      },
-      {}
-    );
-  }, [userSamples]);
-
   useEffect(() => {
     const players = {};
     [...sampleStore, ...userSamples].forEach((sample) => {
@@ -567,7 +483,7 @@ const App = () => {
     return () => {
       Object.values(players).forEach((player) => player.dispose());
     };
-  }, [sampleMap]);
+  }, [sampleStore, userSamples]);
 
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
@@ -628,6 +544,7 @@ const App = () => {
               break;
           }
         }
+
         const branchPlayers = {};
         [...sampleStore, ...userSamples].forEach((sample) => {
           branchPlayers[sample.name] = new Tone.Player(sample.url).connect(
@@ -635,10 +552,9 @@ const App = () => {
           );
         });
 
-        // Then store it:
         branchEffectNodesRef.current[branch.id] = {
           effectNode,
-          players: branchPlayers, // Instead of sampler
+          players: branchPlayers,
           type: branch.effect.type,
         };
       } else {
@@ -667,94 +583,7 @@ const App = () => {
         delete branchEffectNodesRef.current[branchId];
       }
     });
-  }, [branches, sampleMap]);
-
-  function forceNoteMapping(sampleName) {
-    const defaultNotes = new Set(Object.values(sampleToNoteMap));
-    const availableNotes = [
-      "G#5",
-      "A5",
-      "A#5",
-      "B5",
-      "C6",
-      "C#6",
-      "D6",
-      "D#6",
-      "E6",
-      "F6",
-      "F#6",
-      "G6",
-      "G#6",
-      "A6",
-      "A#6",
-      "B6",
-    ].filter((note) => !defaultNotes.has(note));
-
-    const hash = sampleName.split("").reduce((acc, char) => {
-      return char.charCodeAt(0) + ((acc << 5) - acc);
-    }, 0);
-
-    return availableNotes[Math.abs(hash) % availableNotes.length] || "C6";
-  }
-
-  const combinedNoteMap = useMemo(() => {
-    const noteMap = { ...sampleToNoteMap };
-    const activeHexes = hexes.filter((hex) => hex.sampleName);
-    console.log(
-      "Active hexes with samples:",
-      activeHexes.map((hex) => hex.sampleName)
-    );
-
-    // Map user samples first
-    userSamples.forEach((sample) => {
-      if (sample.note && !noteMap[sample.name]) {
-        noteMap[sample.name] = sample.note;
-        console.log(`Mapped user sample ${sample.name} to note ${sample.note}`);
-      }
-    });
-
-    // Force-map any hex sample with no existing mapping
-    activeHexes.forEach((hex) => {
-      if (hex.sampleName && !noteMap[hex.sampleName]) {
-        const forcedNote = forceNoteMapping(hex.sampleName);
-        noteMap[hex.sampleName] = forcedNote;
-        console.log(
-          `Force mapped sample ${hex.sampleName} to note ${forcedNote}`
-        );
-      }
-    });
-
-    console.log("Final noteMap:", noteMap);
-    return noteMap;
-  }, [hexes, userSamples]);
-
-  function ensureSampleHasValidNote(hex) {
-    if (!hex || !hex.sampleName) return null;
-
-    const note = combinedNoteMap[hex.sampleName];
-    if (!note) {
-      console.warn(`No note mapping found for sample ${hex.sampleName}`);
-      return null;
-    }
-    if (!note.match(/^[A-G]#?\d$/)) {
-      console.warn(`Invalid note ${note} for sample ${hex.sampleName}`);
-      return null;
-    }
-    return note;
-  }
-
-  async function updateUserSampleNote(sampleId, newNote) {
-    const db = await initDB();
-    const tx = db.transaction("userSamples", "readwrite");
-    const store = tx.objectStore("userSamples");
-
-    const sample = await store.get(sampleId);
-    if (sample) {
-      sample.note = newNote;
-      await store.put(sample);
-    }
-    await tx.done;
-  }
+  }, [branches, sampleStore, userSamples]);
 
   const triggerSampleWithValidation = (players, sampleName, duration, time) => {
     if (!players || !players[sampleName]) {
@@ -796,17 +625,8 @@ const App = () => {
                 areCoordinatesEqual(h, hex)
               );
               if (hexToUpdate && hexToUpdate.sampleName) {
-                const note =
-                  combinedNoteMap[hexToUpdate.sampleName] ||
-                  forceNoteMapping(hexToUpdate.sampleName);
                 const baseDuration =
                   Tone.Time(noteTime).toSeconds() * path.length;
-
-                console.log(`Attempting to play hex:`, {
-                  sampleName: hexToUpdate.sampleName,
-                  note,
-                  duration: baseDuration,
-                });
 
                 const connectedBranches = _.filter(
                   branchesRef.current,
