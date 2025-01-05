@@ -117,7 +117,7 @@ export const effectStore = [
     type: "fx",
     name: "BitCrusher",
     config: {
-      bits: { value: 4, default: 4 },
+      bits: { value: 4, default: 4, min: 1, max: 16 },
     },
   },
   {
@@ -387,7 +387,7 @@ export async function addUserSample(sample) {
     console.warn(
       `Invalid or missing note for sample ${sample.name}, generating fallback`
     );
-    sample.note = getFallbackNote(sample.name, userSamples);
+    // sample.note = getFallbackNote(sample.name, userSamples);
   }
 
   const db = await initDB();
@@ -497,6 +497,8 @@ const App = () => {
           branch.effectConfig,
           (param) => param.value
         );
+
+        console.log("effectConfig", effectConfig);
 
         if (branch.effect.type === "utility") {
           effectNode = new Tone.Gain().toDestination();

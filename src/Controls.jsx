@@ -813,7 +813,7 @@ const Controls = ({ onControlPress }) => {
                                   </label>
                                   <input
                                     type="range"
-                                    min={0}
+                                    min={effectParam.min || 0}
                                     max={effectParam.max || 1}
                                     step={effectParam.step || 0.01}
                                     value={param.value}
@@ -828,7 +828,13 @@ const Controls = ({ onControlPress }) => {
                                                 [paramName]: {
                                                   ...param,
                                                   value: parseFloat(
-                                                    e.target.value
+                                                    Number.isInteger(
+                                                      param.value
+                                                    )
+                                                      ? Math.round(
+                                                          e.target.value
+                                                        )
+                                                      : e.target.value
                                                   ),
                                                 },
                                               },
