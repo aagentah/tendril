@@ -145,7 +145,7 @@ const Hex = memo(
       console.log("effect.name", effect.name);
       text = effect.name.charAt(0);
     } else if (isMainHex) {
-      text = draftPath.length > 0 ? draftPath.length.toString() : "";
+      text = draftPath.length > 0 ? `${draftPath.length.toString()}-bar` : "";
     }
 
     // Determine cursor style
@@ -211,7 +211,7 @@ const Hex = memo(
             x="0"
             y="0"
             fill="white"
-            fontSize="14"
+            fontSize="12"
             fontWeight="bold"
             textAnchor="middle"
             dominantBaseline="middle"
