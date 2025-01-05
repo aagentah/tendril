@@ -1,5 +1,3 @@
-// App.jsx
-
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { atom, useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
@@ -477,9 +475,23 @@ const App = () => {
   useEffect(() => {
     const players = {};
     [...sampleStore, ...userSamples].forEach((sample) => {
-      players[sample.name] = new Tone.Player(sample.url).toDestination();
+      // Create player with specific configuration
+      const player = new Tone.Player({
+        url: sample.url,
+        fadeOut: 0.01, // Super quick fade out
+        retrigger: true, // Always retrigger rather than restart
+        curve: "linear", // Linear ramping for precise timing
+      }).toDestination();
+
+      // Set additional properties for precise scheduling
+      player.sync = true; // Sync to transport
+      player.loop = false; // Ensure no looping
+
+      players[sample.name] = player;
     });
+
     samplerRef.current = players;
+
     return () => {
       Object.values(players).forEach((player) => player.dispose());
     };
@@ -490,6 +502,7 @@ const App = () => {
   }, [bpm]);
 
   useEffect(() => {
+    // Set up any new branches or reconfigure existing ones
     branches.forEach((branch) => {
       if (!branchEffectNodesRef.current[branch.id]) {
         let effectNode;
@@ -560,6 +573,7 @@ const App = () => {
           type: branch.effect.type,
         };
       } else {
+        // Update any changed configs
         const { effectNode } = branchEffectNodesRef.current[branch.id];
         const effectConfig = _.mapValues(
           branch.effectConfig,
@@ -593,17 +607,29 @@ const App = () => {
       return false;
     }
     try {
-      console.log(`Playing sample ${sampleName}`);
       const player = players[sampleName];
-      player.start(time);
-      // Optional: Stop the sample after duration
-      player.stop(time + (duration || 0.25)); // 0.25 is equivalent to "8n" at 120bpm
+
+      // Ensure the player is loaded before attempting to play
+      if (!player.loaded) {
+        console.warn(`Sample ${sampleName} is not yet loaded.`);
+        return false;
+      }
+
+      console.log(
+        `Playing sample ${sampleName} at time ${time} for duration ${duration}s`
+      );
+
+      // Start the player with the specified duration
+      player.start(time, 0, duration || 0.25);
+
       return true;
     } catch (error) {
       console.error(`Error playing sample ${sampleName}:`, error);
       return false;
     }
   };
+
+  // Within App.jsx, replace the existing useEffect for Tone.Transport with this updated version
 
   useEffect(() => {
     if (isAudioPlaying) {
@@ -620,84 +646,84 @@ const App = () => {
           _.forEach(currentPaths, (pathObj) => {
             const { id: pathId, path } = pathObj;
             const currentIndex = currentIndices[pathId] || 0;
-            const hex = path[currentIndex];
+            const currentHex = path[currentIndex];
 
-            if (hex) {
+            if (currentHex) {
               const hexToUpdate = _.find(updatedHexes, (h) =>
-                areCoordinatesEqual(h, hex)
+                areCoordinatesEqual(h, currentHex)
               );
-              if (hexToUpdate && hexToUpdate.sampleName) {
-                const baseDuration =
-                  Tone.Time(noteTime).toSeconds() * path.length;
 
+              if (hexToUpdate && hexToUpdate.sampleName) {
+                // Calculate the exact number of steps remaining until this path ends
+                // Since we're moving inward, currentIndex represents steps remaining
+                const stepsRemaining = currentIndex;
+
+                // Initialize playback context with default values
+                let playbackContext = {
+                  triggerTime: time,
+                  duration: null,
+                  speedRate: 1,
+                };
+
+                // Find all branches connected to this path
                 const connectedBranches = _.filter(
                   branchesRef.current,
-                  (branchObj) => branchObj.parentPathId === pathId
+                  (b) => b.parentPathId === pathId
                 );
-                if (connectedBranches.length > 0) {
-                  const utilityBranches = connectedBranches.filter(
-                    (branch) => branch.effect.type === "utility"
-                  );
-                  const audioEffectBranches = connectedBranches.filter(
-                    (branch) => branch.effect.type !== "utility"
-                  );
 
-                  let playbackContext = {
-                    triggerTime: time,
-                    duration: baseDuration,
-                    speedRate: 1,
-                  };
+                // Separate utility and audio effect branches
+                const utilityBranches = connectedBranches.filter(
+                  (branch) => branch.effect.type === "utility"
+                );
+                const audioEffectBranches = connectedBranches.filter(
+                  (branch) => branch.effect.type !== "utility"
+                );
 
-                  // Process utility effects first
-                  playbackContext = utilityBranches.reduce(
-                    (context, branchObj) => {
-                      const handler = utilityHandlers[branchObj.effect.name];
-                      return handler
-                        ? handler(context, branchObj.effectConfig)
-                        : context;
-                    },
-                    playbackContext
-                  );
+                // Apply utility effects that could modify timing or speed
+                playbackContext = utilityBranches.reduce(
+                  (context, branchObj) => {
+                    const handler = utilityHandlers[branchObj.effect.name];
+                    return handler
+                      ? handler(context, branchObj.effectConfig)
+                      : context;
+                  },
+                  playbackContext
+                );
 
-                  pathSpeedRatesRef.current[pathId] = playbackContext.speedRate;
+                // Calculate exact duration for this step, accounting for speed effects
+                const oneStepDuration =
+                  Tone.Time(noteTime).toSeconds() /
+                  (playbackContext.speedRate || 1);
 
-                  if (!playbackContext.skip) {
-                    // Play through audio effect branches
-                    if (audioEffectBranches.length > 0) {
-                      audioEffectBranches.forEach((branch) => {
-                        const branchNode =
-                          branchEffectNodesRef.current[branch.id];
-                        // Now check for branchNode.players instead
-                        if (branchNode && branchNode.players) {
-                          // NEW
-                          triggerSampleWithValidation(
-                            branchNode.players,
-                            hexToUpdate.sampleName,
-                            playbackContext.duration || baseDuration,
-                            playbackContext.triggerTime
-                          );
-                        }
-                      });
-                    } else {
+                // Calculate total duration until path end
+                // Add a small offset (0.01s) to ensure clean cutoff
+                const totalDuration =
+                  stepsRemaining * oneStepDuration + oneStepDuration - 0.01;
+
+                if (audioEffectBranches.length > 0) {
+                  // Play through effect branches if they exist
+                  audioEffectBranches.forEach((branch) => {
+                    const branchNode = branchEffectNodesRef.current[branch.id];
+                    if (branchNode && branchNode.players) {
                       triggerSampleWithValidation(
-                        samplerRef.current,
+                        branchNode.players,
                         hexToUpdate.sampleName,
-                        baseDuration,
-                        time
+                        totalDuration,
+                        playbackContext.triggerTime
                       );
                     }
-                  }
+                  });
                 } else {
-                  // No branches
+                  // Play on main sampler if no audio effect branches
                   triggerSampleWithValidation(
                     samplerRef.current,
                     hexToUpdate.sampleName,
-                    baseDuration,
-                    time
+                    totalDuration,
+                    playbackContext.triggerTime
                   );
-                  pathSpeedRatesRef.current[pathId] = 1;
                 }
               }
+
               if (hexToUpdate) {
                 hexToUpdate.isPlaying = true;
               }
@@ -706,17 +732,17 @@ const App = () => {
           return [...updatedHexes];
         });
 
-        // Update path indices
+        // Update indices for next tick
         setCurrentIndices((prevIndices) => {
           const newIndices = { ...prevIndices };
           _.forEach(currentPaths, (pathObj) => {
             const { id: pathId, path } = pathObj;
             if (path && path.length > 0) {
-              const currentIndex = prevIndices[pathId] || 0;
               const speedRate = pathSpeedRatesRef.current[pathId] || 1;
-              const increment = speedRate;
+              const currentIndex = prevIndices[pathId] || 0;
+              // Move inward by speedRate steps, wrapping around when we reach the center
               newIndices[pathId] =
-                (currentIndex - increment + path.length) % path.length;
+                (currentIndex - speedRate + path.length) % path.length;
             } else {
               newIndices[pathId] = 0;
             }
@@ -751,6 +777,7 @@ const App = () => {
               className="text-neutral-500 underline"
               href="https://daniel.aagentah.tech/"
               target="_blank"
+              rel="noreferrer"
             >
               daniel.aagentah
             </a>
@@ -773,6 +800,7 @@ const App = () => {
                 className="text-neutral-500 underline"
                 href="https://daniel.aagentah.tech/"
                 target="_blank"
+                rel="noreferrer"
               >
                 daniel.aagentah
               </a>
