@@ -559,11 +559,13 @@ const App = () => {
   }, [userSamples]);
 
   useEffect(() => {
-    samplerRef.current = new Tone.Sampler(sampleMap).toDestination();
+    const players = {};
+    [...sampleStore, ...userSamples].forEach((sample) => {
+      players[sample.name] = new Tone.Player(sample.url).toDestination();
+    });
+    samplerRef.current = players;
     return () => {
-      if (samplerRef.current) {
-        samplerRef.current.dispose();
-      }
+      Object.values(players).forEach((player) => player.dispose());
     };
   }, [sampleMap]);
 
@@ -626,11 +628,17 @@ const App = () => {
               break;
           }
         }
-        const branchSampler = new Tone.Sampler(sampleMap).connect(effectNode);
+        const branchPlayers = {};
+        [...sampleStore, ...userSamples].forEach((sample) => {
+          branchPlayers[sample.name] = new Tone.Player(sample.url).connect(
+            effectNode
+          );
+        });
 
+        // Then store it:
         branchEffectNodesRef.current[branch.id] = {
           effectNode,
-          sampler: branchSampler,
+          players: branchPlayers, // Instead of sampler
           type: branch.effect.type,
         };
       } else {
@@ -649,7 +657,12 @@ const App = () => {
     const branchIds = branches.map((branch) => branch.id);
     Object.keys(branchEffectNodesRef.current).forEach((branchId) => {
       if (!branchIds.includes(branchId)) {
-        branchEffectNodesRef.current[branchId].sampler.dispose();
+        // Dispose all players first
+        Object.values(branchEffectNodesRef.current[branchId].players).forEach(
+          (player) => {
+            player.dispose();
+          }
+        );
         branchEffectNodesRef.current[branchId].effectNode.dispose();
         delete branchEffectNodesRef.current[branchId];
       }
@@ -743,31 +756,20 @@ const App = () => {
     await tx.done;
   }
 
-  const triggerSampleWithValidation = (
-    sampler,
-    sampleName,
-    note,
-    duration,
-    time
-  ) => {
-    if (!sampler) {
-      console.error("Error: Sampler is not initialized");
-      return false;
-    }
-    const validNote = note && note.match(/^[A-G]#?\d$/);
-    if (!validNote) {
-      console.error(`Error: Invalid note ${note} for sample ${sampleName}`);
+  const triggerSampleWithValidation = (players, sampleName, duration, time) => {
+    if (!players || !players[sampleName]) {
+      console.error("Error: Player not initialized for sample:", sampleName);
       return false;
     }
     try {
-      console.log(`Playing sample ${sampleName} with note ${note}`);
-      sampler.triggerAttackRelease(note, duration || "8n", time);
+      console.log(`Playing sample ${sampleName}`);
+      const player = players[sampleName];
+      player.start(time);
+      // Optional: Stop the sample after duration
+      player.stop(time + (duration || 0.25)); // 0.25 is equivalent to "8n" at 120bpm
       return true;
     } catch (error) {
-      console.error(
-        `Error playing sample ${sampleName} with note ${note}:`,
-        error
-      );
+      console.error(`Error playing sample ${sampleName}:`, error);
       return false;
     }
   };
@@ -843,11 +845,12 @@ const App = () => {
                       audioEffectBranches.forEach((branch) => {
                         const branchNode =
                           branchEffectNodesRef.current[branch.id];
-                        if (branchNode && branchNode.sampler) {
+                        // Now check for branchNode.players instead
+                        if (branchNode && branchNode.players) {
+                          // NEW
                           triggerSampleWithValidation(
-                            branchNode.sampler,
+                            branchNode.players,
                             hexToUpdate.sampleName,
-                            note,
                             playbackContext.duration || baseDuration,
                             playbackContext.triggerTime
                           );
@@ -857,9 +860,8 @@ const App = () => {
                       triggerSampleWithValidation(
                         samplerRef.current,
                         hexToUpdate.sampleName,
-                        note,
-                        playbackContext.duration || baseDuration,
-                        playbackContext.triggerTime
+                        baseDuration,
+                        time
                       );
                     }
                   }
@@ -868,7 +870,6 @@ const App = () => {
                   triggerSampleWithValidation(
                     samplerRef.current,
                     hexToUpdate.sampleName,
-                    note,
                     baseDuration,
                     time
                   );

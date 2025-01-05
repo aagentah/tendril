@@ -420,18 +420,16 @@ const Controls = ({ onControlPress }) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file || file.size === 0) continue;
-      if (file.size > 50 * 1024 * 1024) continue; // Arbitrary size limit
+      if (file.size > 50 * 1024 * 1024) continue; // Size limit check
 
       // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
       const cleanName = file.name.replace(/\.[^/.]+$/, "");
 
-      // Save the raw ArrayBuffer to IndexedDB
       try {
         await addUserSample({
           name: cleanName,
           data: arrayBuffer,
-          note: null, // fallback in addUserSample
         });
       } catch (err) {
         console.error("Error adding sample to IndexedDB:", err);
