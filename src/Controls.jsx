@@ -60,9 +60,9 @@ const Controls = ({ onControlPress }) => {
   // Library loading indicator
   const [libraryLoading, setLibraryLoading] = useState(false);
 
-  // -----------------------
-  //   Lifecycle / Setup
-  // -----------------------
+  // ------------------------------------------------
+  // Lifecycle / Setup
+  // ------------------------------------------------
   useEffect(() => {
     getAllUserSamples().then((samples) => {
       setUserSamples(samples);
@@ -91,9 +91,9 @@ const Controls = ({ onControlPress }) => {
     handleRecordingStart();
   }, [isAudioPlaying, isRecordingArmed, isRecording]);
 
-  // -----------------------
-  //   Helpers for JSON I/O
-  // -----------------------
+  // ------------------------------------------------
+  // Helpers for JSON I/O
+  // ------------------------------------------------
 
   /**
    * Encodes an ArrayBuffer to a base64 string.
@@ -214,9 +214,9 @@ const Controls = ({ onControlPress }) => {
     }
   }
 
-  // -----------------------
-  //   Save / Load (Manual)
-  // -----------------------
+  // ------------------------------------------------
+  // Save / Load (Manual)
+  // ------------------------------------------------
   const handleSave = () => {
     // Convert userSamples data into base64
     const userSamplesData = userSamples.map((sample) => {
@@ -252,9 +252,9 @@ const Controls = ({ onControlPress }) => {
     onControlPress?.();
   };
 
-  // -----------------------
-  //   Main Playback Logic
-  // -----------------------
+  // ------------------------------------------------
+  // Main Playback Logic
+  // ------------------------------------------------
   const togglePlay = async () => {
     if (isAudioPlaying) {
       // If we're recording, stop the recording first
@@ -317,9 +317,9 @@ const Controls = ({ onControlPress }) => {
     onControlPress?.();
   };
 
-  // -----------------------
-  //   Path/Branch Deletion
-  // -----------------------
+  // ------------------------------------------------
+  // Path/Branch Deletion
+  // ------------------------------------------------
   const anyPathSelected = _.some(hexes, (hex) => hex.isPathSelected);
   const anyBranchSelected = _.some(hexes, (hex) => hex.isBranchSelected);
 
@@ -409,9 +409,9 @@ const Controls = ({ onControlPress }) => {
     (effect) => effect.name === selectedBranch?.effect.name
   );
 
-  // -----------------------
-  //   File Upload Handling
-  // -----------------------
+  // ------------------------------------------------
+  // File Upload Handling
+  // ------------------------------------------------
   async function handleFileUpload(e) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -449,9 +449,26 @@ const Controls = ({ onControlPress }) => {
     setUserSamples(updated);
   };
 
-  // -----------------------
-  //       Rendering
-  // -----------------------
+  // ------------------------------------------------
+  // PREVIEW LOGIC
+  // ------------------------------------------------
+  async function previewSample(url) {
+    try {
+      await Tone.start(); // ensure audio context is unmuted
+      const player = new Tone.Player().toDestination();
+      // Wait for the buffer to load before starting
+      await player.load(url);
+
+      player.start();
+      player.stop("+2"); // stop after 2 seconds or as you prefer
+    } catch (error) {
+      console.error("Error loading/playing sample preview:", error);
+    }
+  }
+
+  // ------------------------------------------------
+  // Rendering
+  // ------------------------------------------------
 
   // Two pre-made library JSONs
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
@@ -502,16 +519,22 @@ const Controls = ({ onControlPress }) => {
                       {_.map(sampleStore, (sample) => (
                         <button
                           key={sample.name}
-                          onClick={() => {
+                          onClick={async () => {
+                            // If user clicks same sample again, deselect it
                             if (selectedSample.name === sample.name) {
                               setSelectedSample({ name: null, click: 0 });
                             } else {
+                              // Otherwise, select new sample and preview
                               setSelectedSample({
                                 name: sample.name,
                                 click: 1,
                               });
                               setSelectedEffect({ type: null, name: null });
+
+                              await previewSample(sample.url);
                             }
+
+                            // Clear path/branch/hex selection
                             setHexes((prevHexes) =>
                               updateHexProperties(
                                 prevHexes,
@@ -559,7 +582,7 @@ const Controls = ({ onControlPress }) => {
                             className="flex flex-col relative"
                           >
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (selectedSample.name === sample.name) {
                                   setSelectedSample({ name: null, click: 0 });
                                 } else {
@@ -568,7 +591,10 @@ const Controls = ({ onControlPress }) => {
                                     click: 1,
                                   });
                                   setSelectedEffect({ type: null, name: null });
+
+                                  await previewSample(sample.url);
                                 }
+
                                 setHexes((prevHexes) =>
                                   updateHexProperties(
                                     prevHexes,
@@ -607,7 +633,7 @@ const Controls = ({ onControlPress }) => {
                     <div className="text-xs text-neutral-500">
                       Your uploaded samples are temporarily stored in your
                       browser and will be cleared when you close the session. If
-                      decide to "Save" your session, the samples will be
+                      you decide to "Save" your session, the samples will be
                       included in the downloaded .json file.
                     </div>
                   </div>
@@ -731,9 +757,6 @@ const Controls = ({ onControlPress }) => {
                     Path Config
                   </div>
                   <div className="p-4">
-                    {/* <p className="text-sm mb-4 text-white">
-                      Configure the selected path here.
-                    </p> */}
                     <button
                       onClick={resetPath}
                       className="text-red-600 cursor-pointer"
