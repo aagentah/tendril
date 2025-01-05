@@ -98,11 +98,11 @@ const Hex = memo(
       fillColor = "blue";
     }
 
-    // if (isPath && lastHexInPath) {
-    //   strokeColor = "red";
-    //   strokeOpacity = 1;
-    //   strokeWidth = 1;
-    // }
+    if (!isPathSelected && isPath && lastHexInPath) {
+      strokeColor = "red";
+      // strokeOpacity = 1;
+      // strokeWidth = 1;
+    }
 
     if (effect.type === "fx" && isBranch && lastHexInPath) {
       strokeColor = "white";
@@ -153,25 +153,25 @@ const Hex = memo(
     if (isHexSelected) {
       cursor = "cursor-pointer";
       fillColor = "grey";
-    } else if (selectedSample.name && isPath && isHovered) {
+    } else if (selectedSample?.name && isPath && isHovered) {
       cursor = "cursor-crosshair";
       fillColor = "grey";
-    } else if (isPath && selectedSample.name && !draftPath.length) {
+    } else if (isPath && selectedSample?.name && !draftPath.length) {
       cursor = "cursor-crosshair";
       fillColor = "#171717";
       strokeWidth = 4;
       strokeColor = "grey";
-    } else if (selectedSample.name && isPath) {
+    } else if (selectedSample?.name && isPath) {
       cursor = "cursor-crosshair";
       fillColor = "darkred";
     } else if (
-      !selectedSample.name &&
-      !selectedEffect.name &&
+      !selectedSample?.name &&
+      !selectedEffect?.name &&
       !isPath &&
       !isBranch
     ) {
       cursor = "cursor-crosshair";
-    } else if (isEffectDraft && selectedEffect.name) {
+    } else if (isEffectDraft && selectedEffect?.name) {
       cursor = "cursor-crosshair";
     } else if (anyHexSelected && isPathSelected && !sampleName && isHovered) {
       cursor = "cursor-crosshair";

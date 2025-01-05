@@ -457,10 +457,7 @@ const Controls = ({ onControlPress }) => {
   // -----------------------
 
   // Two pre-made library JSONs
-  const libraryFiles = [
-    { label: "one.json", url: "/json/one.json" },
-    { label: "two.json", url: "/json/two.json" },
-  ];
+  const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
   return (
     <div className="mt-4 flex flex-col items-center space-y-4 max-w-md mx-auto">
@@ -611,8 +608,10 @@ const Controls = ({ onControlPress }) => {
                     <hr className="border-neutral-800" />
 
                     <div className="text-xs text-neutral-500">
-                      Please note all samples are saved locally to your browser
-                      storage and are not permanently uploaded.
+                      Your uploaded samples are temporarily stored in your
+                      browser and will be cleared when you close the session. If
+                      decide to "Save" your session, the samples will be
+                      included in the downloaded .json file.
                     </div>
                   </div>
                 )}
@@ -757,9 +756,10 @@ const Controls = ({ onControlPress }) => {
                       Branch Config
                     </div>
                     <div className="p-4">
-                      {/* <p className="text-sm mb-4 text-white">
-                        Configure the selected branch here.
-                      </p> */}
+                      <p className="text-sm mb-4 text-white">
+                        {selectedEffectDefinition.name}
+                      </p>
+
                       <div className="flex flex-wrap gap-3">
                         {Object.keys(selectedBranch.effectConfig).map(
                           (paramName) => {
