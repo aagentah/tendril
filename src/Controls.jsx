@@ -1265,7 +1265,7 @@ const Controls = ({ onControlPress }) => {
         </div>
       )}
 
-      {dragPreview.show && (
+      {/* {dragPreview.show && (
         <div
           className="fixed size-4 bg-white rounded-full pointer-events-none"
           style={{
@@ -1273,7 +1273,7 @@ const Controls = ({ onControlPress }) => {
             top: dragPreview.y - 26,
           }}
         />
-      )}
+      )} */}
     </div>
   );
 };

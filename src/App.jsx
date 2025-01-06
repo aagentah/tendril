@@ -6,6 +6,10 @@ import p5 from "p5";
 import _ from "lodash";
 import { v4 as uuidv4 } from "uuid";
 import { openDB } from "idb";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend"; // For desktop and touch support
+// import { TouchBackend } from "react-dnd-touch-backend"; // Optional: For enhanced touch support
+// import MultiBackend, { TouchTransition } from "react-dnd-multi-backend"; // Optional: For combining backends
 
 import {
   FaPlay,
@@ -768,35 +772,11 @@ const App = () => {
   const closeControlsRef = useRef(null);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
-      <div className="flex flex-wrap w-full max-w-screen-xl">
-        <div className="visible lg:hidden absolute top-8 left-0 right-0 text-lg my-4 text-center mx-auto">
-          <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-          <p className="text-center text-sm text-neutral-500">
-            Made by{" "}
-            <a
-              className="text-neutral-500 underline"
-              href="https://daniel.aagentah.tech/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              daniel.aagentah
-            </a>
-          </p>
-        </div>
-
-        <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
-          <div className="relative">
-            {/* Render the Grid and P5Overlay */}
-            <HexGrid />
-            <P5Overlay />
-          </div>
-        </div>
-        <div className="w-full lg:w-1/2 flex justify-center items-center">
-          <MobileControlsPanel onCloseRef={closeControlsRef}>
-            <h1 className="text-lg mb-2 text-center mx-auto">Controls</h1>
-
-            {/* <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+    <DndProvider backend={HTML5Backend}>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
+        <div className="flex flex-wrap w-full max-w-screen-xl">
+          <div className="visible lg:hidden absolute top-8 left-0 right-0 text-lg my-4 text-center mx-auto">
+            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
             <p className="text-center text-sm text-neutral-500">
               Made by{" "}
               <a
@@ -807,21 +787,34 @@ const App = () => {
               >
                 daniel.aagentah
               </a>
-            </p> */}
+            </p>
+          </div>
 
-            {/* Controls panel */}
-            <Controls
-              selectedSample={selectedSample}
-              setSelectedSample={(sample) => {
-                setSelectedSample(sample);
-                closeControlsRef.current?.();
-              }}
-              onControlPress={() => closeControlsRef.current?.()}
-            />
-          </MobileControlsPanel>
+          <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
+            <div className="relative">
+              {/* Render the Grid and P5Overlay */}
+              <HexGrid />
+              <P5Overlay />
+            </div>
+          </div>
+          <div className="w-full lg:w-1/2 flex justify-center items-center">
+            <MobileControlsPanel onCloseRef={closeControlsRef}>
+              <h1 className="text-lg mb-2 text-center mx-auto">Controls</h1>
+
+              {/* Controls panel */}
+              <Controls
+                selectedSample={selectedSample}
+                setSelectedSample={(sample) => {
+                  setSelectedSample(sample);
+                  closeControlsRef.current?.();
+                }}
+                onControlPress={() => closeControlsRef.current?.()}
+              />
+            </MobileControlsPanel>
+          </div>
         </div>
       </div>
-    </div>
+    </DndProvider>
   );
 };
 
