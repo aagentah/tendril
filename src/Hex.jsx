@@ -201,9 +201,23 @@ const Hex = memo(
     return (
       <g
         transform={`translate(${x}, ${y})`}
-        onClick={onClick}
+        // onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onMouseUp={onClick}
+        onTouchMove={(e) => {
+          const touch = e.touches[0];
+          const element = document.elementFromPoint(
+            touch.clientX,
+            touch.clientY
+          );
+          if (element === e.currentTarget) {
+            handleMouseEnter();
+          } else {
+            handleMouseLeave();
+          }
+        }}
+        onTouchEnd={onClick}
         className={cursor}
       >
         <polygon

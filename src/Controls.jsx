@@ -10,6 +10,7 @@ import {
   FaMicrophone,
   FaMicrophoneSlash,
   FaStop,
+  FaBars,
 } from "react-icons/fa";
 
 // Import atoms and utility functions from your split files
@@ -30,6 +31,7 @@ import {
   effectStore,
   effectDraftPathAtom,
   draftPathAtom,
+  dragPreviewAtom,
 } from "./App";
 import { updateHexProperties } from "./hexUtils";
 
@@ -44,6 +46,7 @@ const Controls = ({ onControlPress }) => {
   const [, setDraftPath] = useAtom(draftPathAtom);
   const [selectedEffect, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
+  const [dragPreview, setDragPreview] = useAtom(dragPreviewAtom);
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
@@ -63,6 +66,42 @@ const Controls = ({ onControlPress }) => {
   // ------------------------------------------------
   // Lifecycle / Setup
   // ------------------------------------------------
+
+  useEffect(() => {
+    const handleGlobalUp = () => {
+      setDragPreview({ show: false, x: 0, y: 0 });
+    };
+
+    window.addEventListener("mouseup", handleGlobalUp);
+    window.addEventListener("touchend", handleGlobalUp);
+
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalUp);
+      window.removeEventListener("touchend", handleGlobalUp);
+    };
+  }, [setDragPreview]);
+
+  useEffect(() => {
+    const handleMove = (e) => {
+      if (dragPreview.show) {
+        const coords = e.type === "touchmove" ? e.touches[0] : e;
+        setDragPreview((prev) => ({
+          ...prev,
+          x: coords.clientX,
+          y: coords.clientY,
+        }));
+      }
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("touchmove", handleMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("touchmove", handleMove);
+    };
+  }, [dragPreview.show, setDragPreview]);
+
   useEffect(() => {
     getAllUserSamples().then((samples) => {
       setUserSamples(samples);
@@ -467,6 +506,176 @@ const Controls = ({ onControlPress }) => {
   }
 
   // ------------------------------------------------
+  // Event Handlers for Samples and Effects
+  // ------------------------------------------------
+
+  /**
+   * Handles the selection and deselection of a sample.
+   * @param {Object} sample - The sample object.
+   */
+  const handleSampleSelection = async (sample) => {
+    // If user clicks same sample again, deselect it
+    if (selectedSample.name === sample.name) {
+      setSelectedSample({ name: null, click: 0 });
+    } else {
+      // Otherwise, select new sample and preview
+      setSelectedSample({
+        name: sample.name,
+        click: 1,
+      });
+      setSelectedEffect({ type: null, name: null });
+
+      await previewSample(sample.url);
+    }
+
+    // Clear path/branch/hex selection
+    setHexes((prevHexes) =>
+      updateHexProperties(
+        prevHexes,
+        (hex) =>
+          hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
+        {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        }
+      )
+    );
+    onControlPress?.();
+  };
+
+  /**
+   * Handles the mouse down and touch start event for samples.
+   * @param {Object} sample - The sample object.
+   */
+  const handleSampleDragStart = (sample, clientX, clientY) => {
+    handleSampleMouseDown(sample)();
+    setDragPreview({
+      show: true,
+      x: clientX,
+      y: clientY,
+    });
+  };
+
+  /**
+   * Handles the mouse up and touch end event for samples.
+   * @param {Object} sample - The sample object.
+   */
+  const handleSampleDragEnd = (sample) => {
+    handleSampleMouseUp(sample)();
+  };
+
+  /**
+   * Handles the mouse down and touch start event for effects.
+   * @param {Object} effect - The effect object.
+   */
+  const handleEffectDragStart = (effect, clientX, clientY) => {
+    handleEffectMouseDown(effect)();
+    setDragPreview({
+      show: true,
+      x: clientX,
+      y: clientY,
+    });
+  };
+
+  /**
+   * Handles the mouse up and touch end event for effects.
+   * @param {Object} effect - The effect object.
+   */
+  const handleEffectDragEnd = (effect) => {
+    handleEffectMouseUp(effect)();
+  };
+
+  /**
+   * Handles the mouse down event for samples.
+   * @param {Object} sample - The sample object.
+   */
+  const handleSampleMouseDown = (sample) => async () => {
+    await handleSampleSelection(sample);
+  };
+
+  /**
+   * Handles the mouse up event for samples.
+   * @param {Object} sample - The sample object.
+   */
+  const handleSampleMouseUp = (sample) => async () => {
+    // If user clicks same sample again, deselect it
+    if (selectedSample.name === sample.name) {
+      setSelectedSample({ name: null, click: 0 });
+    } else {
+      // Otherwise, select new sample and preview
+      setSelectedSample({
+        name: sample.name,
+        click: 2,
+      });
+      setSelectedEffect({ type: null, name: null });
+
+      // Optionally, you can preview the sample on mouse up as well
+      // await previewSample(sample.url);
+    }
+
+    // Clear path/branch/hex selection
+    setHexes((prevHexes) =>
+      updateHexProperties(
+        prevHexes,
+        (hex) =>
+          hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
+        {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        }
+      )
+    );
+    onControlPress?.();
+  };
+
+  /**
+   * Handles the selection and deselection of an effect.
+   * @param {Object} effect - The effect object.
+   */
+  const handleEffectSelection = (effect) => () => {
+    if (selectedEffect?.name === effect.name) {
+      setSelectedEffect(null);
+    } else {
+      setSelectedEffect({
+        type: effect.type,
+        name: effect.name,
+      });
+      setSelectedSample({ name: null, click: 0 });
+    }
+    setHexes((prevHexes) =>
+      updateHexProperties(
+        prevHexes,
+        (hex) =>
+          hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
+        {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        }
+      )
+    );
+    onControlPress?.();
+  };
+
+  /**
+   * Handles the mouse down event for effects.
+   * @param {Object} effect - The effect object.
+   */
+  const handleEffectMouseDown = (effect) => () => {
+    handleEffectSelection(effect)();
+  };
+
+  /**
+   * Handles the mouse up event for effects.
+   * @param {Object} effect - The effect object.
+   */
+  const handleEffectMouseUp = (effect) => () => {
+    handleEffectSelection(effect)();
+  };
+
+  // ------------------------------------------------
   // Rendering
   // ------------------------------------------------
 
@@ -519,44 +728,28 @@ const Controls = ({ onControlPress }) => {
                       {_.map(sampleStore, (sample) => (
                         <button
                           key={sample.name}
-                          onClick={async () => {
-                            // If user clicks same sample again, deselect it
-                            if (selectedSample.name === sample.name) {
-                              setSelectedSample({ name: null, click: 0 });
-                            } else {
-                              // Otherwise, select new sample and preview
-                              setSelectedSample({
-                                name: sample.name,
-                                click: 1,
-                              });
-                              setSelectedEffect({ type: null, name: null });
-
-                              await previewSample(sample.url);
-                            }
-
-                            // Clear path/branch/hex selection
-                            setHexes((prevHexes) =>
-                              updateHexProperties(
-                                prevHexes,
-                                (hex) =>
-                                  hex.isPathSelected ||
-                                  hex.isBranchSelected ||
-                                  hex.isHexSelected,
-                                {
-                                  isPathSelected: false,
-                                  isBranchSelected: false,
-                                  isHexSelected: false,
-                                }
-                              )
-                            );
-                            onControlPress?.();
+                          onMouseDown={(e) => {
+                            handleSampleDragStart(sample, e.clientX, e.clientY);
                           }}
-                          className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
+                          onMouseUp={() => handleSampleDragEnd(sample)}
+                          onTouchStart={(e) => {
+                            const touch = e.touches[0];
+                            handleSampleDragStart(
+                              sample,
+                              touch.clientX,
+                              touch.clientY
+                            );
+                          }}
+                          onTouchEnd={() => handleSampleDragEnd(sample)}
+                          className={`inline-flex py-1 px-2 text-xs border cursor-grab items-center ${
                             selectedSample.name === sample.name
                               ? "bg-red-800"
                               : "text-red-400"
                           }`}
                         >
+                          <span className="text-white mr-2">
+                            <FaBars size={8} />
+                          </span>
                           {sample.name}
                         </button>
                       ))}
@@ -582,41 +775,32 @@ const Controls = ({ onControlPress }) => {
                             className="flex flex-col relative"
                           >
                             <button
-                              onClick={async () => {
-                                if (selectedSample.name === sample.name) {
-                                  setSelectedSample({ name: null, click: 0 });
-                                } else {
-                                  setSelectedSample({
-                                    name: sample.name,
-                                    click: 1,
-                                  });
-                                  setSelectedEffect({ type: null, name: null });
-
-                                  await previewSample(sample.url);
-                                }
-
-                                setHexes((prevHexes) =>
-                                  updateHexProperties(
-                                    prevHexes,
-                                    (hex) =>
-                                      hex.isPathSelected ||
-                                      hex.isBranchSelected ||
-                                      hex.isHexSelected,
-                                    {
-                                      isPathSelected: false,
-                                      isBranchSelected: false,
-                                      isHexSelected: false,
-                                    }
-                                  )
+                              onMouseDown={(e) => {
+                                handleSampleDragStart(
+                                  sample,
+                                  e.clientX,
+                                  e.clientY
                                 );
-                                onControlPress?.();
                               }}
-                              className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
+                              onMouseUp={() => handleSampleDragEnd(sample)}
+                              onTouchStart={(e) => {
+                                const touch = e.touches[0];
+                                handleSampleDragStart(
+                                  sample,
+                                  touch.clientX,
+                                  touch.clientY
+                                );
+                              }}
+                              onTouchEnd={() => handleSampleDragEnd(sample)}
+                              className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
                                 selectedSample.name === sample.name
                                   ? "bg-red-800"
                                   : "text-red-400"
                               }`}
                             >
+                              <span className="text-white mr-2">
+                                <FaBars size={8} />
+                              </span>
                               {sample.name}
                             </button>
                           </div>
@@ -655,38 +839,32 @@ const Controls = ({ onControlPress }) => {
                           <button
                             key={effect.name}
                             disabled={!paths.length}
-                            onClick={() => {
-                              if (selectedEffect?.name === effect.name) {
-                                setSelectedEffect(null);
-                              } else {
-                                setSelectedEffect({
-                                  type: effect.type,
-                                  name: effect.name,
-                                });
-                                setSelectedSample({ name: null, click: 0 });
-                              }
-                              setHexes((prevHexes) =>
-                                updateHexProperties(
-                                  prevHexes,
-                                  (hex) =>
-                                    hex.isPathSelected ||
-                                    hex.isBranchSelected ||
-                                    hex.isHexSelected,
-                                  {
-                                    isPathSelected: false,
-                                    isBranchSelected: false,
-                                    isHexSelected: false,
-                                  }
-                                )
+                            onMouseDown={(e) => {
+                              handleEffectDragStart(
+                                effect,
+                                e.clientX,
+                                e.clientY
                               );
-                              onControlPress?.();
                             }}
-                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
+                            onMouseUp={() => handleEffectDragEnd(effect)}
+                            onTouchStart={(e) => {
+                              const touch = e.touches[0];
+                              handleEffectDragStart(
+                                effect,
+                                touch.clientX,
+                                touch.clientY
+                              );
+                            }}
+                            onTouchEnd={() => handleEffectDragEnd(effect)}
+                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
                               selectedEffect?.name === effect.name
                                 ? "bg-neutral-300 text-black"
                                 : "text-neutral-300"
                             } ${!paths.length ? "opacity-50" : ""}`}
                           >
+                            <span className="text-white mr-2">
+                              <FaBars size={8} />
+                            </span>
                             {effect.name}
                           </button>
                         )
@@ -702,38 +880,32 @@ const Controls = ({ onControlPress }) => {
                           <button
                             key={effect.name}
                             disabled={!paths.length}
-                            onClick={() => {
-                              if (selectedEffect?.name === effect.name) {
-                                setSelectedEffect(null);
-                              } else {
-                                setSelectedEffect({
-                                  type: effect.type,
-                                  name: effect.name,
-                                });
-                                setSelectedSample({ name: null, click: 0 });
-                              }
-                              setHexes((prevHexes) =>
-                                updateHexProperties(
-                                  prevHexes,
-                                  (hex) =>
-                                    hex.isPathSelected ||
-                                    hex.isBranchSelected ||
-                                    hex.isHexSelected,
-                                  {
-                                    isPathSelected: false,
-                                    isBranchSelected: false,
-                                    isHexSelected: false,
-                                  }
-                                )
+                            onMouseDown={(e) => {
+                              handleEffectDragStart(
+                                effect,
+                                e.clientX,
+                                e.clientY
                               );
-                              onControlPress?.();
                             }}
-                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer ${
+                            onMouseUp={() => handleEffectDragEnd(effect)}
+                            onTouchStart={(e) => {
+                              const touch = e.touches[0];
+                              handleEffectDragStart(
+                                effect,
+                                touch.clientX,
+                                touch.clientY
+                              );
+                            }}
+                            onTouchEnd={() => handleEffectDragEnd(effect)}
+                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
                               selectedEffect?.name === effect.name
                                 ? "bg-blue-800"
                                 : "text-blue-400"
                             } ${!paths.length ? "opacity-50" : ""}`}
                           >
+                            <span className="text-white mr-2">
+                              <FaBars size={8} />
+                            </span>
                             {effect.name}
                           </button>
                         )
@@ -987,7 +1159,7 @@ const Controls = ({ onControlPress }) => {
 
                   <label
                     htmlFor="loadState"
-                    className="cursor-pointer px-4 py-2 bg-transparent border border-gwhite text-gwhite rounded focus:outline-none"
+                    className="cursor-pointer px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none"
                   >
                     Load
                     <input
@@ -1091,6 +1263,16 @@ const Controls = ({ onControlPress }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {dragPreview.show && (
+        <div
+          className="fixed size-4 bg-white rounded-full pointer-events-none"
+          style={{
+            left: dragPreview.x - 10,
+            top: dragPreview.y - 26,
+          }}
+        />
       )}
     </div>
   );
