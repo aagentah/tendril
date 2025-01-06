@@ -4,7 +4,12 @@ import React, { useState, memo } from "react";
 import { useAtom } from "jotai";
 
 // Import any atoms or utilities the Hex component needs
-import { draftPathAtom, selectedSampleAtom, selectedEffectAtom } from "./App";
+import {
+  pathsAtom,
+  draftPathAtom,
+  selectedSampleAtom,
+  selectedEffectAtom,
+} from "./App";
 
 /**
  * Single hex cell component.
@@ -44,6 +49,7 @@ const Hex = memo(
     // Atom states (uncomment if needed; some were commented out in original code)
     // const [paths] = useAtom(pathsAtom);
     // const [branches] = useAtom(branchesAtom);
+    const [paths] = useAtom(pathsAtom);
     const [draftPath] = useAtom(draftPathAtom);
     const [selectedSample] = useAtom(selectedSampleAtom);
     const [selectedEffect] = useAtom(selectedEffectAtom);
@@ -56,6 +62,10 @@ const Hex = memo(
     let strokeColor = "grey";
     let strokeOpacity = 0.5;
     let strokeWidth = 0.5;
+
+    if (paths.length === 0 && !selectedSample?.name) {
+      strokeOpacity = 0.2;
+    }
 
     if (isMainHex) {
       fillColor = "#171717";

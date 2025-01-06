@@ -793,7 +793,9 @@ const App = () => {
         </div>
         <div className="w-full lg:w-1/2 flex justify-center items-center">
           <MobileControlsPanel onCloseRef={closeControlsRef}>
-            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+            <h1 className="text-lg mb-2 text-center mx-auto">Controls</h1>
+
+            {/* <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
             <p className="text-center text-sm text-neutral-500">
               Made by{" "}
               <a
@@ -804,7 +806,7 @@ const App = () => {
               >
                 daniel.aagentah
               </a>
-            </p>
+            </p> */}
 
             {/* Controls panel */}
             <Controls
@@ -851,7 +853,7 @@ const MobileControlsPanel = ({ children, onCloseRef }) => {
         </button>
 
         <div
-          className={`fixed inset-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out ${
+          className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
             isOpen ? "translate-y-0" : "translate-y-full"
           }`}
         >
@@ -861,16 +863,16 @@ const MobileControlsPanel = ({ children, onCloseRef }) => {
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
+              width="18"
+              height="18"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
+              <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
             </svg>
           </button>
           <div className="h-full overflow-y-auto px-4 pt-16 pb-8">

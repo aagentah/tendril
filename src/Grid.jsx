@@ -43,54 +43,66 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [hasShownOnce, setHasShownOnce] = useState(false);
 
-  // Convert (x,y) in SVG space to screen coords
+  // Convert SVG coordinates to screen coordinates
   const convertToScreenCoords = (x, y) => {
     if (!svgRef.current) return { x: 0, y: 0 };
+
+    // Create SVG point
     const pt = svgRef.current.createSVGPoint();
     pt.x = x;
     pt.y = y;
-    const screenCTM = svgRef.current.getScreenCTM();
-    if (screenCTM) {
-      const { x: sx, y: sy } = pt.matrixTransform(screenCTM);
-      return { x: sx, y: sy };
-    }
-    return { x: 0, y: 0 };
+
+    // Get current transformation matrix and include viewport scale
+    const ctm = svgRef.current.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+
+    // Get current scroll position
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+
+    // Transform point and adjust for scroll
+    const transformed = pt.matrixTransform(ctm);
+    return {
+      x: transformed.x + scrollX,
+      y: transformed.y + scrollY,
+    };
   };
 
-  // Hide function you can call after user places the sample
-  const hideTooltip = () => {
-    setVisible(false);
-  };
-
-  // Whenever the user is ready to place the sample onto path hexes:
   useEffect(() => {
-    // Condition to show the tooltip
     if (
       selectedSample?.name &&
       selectedSample?.click === 2 &&
       !hasShownOnce &&
       paths.length > 0
     ) {
-      // Get the last path object (the newly created path is typically last)
       const latestPathObj = paths[paths.length - 1];
       if (latestPathObj?.path?.length) {
         const pathArr = latestPathObj.path;
         const lastHex = pathArr[pathArr.length - 1];
+
+        // Convert coordinates
         const { x: sx, y: sy } = convertToScreenCoords(lastHex.x, lastHex.y);
 
-        // If lastHex is in bottom half, place tooltip below; else place above
-        const placeBelow = lastHex.y > 0;
-        const offsetX = -100; // Adjusted offset for better positioning
-        const offsetY = placeBelow ? 20 : -50;
+        // Add responsive offsets
+        const isMobile = window.innerWidth <= 768;
+        const offsetX = isMobile ? -60 : -150; // Smaller offset on mobile
+        let offsetY;
 
-        setTooltipPos({ x: sx + offsetX, y: sy + offsetY });
+        if (isMobile) {
+          offsetY = lastHex.y > 0 ? 40 : -90;
+        } else {
+          offsetY = lastHex.y > 0 ? 20 : -60;
+        }
+
+        setTooltipPos({
+          x: sx + offsetX,
+          y: sy + offsetY,
+        });
         setVisible(true);
-        setHasShownOnce(true); // Ensure it shows only once
+        setHasShownOnce(true);
       }
     }
 
-    // Condition to hide the tooltip
-    // Hide if there are multiple paths or if the first path has a sample placed
     if (paths.length > 1) {
       setVisible(false);
     } else if (paths.length === 1) {
@@ -103,25 +115,25 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
         setVisible(false);
       }
     }
-  }, [paths, selectedSample, hasShownOnce, convertToScreenCoords, hexes]);
+  }, [paths, selectedSample, hasShownOnce, hexes]);
 
-  // Return the tooltip's JSX
   if (!visible) return null;
+
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed", // Changed to fixed to handle scrolling better
         left: tooltipPos.x,
         top: tooltipPos.y,
         pointerEvents: "none",
+        zIndex: 50, // Ensure tooltip stays on top
       }}
-      className="px-2 py-1 text-sm text-white bg-black bg-opacity-50 rounded-lg text-xs"
+      className="px-2 py-1 text-sm text-white bg-neutral-900 border border-neutral-600 bg-opacity-80 rounded-lg text-xs"
     >
-      Place sample on path
+      Now place sample on path
     </div>
   );
 };
-
 /* ------------------------------------------------
    The main Grid component (unchanged except where 
    we call the new tooltip component)
