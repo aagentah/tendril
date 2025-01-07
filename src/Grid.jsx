@@ -1,5 +1,3 @@
-// Grid.jsx
-
 import React, { useState, useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
@@ -135,8 +133,7 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
   );
 };
 /* ------------------------------------------------
-   The main Grid component (unchanged except where 
-   we call the new tooltip component)
+   The main Grid component with drag-and-drop support
    ------------------------------------------------ */
 const Grid = () => {
   const [hexes, setHexes] = useAtom(hexesAtom);
@@ -147,6 +144,7 @@ const Grid = () => {
   const [effectDraftPath, setEffectDraftPath] = useAtom(effectDraftPathAtom);
 
   const svgRef = useRef(null);
+  const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
 
   // --------------------
   // Debounced Handlers
@@ -240,6 +238,25 @@ const Grid = () => {
   }, []);
 
   // --------------------
+  // New: Handler for mouse down to initiate dragging
+  // --------------------
+  const handleHexMouseDown = (hex) => {
+    if (!selectedSample.name && !selectedEffect.name) {
+      console.log("1");
+      if (hex.isPath && hex.sampleName) {
+        console.log("2");
+
+        draggingSampleHex.current = hex;
+        setHexes((prevHexes) =>
+          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+            isHexSelected: true,
+          })
+        );
+      }
+    }
+  };
+
+  // --------------------
   // Main Click Handler
   // --------------------
   const handleHexClick = useAtomCallback(async (get, set, hex) => {
@@ -249,6 +266,69 @@ const Grid = () => {
     const paths = get(pathsAtom);
     const draftPath = get(draftPathAtom);
     const effectDraftPath = get(effectDraftPathAtom);
+
+    // Check for dragging state
+    if (
+      !selectedSample.name &&
+      !selectedEffect.name &&
+      draggingSampleHex.current
+    ) {
+      const sourceHex = draggingSampleHex.current;
+
+      // If target hex is on center or outer ring, delete the sample
+      if ((hex.isCenterRing || hex.isMainHex) && sourceHex) {
+        console.log("yyooo");
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(
+            prevHexes,
+            (h) => areCoordinatesEqual(h, sourceHex),
+            {
+              sampleName: null,
+              isHexSelected: false,
+            }
+          )
+        );
+      }
+      // Otherwise, try to move the sample within the same path
+      else if (
+        !hex.sampleName &&
+        sourceHex &&
+        hex.pathId === sourceHex.pathId
+      ) {
+        const sampleName = sourceHex.sampleName;
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(
+            prevHexes,
+            (h) => areCoordinatesEqual(h, sourceHex),
+            {
+              sampleName: null,
+              isHexSelected: false,
+            }
+          )
+        );
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+            sampleName: sampleName,
+            isHexSelected: false,
+          })
+        );
+      }
+
+      // Clear selection on the source hex regardless of move success or deletion
+      if (sourceHex) {
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(
+            prevHexes,
+            (h) => areCoordinatesEqual(h, sourceHex),
+            {
+              isHexSelected: false,
+            }
+          )
+        );
+      }
+      draggingSampleHex.current = null;
+      return;
+    }
 
     // (1) Assign sample to existing path
     if (selectedSample.name && hex.isPath && draftPath.length === 0) {
@@ -355,6 +435,7 @@ const Grid = () => {
       const newPathId = uuidv4();
       const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
 
+      // First establish the path
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(
           prevHexes,
@@ -375,14 +456,25 @@ const Grid = () => {
         ...prevPaths,
         { id: newPathId, path: draftPath },
       ]);
-      setDraftPath([]);
 
-      // User can now place the sample onto path hexes => set click=2
-      setSelectedSample({ name: selectedSample.name, click: 2 });
+      // Then immediately place the sample at the last hex
+      if (lastHexInDraft) {
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(
+            prevHexes,
+            (h) => areCoordinatesEqual(h, lastHexInDraft),
+            { sampleName: selectedSample.name }
+          )
+        );
+      }
+
+      // Reset everything
+      setDraftPath([]);
+      setSelectedSample({ name: null, click: 0 });
       return;
     }
 
-    // (4) Handle selection or movement
+    // (4) Handle selection or movement (original non-drag behavior)
     if (!selectedSample.name && !selectedEffect.name) {
       const anyHexSelected = _.some(hexes, (h) => h.isHexSelected);
       if (!anyHexSelected) {
@@ -438,7 +530,7 @@ const Grid = () => {
           );
         }
       } else {
-        // Movement logic
+        // Movement logic (non-drag fallback)
         const selectedHex = hexes.find((h) => h.isHexSelected);
         if (hex.isPathSelected && !hex.sampleName && selectedHex) {
           // Move sample
@@ -515,11 +607,13 @@ const Grid = () => {
               key={`${hex.q},${hex.r}`}
               hex={hex}
               onClick={() => handleHexClick(hex)}
+              onMouseDown={() => handleHexMouseDown(hex)}
               onMouseEnter={() => debouncedHandleHexMouseEnter(hex)}
               onMouseLeave={() => debouncedHandleHexMouseLeave(hex)}
               anyPathSelected={anyPathSelected}
               anyBranchSelected={anyBranchSelected}
               anyHexSelected={anyHexSelected}
+              isDragging={!!draggingSampleHex.current}
             />
           ))}
         </g>

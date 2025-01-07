@@ -35,7 +35,7 @@ import {
 } from "./App";
 import { updateHexProperties } from "./hexUtils";
 
-const Controls = ({ onControlPress }) => {
+const Controls = ({ onControlPress, onPlayToggle }) => {
   const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
   const [bpm, setBpm] = useAtom(bpmAtom);
@@ -301,7 +301,6 @@ const Controls = ({ onControlPress }) => {
         const recording = await recorderRef.current.stop();
         setIsRecording(false);
 
-        // Download link
         const url = URL.createObjectURL(recording);
         const link = document.createElement("a");
         link.download = "tendril-loop.wav";
@@ -310,19 +309,32 @@ const Controls = ({ onControlPress }) => {
         URL.revokeObjectURL(url);
       }
 
+      await onPlayToggle();
+      onControlPress?.();
+
       // Stop playing
       setIsAudioPlaying(false);
+
+      // Proper cleanup
       Tone.Transport.cancel();
       Tone.Transport.stop();
 
-      // Reset path indices
+      // Reset all players
+      Object.values(samplerRef.current).forEach((player) => {
+        player.stop();
+        player.disconnect();
+        player.connect(Tone.getDestination());
+      });
+
+      // Reset each path to its starting position (maximum index)
       const resetIndices = {};
       paths.forEach((path) => {
+        // Set to length - 1 as that's the outer starting position
         resetIndices[path.id] = path.path.length - 1;
       });
       setCurrentIndices(resetIndices);
 
-      // Clear isPlaying state
+      // Clear isPlaying state and reset all hex visual states
       setHexes((prevHexes) =>
         prevHexes.map((hex) => ({
           ...hex,
@@ -683,7 +695,7 @@ const Controls = ({ onControlPress }) => {
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
   return (
-    <div className="mt-4 flex flex-col items-center space-y-4 max-w-md mx-auto">
+    <div className="mt-4 flex flex-col items-center space-y-4 max-w-lg mx-auto">
       {/* Show either the main Samples/Effects UI OR the Library Panel */}
       {!showLibrary ? (
         <>
@@ -698,7 +710,7 @@ const Controls = ({ onControlPress }) => {
                 </div>
 
                 {/* Tab Buttons */}
-                <div className="flex items-center justify-start p-4 pb-0 space-x-4 bg-neutral-900">
+                <div className="flex items-center justify-start p-4 space-x-4 bg-neutral-900">
                   <button
                     className={`text-xs px-2 py-1 border ${
                       activeSamplesTab === "default"
@@ -723,7 +735,7 @@ const Controls = ({ onControlPress }) => {
 
                 {/* Content: default vs user samples */}
                 {activeSamplesTab === "default" && (
-                  <div className="p-4">
+                  <div className="px-4 pb-4">
                     <div className="flex flex-wrap gap-3">
                       {_.map(sampleStore, (sample) => (
                         <button
@@ -741,10 +753,10 @@ const Controls = ({ onControlPress }) => {
                             );
                           }}
                           onTouchEnd={() => handleSampleDragEnd(sample)}
-                          className={`inline-flex py-1 px-2 text-xs border cursor-grab items-center ${
+                          className={`inline-flex py-1 px-2 text-xs border items-center ${
                             selectedSample.name === sample.name
-                              ? "bg-red-800"
-                              : "text-red-400"
+                              ? "bg-red-800 cursor-grabbing"
+                              : "text-red-400 cursor-grab"
                           }`}
                         >
                           <span className="text-white mr-2">
@@ -758,7 +770,7 @@ const Controls = ({ onControlPress }) => {
                 )}
 
                 {activeSamplesTab === "user" && (
-                  <div className="p-4 overflow-y-scroll h-40 space-y-4">
+                  <div className="px-4 pb-4 overflow-y-scroll h-40 space-y-4">
                     <input
                       type="file"
                       accept="audio/*"
@@ -792,10 +804,10 @@ const Controls = ({ onControlPress }) => {
                                 );
                               }}
                               onTouchEnd={() => handleSampleDragEnd(sample)}
-                              className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
+                              className={`inline-flex py-1 px-2 text-xs border items-center ${
                                 selectedSample.name === sample.name
-                                  ? "bg-red-800"
-                                  : "text-red-400"
+                                  ? "bg-red-800 cursor-grabbing"
+                                  : "text-red-400 cursor-grab"
                               }`}
                             >
                               <span className="text-white mr-2">
@@ -856,10 +868,10 @@ const Controls = ({ onControlPress }) => {
                               );
                             }}
                             onTouchEnd={() => handleEffectDragEnd(effect)}
-                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
+                            className={`inline-flex py-1 px-2 text-xs border items-center ${
                               selectedEffect?.name === effect.name
-                                ? "bg-neutral-300 text-black"
-                                : "text-neutral-300"
+                                ? "bg-neutral-300 text-black cursor-grabbing"
+                                : "text-neutral-300 cursor-grab"
                             } ${!paths.length ? "opacity-50" : ""}`}
                           >
                             <span className="text-white mr-2">
@@ -897,10 +909,10 @@ const Controls = ({ onControlPress }) => {
                               );
                             }}
                             onTouchEnd={() => handleEffectDragEnd(effect)}
-                            className={`inline-flex py-1 px-2 text-xs border cursor-pointer items-center ${
+                            className={`inline-flex py-1 px-2 text-xs border items-center ${
                               selectedEffect?.name === effect.name
-                                ? "bg-blue-800"
-                                : "text-blue-400"
+                                ? "bg-blue-800 cursor-grabbing"
+                                : "text-blue-400 cursor-grab"
                             } ${!paths.length ? "opacity-50" : ""}`}
                           >
                             <span className="text-white mr-2">

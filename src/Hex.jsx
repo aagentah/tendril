@@ -23,6 +23,8 @@ const Hex = memo(
     anyBranchSelected,
     anyPathSelected,
     anyHexSelected,
+    onMouseDown,
+    isDragging,
   }) => {
     // Destructure hex properties, including precomputed x, y, and points
     const {
@@ -60,7 +62,7 @@ const Hex = memo(
     // Determine fill and stroke colors
     let fillColor = "transparent";
     let strokeColor = "grey";
-    let strokeOpacity = 0.5;
+    let strokeOpacity = 0.2;
     let strokeWidth = 0.5;
 
     if (paths.length === 0 && !selectedSample?.name) {
@@ -86,6 +88,10 @@ const Hex = memo(
       fillColor = "darkred";
     }
 
+    if (isPath) {
+      strokeOpacity = 0.75;
+    }
+
     if (isPlaying && sampleName) {
       fillColor = "grey";
     }
@@ -108,27 +114,33 @@ const Hex = memo(
       fillColor = "blue";
     }
 
+    if (isDragging && isHovered && isPath && !sampleName) {
+      // Logic when hovering over an empty hex in a path during drag
+      // For instance, you might change fillColor or apply a special effect
+      fillColor = "yellow"; // Example change: highlight hex under drag
+    }
+
     if (!isPathSelected && isPath && lastHexInPath) {
       strokeColor = "red";
       // strokeOpacity = 1;
-      // strokeWidth = 1;
+      strokeWidth = 1;
     }
 
     if (effect.type === "fx" && isBranch && lastHexInPath) {
       strokeColor = "white";
-      strokeOpacity = 1;
+      // strokeOpacity = 1;
       strokeWidth = 1;
     }
 
     if (effect.type === "utility" && isBranch && lastHexInPath) {
       strokeColor = "blue";
-      strokeOpacity = 1;
+      // strokeOpacity = 1;
       strokeWidth = 1;
     }
 
     if (isHexSelected) {
-      strokeColor = "grey";
-      strokeWidth = 4;
+      strokeColor = "yellow";
+      // strokeWidth = 4;
     }
 
     // If a hex is selected for sample-moving, highlight potential targets
@@ -160,9 +172,18 @@ const Hex = memo(
 
     // Determine cursor style
     let cursor = "";
-    if (isHexSelected) {
+
+    if (isDragging && (isMainHex || isCenterRing)) {
+      cursor = "cursor-grab";
+    } else if (selectedSample?.name || selectedEffect?.name) {
+      cursor = "cursor-grabbing";
+    } else if (isDragging) {
+      cursor = "cursor-grabbing";
+    } else if (isHexSelected) {
       cursor = "cursor-pointer";
       fillColor = "grey";
+    } else if (sampleName && isHovered) {
+      cursor = "cursor-grab";
     } else if (selectedSample?.name && isPath && isHovered) {
       cursor = "cursor-crosshair";
       fillColor = "grey";
@@ -205,6 +226,7 @@ const Hex = memo(
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onMouseUp={onClick}
+        onMouseDown={onMouseDown}
         onTouchMove={(e) => {
           const touch = e.touches[0];
           const element = document.elementFromPoint(
@@ -228,6 +250,7 @@ const Hex = memo(
           strokeWidth={strokeWidth}
           strokeOpacity={strokeOpacity}
         />
+
         {text && (
           <text
             className="transition-opacity duration-500 opacity-100"
@@ -242,6 +265,26 @@ const Hex = memo(
           >
             {text}
           </text>
+        )}
+
+        {isDragging && isMainHex && (
+          <svg
+            className="opacity-50"
+            x="-10"
+            y="-10"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
         )}
       </g>
     );

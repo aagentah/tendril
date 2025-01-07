@@ -480,25 +480,22 @@ const App = () => {
   useEffect(() => {
     const players = {};
     [...sampleStore, ...userSamples].forEach((sample) => {
-      // Create player with specific configuration
-      const player = new Tone.Player({
+      players[sample.name] = new Tone.Player({
         url: sample.url,
-        fadeOut: 0.01, // Super quick fade out
-        retrigger: true, // Always retrigger rather than restart
-        curve: "linear", // Linear ramping for precise timing
+        fadeOut: 0.01,
+        retrigger: true,
+        curve: "linear",
       }).toDestination();
-
-      // Set additional properties for precise scheduling
-      player.sync = true; // Sync to transport
-      player.loop = false; // Ensure no looping
-
-      players[sample.name] = player;
     });
 
     samplerRef.current = players;
 
     return () => {
-      Object.values(players).forEach((player) => player.dispose());
+      Object.values(players).forEach((player) => {
+        player.stop();
+        player.disconnect();
+        player.dispose();
+      });
     };
   }, [sampleStore, userSamples]);
 
@@ -620,12 +617,16 @@ const App = () => {
         return false;
       }
 
+      // Get current transport time and ensure we don't schedule before it
+      const currentTime = Tone.Transport.seconds;
+      const safeTime = Math.max(time, currentTime);
+
       console.log(
-        `Playing sample ${sampleName} at time ${time} for duration ${duration}s`
+        `Playing sample ${sampleName} at time ${safeTime} for duration ${duration}s`
       );
 
-      // Start the player with the specified duration
-      player.start(time, 0, duration || 0.25);
+      // Start the player with the specified duration using the safe time
+      player.start(safeTime, 0, duration || 0.25);
 
       return true;
     } catch (error) {
@@ -639,6 +640,8 @@ const App = () => {
   useEffect(() => {
     if (isAudioPlaying) {
       const tickCallback = (time) => {
+        if (!isAudioPlaying) return;
+
         const currentPaths = pathsRef.current;
         const currentIndices = currentIndicesRef.current;
 
@@ -756,11 +759,31 @@ const App = () => {
         });
       };
 
+      // Clear any previous events and start fresh
+      Tone.Transport.cancel(0);
       Tone.Transport.scheduleRepeat(tickCallback, noteTime);
       Tone.Transport.start();
     } else {
+      // When stopping, do complete cleanup
+      Tone.Transport.cancel(0);
       Tone.Transport.stop();
-      Tone.Transport.cancel();
+
+      // Reset indices to start
+      setCurrentIndices((prevIndices) => {
+        const resetIndices = {};
+        paths.forEach((path) => {
+          resetIndices[path.id] = path.path.length - 1;
+        });
+        return resetIndices;
+      });
+
+      // Reset hex states
+      setHexes((prevHexes) =>
+        prevHexes.map((hex) => ({
+          ...hex,
+          isPlaying: false,
+        }))
+      );
     }
 
     return () => {
@@ -771,25 +794,19 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
+  const handlePlayToggle = async () => {
+    if (isAudioPlaying) {
+      setIsAudioPlaying(false);
+    } else {
+      await Tone.start();
+      setIsAudioPlaying(true);
+    }
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
+      <div className="hidden lg:flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
         <div className="flex flex-wrap w-full max-w-screen-xl">
-          <div className="visible lg:hidden absolute top-8 left-0 right-0 text-lg my-4 text-center mx-auto">
-            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-            <p className="text-center text-sm text-neutral-500">
-              Made by{" "}
-              <a
-                className="text-neutral-500 underline"
-                href="https://daniel.aagentah.tech/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                daniel.aagentah
-              </a>
-            </p>
-          </div>
-
           <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
             <div className="relative">
               {/* Render the Grid and P5Overlay */}
@@ -799,10 +816,25 @@ const App = () => {
           </div>
           <div className="w-full lg:w-1/2 flex justify-center items-center">
             <MobileControlsPanel onCloseRef={closeControlsRef}>
-              <h1 className="text-lg mb-2 text-center mx-auto">Controls</h1>
+              <div className="visible text-lg my-4 text-center mx-auto">
+                <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+                <p className="text-center text-sm text-neutral-500">
+                  Made by{" "}
+                  <a
+                    className="text-neutral-500 underline"
+                    href="https://daniel.aagentah.tech/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    daniel.aagentah
+                  </a>
+                </p>
+              </div>
 
               {/* Controls panel */}
               <Controls
+                onPlayToggle={handlePlayToggle}
+                isAudioPlaying={isAudioPlaying}
                 selectedSample={selectedSample}
                 setSelectedSample={(sample) => {
                   setSelectedSample(sample);
@@ -813,6 +845,10 @@ const App = () => {
             </MobileControlsPanel>
           </div>
         </div>
+      </div>
+
+      <div className="flex lg:hidden flex-col h-screen w-screen items-center justify-center min-h-screen bg-neutral-900 text-white p-8">
+        This project wasn't built for touch devices (sorry).
       </div>
     </DndProvider>
   );
