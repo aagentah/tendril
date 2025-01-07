@@ -464,17 +464,22 @@ const App = () => {
   }, [size, setHexes]);
 
   useEffect(() => {
-    setCurrentIndices(
-      _.reduce(
+    setCurrentIndices((prevIndices) => {
+      return _.reduce(
         paths,
         (acc, pathObj) => {
           const { id: pathId, path } = pathObj;
-          acc[pathId] = path.length > 0 ? path.length - 1 : 0;
+          // Preserve existing index if available, otherwise initialize for new paths
+          acc[pathId] = prevIndices.hasOwnProperty(pathId)
+            ? prevIndices[pathId]
+            : path.length > 0
+            ? path.length - 1
+            : 0;
           return acc;
         },
-        {}
-      )
-    );
+        { ...prevIndices }
+      );
+    });
   }, [paths, setCurrentIndices]);
 
   useEffect(() => {
@@ -723,12 +728,18 @@ const App = () => {
                   });
                 } else {
                   // Play on main sampler if no audio effect branches
-                  triggerSampleWithValidation(
-                    samplerRef.current,
-                    hexToUpdate.sampleName,
-                    totalDuration,
-                    playbackContext.triggerTime
-                  );
+                  const pathVolume =
+                    pathObj.volume !== undefined ? pathObj.volume : 1;
+                  const player = samplerRef.current[hexToUpdate.sampleName];
+                  if (player) {
+                    player.volume.value = Tone.gainToDb(pathVolume);
+                    triggerSampleWithValidation(
+                      samplerRef.current,
+                      hexToUpdate.sampleName,
+                      totalDuration,
+                      playbackContext.triggerTime
+                    );
+                  }
                 }
               }
 

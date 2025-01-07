@@ -1,5 +1,3 @@
-// Controls.jsx
-
 import React, { useEffect, useRef, useState } from "react";
 import { useAtom } from "jotai";
 import * as Tone from "tone";
@@ -207,7 +205,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
         isHexSelected: false,
         isPathSelected: false,
         isBranchSelected: false,
-        isPathDraft: false,
         isEffectDraft: false,
       })
     );
@@ -935,21 +932,66 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
               selectedEffectDefinition)) && (
             <div className="w-full flex flex-col items-center justify-center">
               {/* Path Config */}
-              {anyPathSelected && (
-                <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                  <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                    Path Config
-                  </div>
-                  <div className="p-4">
-                    <button
-                      onClick={resetPath}
-                      className="text-red-600 cursor-pointer"
-                    >
-                      Delete Path
-                    </button>
-                  </div>
-                </div>
-              )}
+              {anyPathSelected &&
+                (() => {
+                  const selectedHex = _.find(
+                    hexes,
+                    (hex) => hex.isPathSelected
+                  );
+                  if (!selectedHex) return null;
+                  const pathId = selectedHex.pathId;
+                  const currentPath = paths.find((p) => p.id === pathId);
+                  const volume =
+                    currentPath?.volume !== undefined ? currentPath.volume : 1;
+                  return (
+                    <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                      <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                        Path Config
+                      </div>
+                      <div className="p-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-white">
+                            Volume
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={volume}
+                            onChange={(e) => {
+                              const newVolume = parseFloat(e.target.value);
+                              setPaths((prevPaths) => {
+                                const newPaths = [...prevPaths];
+                                const pathIndex = newPaths.findIndex(
+                                  (p) => p.id === pathId
+                                );
+                                if (pathIndex !== -1) {
+                                  newPaths[pathIndex] = {
+                                    ...newPaths[pathIndex],
+                                    volume: newVolume,
+                                  };
+                                }
+                                return newPaths;
+                              });
+                            }}
+                            className="w-full"
+                          />
+                          <span className="text-white">
+                            {volume.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={resetPath}
+                          className="text-red-600 cursor-pointer mt-4"
+                        >
+                          Delete Path
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
               {/* Branch Config */}
               {anyBranchSelected &&

@@ -145,6 +145,7 @@ const Grid = () => {
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
+  const mouseDownTimerRef = useRef(null);
 
   // --------------------
   // Debounced Handlers
@@ -242,17 +243,20 @@ const Grid = () => {
   // --------------------
   const handleHexMouseDown = (hex) => {
     if (!selectedSample.name && !selectedEffect.name) {
-      console.log("1");
-      if (hex.isPath && hex.sampleName) {
-        console.log("2");
+      // Add a timeout to only trigger drag state if mouse is held
+      const timer = setTimeout(() => {
+        if (hex.isPath && hex.sampleName) {
+          draggingSampleHex.current = hex;
+          setHexes((prevHexes) =>
+            updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+              isHexSelected: true,
+            })
+          );
+        }
+      }, 200); // 200ms hold time before drag activates
 
-        draggingSampleHex.current = hex;
-        setHexes((prevHexes) =>
-          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-            isHexSelected: true,
-          })
-        );
-      }
+      // Store timer in ref so we can clear it on mouse up
+      mouseDownTimerRef.current = timer;
     }
   };
 
@@ -266,6 +270,11 @@ const Grid = () => {
     const paths = get(pathsAtom);
     const draftPath = get(draftPathAtom);
     const effectDraftPath = get(effectDraftPathAtom);
+
+    if (mouseDownTimerRef.current) {
+      clearTimeout(mouseDownTimerRef.current);
+      mouseDownTimerRef.current = null;
+    }
 
     // Check for dragging state
     if (
