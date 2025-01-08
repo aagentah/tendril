@@ -718,6 +718,13 @@ const App = () => {
                   audioEffectBranches.forEach((branch) => {
                     const branchNode = branchEffectNodesRef.current[branch.id];
                     if (branchNode && branchNode.players) {
+                      const pathVolume =
+                        pathObj.volume !== undefined ? pathObj.volume : 1;
+                      // Apply volume to each branch player
+                      const player = branchNode.players[hexToUpdate.sampleName];
+                      if (player) {
+                        player.volume.value = Tone.gainToDb(pathVolume);
+                      }
                       triggerSampleWithValidation(
                         branchNode.players,
                         hexToUpdate.sampleName,
