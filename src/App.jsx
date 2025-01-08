@@ -199,7 +199,7 @@ export const effectStore = [
   },
   {
     type: "utility",
-    name: "Speed",
+    name: "Tick Speed",
     config: {
       rate: {
         value: 1,
