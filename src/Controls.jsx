@@ -323,23 +323,36 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     );
   };
 
+  // Replace your existing togglePlay function with this:
   const togglePlay = async () => {
     if (isAudioPlaying) {
+      // If we're recording, stop the recording first
+      if (isRecording) {
+        const recording = await recorderRef.current.stop();
+        setIsRecording(false);
+
+        // Download link
+        const url = URL.createObjectURL(recording);
+        const link = document.createElement("a");
+        link.download = "tendril-loop.wav";
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
       // Stop playing
       setIsAudioPlaying(false);
-
-      // Proper cleanup of Tone.Transport
       Tone.Transport.cancel();
       Tone.Transport.stop();
 
-      // Reset each path to its starting position (maximum index)
+      // Reset path indices
       const resetIndices = {};
       paths.forEach((path) => {
         resetIndices[path.id] = path.path.length - 1;
       });
       setCurrentIndices(resetIndices);
 
-      // Reset hex playing states
+      // Clear isPlaying state
       setHexes((prevHexes) =>
         prevHexes.map((hex) => ({
           ...hex,
@@ -354,6 +367,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     onControlPress?.();
   };
 
+  // Replace your existing toggleRecording function with this:
   const toggleRecording = async () => {
     if (isRecording) {
       // If currently recording, stop everything
