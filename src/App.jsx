@@ -91,110 +91,110 @@ export const effectStore = [
     type: "fx",
     name: "Reverb",
     config: {
-      wet: { value: 0.5, default: 0.5 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "AutoFilter",
     config: {
-      frequency: { value: 1, default: 1 },
-      depth: { value: 1, default: 1 },
-      baseFrequency: { value: 200, default: 200 },
-      octaves: { value: 2.6, default: 2.6 },
+      frequency: { value: 1, default: 1, min: 0.1, max: 10, step: 0.1 },
+      depth: { value: 1, default: 1, min: 0, max: 1, step: 0.01 },
+      baseFrequency: { value: 200, default: 200, min: 20, max: 2000, step: 1 },
+      octaves: { value: 2.6, default: 2.6, min: 0, max: 8, step: 0.1 },
     },
   },
   {
     type: "fx",
     name: "AutoWah",
     config: {
-      baseFrequency: { value: 100, default: 100 },
-      octaves: { value: 6, default: 6 },
-      sensitivity: { value: 0, default: 0 },
-      Q: { value: 2, default: 2 },
-      gain: { value: 2, default: 2 },
+      baseFrequency: { value: 100, default: 100, min: 20, max: 1000, step: 1 },
+      octaves: { value: 6, default: 6, min: 0, max: 8, step: 0.1 },
+      sensitivity: { value: 0, default: 0, min: -40, max: 0, step: 1 },
+      Q: { value: 2, default: 2, min: 0.1, max: 20, step: 0.1 },
+      gain: { value: 2, default: 2, min: 0, max: 10, step: 0.1 },
     },
   },
   {
     type: "fx",
     name: "BitCrusher",
     config: {
-      bits: { value: 4, default: 4, min: 1, max: 16 },
+      bits: { value: 4, default: 4, min: 1, max: 16, step: 1 },
     },
   },
   {
     type: "fx",
     name: "Chorus",
     config: {
-      frequency: { value: 1.5, default: 1.5 },
-      delayTime: { value: 3.5, default: 3.5 },
-      depth: { value: 0.7, default: 0.7 },
-      feedback: { value: 0.1, default: 0.1 },
-      spread: { value: 180, default: 180 },
-      wet: { value: 0.5, default: 0.5 },
+      frequency: { value: 1.5, default: 1.5, min: 0.1, max: 10, step: 0.1 },
+      delayTime: { value: 3.5, default: 3.5, min: 0.1, max: 10, step: 0.1 },
+      depth: { value: 0.7, default: 0.7, min: 0, max: 1, step: 0.01 },
+      feedback: { value: 0.1, default: 0.1, min: 0, max: 1, step: 0.01 },
+      spread: { value: 180, default: 180, min: 0, max: 360, step: 1 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "Distortion",
     config: {
-      distortion: { value: 0.4, default: 0.4 },
+      distortion: { value: 0.4, default: 0.4, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "FeedbackDelay",
     config: {
-      delayTime: { value: 0.25, default: 0.25 },
-      feedback: { value: 0.5, default: 0.5 },
-      wet: { value: 0.5, default: 0.5 },
+      delayTime: { value: 0.25, default: 0.25, min: 0, max: 1, step: 0.01 },
+      feedback: { value: 0.5, default: 0.5, min: 0, max: 0.99, step: 0.01 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "FrequencyShifter",
     config: {
-      frequency: { value: 42, default: 42 },
-      wet: { value: 0.5, default: 0.5 },
+      frequency: { value: 42, default: 42, min: -1000, max: 1000, step: 1 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "Phaser",
     config: {
-      frequency: { value: 0.5, default: 0.5 },
-      octaves: { value: 3, default: 3 },
-      stages: { value: 10, default: 10 },
-      Q: { value: 10, default: 10 },
-      baseFrequency: { value: 350, default: 350 },
-      wet: { value: 0.5, default: 0.5 },
+      frequency: { value: 0.5, default: 0.5, min: 0.1, max: 10, step: 0.1 },
+      octaves: { value: 3, default: 3, min: 0, max: 8, step: 0.1 },
+      stages: { value: 10, default: 10, min: 1, max: 12, step: 1 },
+      Q: { value: 10, default: 10, min: 0.1, max: 20, step: 0.1 },
+      baseFrequency: { value: 350, default: 350, min: 20, max: 2000, step: 1 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "PingPongDelay",
     config: {
-      delayTime: { value: 0.25, default: 0.25 },
-      feedback: { value: 0.3, default: 0.3 },
-      wet: { value: 0.5, default: 0.5 },
+      delayTime: { value: 0.25, default: 0.25, min: 0, max: 1, step: 0.01 },
+      feedback: { value: 0.3, default: 0.3, min: 0, max: 0.99, step: 0.01 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "fx",
     name: "PitchShift",
     config: {
-      pitch: { value: 0, default: 0 },
-      windowSize: { value: 0.1, default: 0.1 },
-      delayTime: { value: 0, default: 0 },
-      feedback: { value: 0, default: 0 },
-      wet: { value: 0.5, default: 0.5 },
+      pitch: { value: 0, default: 0, min: -24, max: 24, step: 1 },
+      windowSize: { value: 0.1, default: 0.1, min: 0.01, max: 1, step: 0.01 },
+      delayTime: { value: 0, default: 0, min: 0, max: 1, step: 0.01 },
+      feedback: { value: 0, default: 0, min: 0, max: 0.99, step: 0.01 },
+      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
     },
   },
   {
     type: "utility",
     name: "Offset",
     config: {
-      amount: { value: 0, default: 0 },
+      amount: { value: 0, default: 0, min: 0, max: 1, step: 0.1 },
     },
   },
   {
@@ -593,17 +593,16 @@ const App = () => {
     });
 
     // Cleanup removed branches
+    // Clean up speed rates for removed paths
     const branchIds = branches.map((branch) => branch.id);
-    Object.keys(branchEffectNodesRef.current).forEach((branchId) => {
-      if (!branchIds.includes(branchId)) {
-        // Dispose all players first
-        Object.values(branchEffectNodesRef.current[branchId].players).forEach(
-          (player) => {
-            player.dispose();
-          }
-        );
-        branchEffectNodesRef.current[branchId].effectNode.dispose();
-        delete branchEffectNodesRef.current[branchId];
+    Object.keys(pathSpeedRatesRef.current).forEach((pathId) => {
+      // If path no longer exists or no longer has a Speed utility, reset its speed
+      const hasSpeedUtility = branches.some(
+        (branch) =>
+          branch.parentPathId === pathId && branch.effect.name === "Speed"
+      );
+      if (!hasSpeedUtility) {
+        delete pathSpeedRatesRef.current[pathId];
       }
     });
   }, [branches, sampleStore, userSamples]);
@@ -693,12 +692,24 @@ const App = () => {
                 );
 
                 // Apply utility effects that could modify timing or speed
+                // First, in the part where we process utility effects:
                 playbackContext = utilityBranches.reduce(
                   (context, branchObj) => {
                     const handler = utilityHandlers[branchObj.effect.name];
-                    return handler
-                      ? handler(context, branchObj.effectConfig)
-                      : context;
+                    if (handler) {
+                      const newContext = handler(
+                        context,
+                        branchObj.effectConfig
+                      );
+                      // Store speed rate if this is a Speed utility
+                      if (branchObj.effect.name === "Speed") {
+                        pathSpeedRatesRef.current[pathId] = parseFloat(
+                          branchObj.effectConfig.rate.value
+                        );
+                      }
+                      return newContext;
+                    }
+                    return context;
                   },
                   playbackContext
                 );
@@ -759,6 +770,7 @@ const App = () => {
         });
 
         // Update indices for next tick
+        // In the tick callback where we update indices:
         setCurrentIndices((prevIndices) => {
           const newIndices = { ...prevIndices };
           _.forEach(currentPaths, (pathObj) => {
@@ -766,9 +778,13 @@ const App = () => {
             if (path && path.length > 0) {
               const speedRate = pathSpeedRatesRef.current[pathId] || 1;
               const currentIndex = prevIndices[pathId] || 0;
-              // Move inward by speedRate steps, wrapping around when we reach the center
+
+              // Calculate effective speed rate based on path length
+              const effectiveSpeedRate = Math.min(speedRate, path.length);
+
+              // Move inward using effective speed rate
               newIndices[pathId] =
-                (currentIndex - speedRate + path.length) % path.length;
+                (currentIndex - effectiveSpeedRate + path.length) % path.length;
             } else {
               newIndices[pathId] = 0;
             }

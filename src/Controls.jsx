@@ -1077,13 +1077,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                                                 [paramName]: {
                                                   ...param,
                                                   value: parseFloat(
-                                                    Number.isInteger(
-                                                      param.value
-                                                    )
-                                                      ? Math.round(
-                                                          e.target.value
-                                                        )
-                                                      : e.target.value
+                                                    e.target.value
                                                   ),
                                                 },
                                               },
@@ -1095,7 +1089,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                                     }}
                                   />
                                   <span className="ml-2 text-sm text-white">
-                                    {param.value}
+                                    {Number(param.value).toFixed(1)}{" "}
                                   </span>
                                 </div>
                               );

@@ -498,35 +498,39 @@ const Grid = () => {
           // select entire path
           const selectedPathId = hex.pathId;
           set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
-              isPathSelected: true,
+            updateHexProperties(prevHexes, () => true, {
+              // First deselect ALL paths
+              isPathSelected: false,
               isBranchSelected: false,
               isHexSelected: false,
             })
           );
           set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              isBranchSelected: false,
+            updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
+              // Then select only this path
+              isPathSelected: true,
             })
           );
         } else if (hex.isBranch && !hex.isPath) {
           // select the branch
           const selectedBranchId = hex.branchId;
           set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, () => true, {
+              // First deselect ALL branches and paths
+              isBranchSelected: false,
+              isPathSelected: false,
+              isHexSelected: false,
+            })
+          );
+          set(hexesAtom, (prevHexes) =>
             updateHexProperties(
               prevHexes,
               (h) => h.branchId === selectedBranchId,
               {
+                // Then select only this branch
                 isBranchSelected: true,
-                isPathSelected: false,
-                isHexSelected: false,
               }
             )
-          );
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              isPathSelected: false,
-            })
           );
         } else {
           // Deselect everything
