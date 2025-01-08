@@ -437,6 +437,8 @@ const App = () => {
   const [userSamples] = useAtom(userSamplesAtom);
   console.log("Current userSamples:", userSamples);
 
+  const [isLoadingSamples, setIsLoadingSamples] = useState(true);
+
   const samplerRef = useRef(null);
   const branchEffectNodesRef = useRef({});
   const noteTime = "8n";
@@ -497,13 +499,24 @@ const App = () => {
 
   useEffect(() => {
     const players = {};
-    [...sampleStore, ...userSamples].forEach((sample) => {
-      players[sample.name] = new Tone.Player({
+    const allSamples = [...sampleStore, ...userSamples];
+    let loadedCount = 0;
+    const totalCount = allSamples.length;
+
+    allSamples.forEach((sample) => {
+      const player = new Tone.Player({
         url: sample.url,
         fadeOut: 0.01,
         retrigger: true,
         curve: "linear",
+        onload: () => {
+          loadedCount += 1;
+          if (loadedCount === totalCount) {
+            setIsLoadingSamples(false);
+          }
+        },
       }).toDestination();
+      players[sample.name] = player;
     });
 
     samplerRef.current = players;
@@ -638,7 +651,7 @@ const App = () => {
       // For first play, use Tone.now() with a small offset
       let safeTime;
       if (isFirstPlay) {
-        safeTime = Tone.now() + 0.0001; // Small 50ms offset for first play
+        safeTime = Tone.now() + 0.0001; // Small offset for first play
       } else {
         // For subsequent plays, use Transport time
         const lastTime = lastStartTimeRef.current[sampleName];
@@ -1006,34 +1019,40 @@ const App = () => {
             </div>
           </div>
           <div className="w-full lg:w-1/2 flex justify-center items-center">
-            <MobileControlsPanel onCloseRef={closeControlsRef}>
-              <div className="visible text-lg my-4 text-center mx-auto">
-                <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-                <p className="text-center text-sm text-neutral-500">
-                  Made by{" "}
-                  <a
-                    className="text-neutral-500 underline"
-                    href="https://daniel.aagentah.tech/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    daniel.aagentah
-                  </a>
-                </p>
+            {isLoadingSamples ? (
+              <div className="flex justify-center items-center">
+                <span>Loading samples...</span>
               </div>
+            ) : (
+              <MobileControlsPanel onCloseRef={closeControlsRef}>
+                <div className="visible text-lg my-4 text-center mx-auto">
+                  <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+                  <p className="text-center text-sm text-neutral-500">
+                    Made by{" "}
+                    <a
+                      className="text-neutral-500 underline"
+                      href="https://daniel.aagentah.tech/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      daniel.aagentah
+                    </a>
+                  </p>
+                </div>
 
-              {/* Controls panel */}
-              <Controls
-                onPlayToggle={handlePlayToggle}
-                isAudioPlaying={isAudioPlaying}
-                selectedSample={selectedSample}
-                setSelectedSample={(sample) => {
-                  setSelectedSample(sample);
-                  closeControlsRef.current?.();
-                }}
-                onControlPress={() => closeControlsRef.current?.()}
-              />
-            </MobileControlsPanel>
+                {/* Controls panel */}
+                <Controls
+                  onPlayToggle={handlePlayToggle}
+                  isAudioPlaying={isAudioPlaying}
+                  selectedSample={selectedSample}
+                  setSelectedSample={(sample) => {
+                    setSelectedSample(sample);
+                    closeControlsRef.current?.();
+                  }}
+                  onControlPress={() => closeControlsRef.current?.()}
+                />
+              </MobileControlsPanel>
+            )}
           </div>
         </div>
       </div>
