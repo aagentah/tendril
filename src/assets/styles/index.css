@@ -7,3 +7,24 @@ div {
   -ms-user-select: none;
   user-select: none;
 }
+
+html,
+body,
+main {
+  background-color: #171717;
+}
+
+body {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-in forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

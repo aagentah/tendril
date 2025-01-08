@@ -312,16 +312,26 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       // Stop playing
       setIsAudioPlaying(false);
 
-      // Proper cleanup
+      // Stop all audio immediately
+      const now = Tone.now();
+
+      // Stop main sampler players
+      Object.values(samplerRef.current).forEach((player) => {
+        player.stop(now);
+      });
+
+      // Stop all branch effect players
+      Object.values(branchEffectNodesRef.current).forEach((branch) => {
+        if (branch.players) {
+          Object.values(branch.players).forEach((player) => {
+            player.stop(now);
+          });
+        }
+      });
+
+      // Clean transport
       Tone.Transport.cancel();
       Tone.Transport.stop();
-
-      // Reset all players
-      Object.values(samplerRef.current).forEach((player) => {
-        player.stop();
-        player.disconnect();
-        player.connect(Tone.getDestination());
-      });
 
       // Reset each path to its starting position (maximum index)
       const resetIndices = {};

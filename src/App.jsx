@@ -707,7 +707,6 @@ const App = () => {
                 );
 
                 // Apply utility effects that could modify timing or speed
-                // First, in the part where we process utility effects:
                 playbackContext = utilityBranches.reduce(
                   (context, branchObj) => {
                     const handler = utilityHandlers[branchObj.effect.name];
@@ -785,7 +784,6 @@ const App = () => {
         });
 
         // Update indices for next tick
-        // In the tick callback where we update indices:
         setCurrentIndices((prevIndices) => {
           const newIndices = { ...prevIndices };
           _.forEach(currentPaths, (pathObj) => {
@@ -816,6 +814,23 @@ const App = () => {
       // When stopping, do complete cleanup
       Tone.Transport.cancel(0);
       Tone.Transport.stop();
+
+      // When stopping, immediately stop all currently playing audio
+      const now = Tone.now();
+
+      // Stop main sampler players
+      Object.values(samplerRef.current).forEach((player) => {
+        player.stop(now);
+      });
+
+      // Stop all branch effect players
+      Object.values(branchEffectNodesRef.current).forEach((branch) => {
+        if (branch.players) {
+          Object.values(branch.players).forEach((player) => {
+            player.stop(now);
+          });
+        }
+      });
 
       // Reset indices to start
       setCurrentIndices((prevIndices) => {
