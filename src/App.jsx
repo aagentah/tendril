@@ -663,6 +663,8 @@ const App = () => {
 
         const currentPaths = pathsRef.current;
         const currentIndices = currentIndicesRef.current;
+        const soloPaths = currentPaths.filter((p) => p.solo);
+        const pathsToUse = soloPaths.length > 0 ? soloPaths : currentPaths;
 
         setHexes((prevHexes) => {
           const updatedHexes = _.map(prevHexes, (hex) => ({
@@ -670,10 +672,12 @@ const App = () => {
             isPlaying: false,
           }));
 
-          _.forEach(currentPaths, (pathObj) => {
+          _.forEach(pathsToUse, (pathObj) => {
             const { id: pathId, path } = pathObj;
             const currentIndex = currentIndices[pathId] || 0;
             const currentHex = path[currentIndex];
+
+            if (pathObj.bypass) return;
 
             if (currentHex) {
               const hexToUpdate = _.find(updatedHexes, (h) =>

@@ -463,7 +463,13 @@ const Grid = () => {
       );
       set(pathsAtom, (prevPaths) => [
         ...prevPaths,
-        { id: newPathId, path: draftPath },
+        {
+          id: newPathId,
+          path: draftPath,
+          volume: 1,
+          solo: false,
+          bypass: false,
+        },
       ]);
 
       // Then immediately place the sample at the last hex

@@ -291,57 +291,55 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
   // ------------------------------------------------
   // Main Playback Logic
   // ------------------------------------------------
+  const toggleSolo = (pathId) => {
+    setPaths((prevPaths) =>
+      prevPaths.map((p) => {
+        if (p.id === pathId) {
+          // If turning on solo, ensure bypass is off
+          if (!p.solo) {
+            return { ...p, solo: true, bypass: false };
+          } else {
+            return { ...p, solo: false };
+          }
+        }
+        return p;
+      })
+    );
+  };
+
+  const toggleBypass = (pathId) => {
+    setPaths((prevPaths) =>
+      prevPaths.map((p) => {
+        if (p.id === pathId) {
+          // If turning on bypass, ensure solo is off
+          if (!p.bypass) {
+            return { ...p, bypass: true, solo: false };
+          } else {
+            return { ...p, bypass: false };
+          }
+        }
+        return p;
+      })
+    );
+  };
+
   const togglePlay = async () => {
     if (isAudioPlaying) {
-      // If we're recording, stop the recording first
-      if (isRecording) {
-        const recording = await recorderRef.current.stop();
-        setIsRecording(false);
-
-        const url = URL.createObjectURL(recording);
-        const link = document.createElement("a");
-        link.download = "tendril-loop.wav";
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-
-      await onPlayToggle();
-      onControlPress?.();
-
       // Stop playing
       setIsAudioPlaying(false);
 
-      // Stop all audio immediately
-      const now = Tone.now();
-
-      // Stop main sampler players
-      Object.values(samplerRef.current).forEach((player) => {
-        player.stop(now);
-      });
-
-      // Stop all branch effect players
-      Object.values(branchEffectNodesRef.current).forEach((branch) => {
-        if (branch.players) {
-          Object.values(branch.players).forEach((player) => {
-            player.stop(now);
-          });
-        }
-      });
-
-      // Clean transport
+      // Proper cleanup of Tone.Transport
       Tone.Transport.cancel();
       Tone.Transport.stop();
 
       // Reset each path to its starting position (maximum index)
       const resetIndices = {};
       paths.forEach((path) => {
-        // Set to length - 1 as that's the outer starting position
         resetIndices[path.id] = path.path.length - 1;
       });
       setCurrentIndices(resetIndices);
 
-      // Clear isPlaying state and reset all hex visual states
+      // Reset hex playing states
       setHexes((prevHexes) =>
         prevHexes.map((hex) => ({
           ...hex,
@@ -992,12 +990,38 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                           </span>
                         </div>
 
-                        <button
-                          onClick={resetPath}
-                          className="text-red-600 cursor-pointer mt-4"
-                        >
-                          Delete Path
-                        </button>
+                        <div className="border-b border-neutral-800 my-4" />
+
+                        <div className="flex justify-between items-center text-xs">
+                          <div className="flex space-x-4">
+                            <button
+                              onClick={() => toggleSolo(pathId)}
+                              className={`px-4 py-2 rounded transition-colors duration-150 ${
+                                currentPath?.solo
+                                  ? "bg-amber-500 hover:bg-amber-600"
+                                  : "bg-neutral-800 hover:bg-neutral-700"
+                              } text-white`}
+                            >
+                              Solo
+                            </button>
+                            <button
+                              onClick={() => toggleBypass(pathId)}
+                              className={`px-4 py-2 rounded transition-colors duration-150 ${
+                                currentPath?.bypass
+                                  ? "bg-red-500 hover:bg-red-600"
+                                  : "bg-neutral-800 hover:bg-neutral-700"
+                              } text-white`}
+                            >
+                              Bypass
+                            </button>
+                          </div>
+                          <button
+                            onClick={resetPath}
+                            className="text-red-600 hover:text-red-700 cursor-pointer"
+                          >
+                            Delete Path
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
