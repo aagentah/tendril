@@ -625,28 +625,29 @@ const App = () => {
       console.error("Error: Player not initialized for sample:", sampleName);
       return false;
     }
+
     try {
       const player = players[sampleName];
-
-      // Ensure the player is loaded before attempting to play
       if (!player.loaded) {
         console.warn(`Sample ${sampleName} is not yet loaded.`);
         return false;
       }
 
-      const currentTime = Tone.Transport.seconds;
-      // Ensure time is strictly greater than last start time for this sample
-      let safeTime = Math.max(time, currentTime);
-      const lastTime = lastStartTimeRef.current[sampleName] || 0;
-      if (safeTime <= lastTime) {
-        safeTime = lastTime + 0.0001; // Increment slightly if needed
+      const isFirstPlay = !lastStartTimeRef.current[sampleName];
+
+      // For first play, use Tone.now() with a small offset
+      let safeTime;
+      if (isFirstPlay) {
+        safeTime = Tone.now() + 0.0001; // Small 50ms offset for first play
+      } else {
+        // For subsequent plays, use Transport time
+        const lastTime = lastStartTimeRef.current[sampleName];
+        safeTime = time <= lastTime ? lastTime + 0.0001 : time;
       }
+
       lastStartTimeRef.current[sampleName] = safeTime;
 
-      console.log(
-        `Playing sample ${sampleName} at time ${safeTime} for duration ${duration}s`
-      );
-
+      // Start the sample
       player.start(safeTime, 0, duration || 0.25);
       return true;
     } catch (error) {
@@ -982,8 +983,14 @@ const App = () => {
     if (isAudioPlaying) {
       setIsAudioPlaying(false);
     } else {
-      await Tone.start();
-      setIsAudioPlaying(true);
+      try {
+        await Tone.start();
+        // Reset first-play tracking
+        lastStartTimeRef.current = {};
+        setIsAudioPlaying(true);
+      } catch (error) {
+        console.error("Error starting playback:", error);
+      }
     }
   };
 
