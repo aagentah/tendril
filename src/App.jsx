@@ -445,6 +445,7 @@ const App = () => {
   const branchesRef = useRef(branches);
   const currentIndicesRef = useRef(currentIndices);
   const pathSpeedRatesRef = useRef({});
+  const lastStartTimeRef = useRef({});
 
   useEffect(() => {
     pathsRef.current = paths;
@@ -464,22 +465,33 @@ const App = () => {
   }, [size, setHexes]);
 
   useEffect(() => {
-    setCurrentIndices((prevIndices) => {
-      return _.reduce(
-        paths,
-        (acc, pathObj) => {
-          const { id: pathId, path } = pathObj;
-          // Preserve existing index if available, otherwise initialize for new paths
-          acc[pathId] = prevIndices.hasOwnProperty(pathId)
-            ? prevIndices[pathId]
-            : path.length > 0
-            ? path.length - 1
-            : 0;
-          return acc;
-        },
-        { ...prevIndices }
-      );
-    });
+    // Schedule the index update at the next 8n subdivision
+    Tone.Transport.scheduleOnce((time) => {
+      setCurrentIndices((prevIndices) => {
+        // Use the current bar at the moment of scheduling
+        const currentBar = Math.floor(Tone.Transport.position.split(":")[0]);
+
+        return _.reduce(
+          paths,
+          (acc, pathObj) => {
+            const { id: pathId, path } = pathObj;
+            if (prevIndices.hasOwnProperty(pathId)) {
+              acc[pathId] = prevIndices[pathId];
+            } else {
+              const pathLength = path.length;
+              if (pathLength > 0) {
+                const normalizedPosition = currentBar % pathLength;
+                acc[pathId] = (pathLength - normalizedPosition) % pathLength;
+              } else {
+                acc[pathId] = 0;
+              }
+            }
+            return acc;
+          },
+          { ...prevIndices }
+        );
+      });
+    }, "next 8n");
   }, [paths, setCurrentIndices]);
 
   useEffect(() => {
@@ -621,17 +633,20 @@ const App = () => {
         return false;
       }
 
-      // Get current transport time and ensure we don't schedule before it
       const currentTime = Tone.Transport.seconds;
-      const safeTime = Math.max(time, currentTime);
+      // Ensure time is strictly greater than last start time for this sample
+      let safeTime = Math.max(time, currentTime);
+      const lastTime = lastStartTimeRef.current[sampleName] || 0;
+      if (safeTime <= lastTime) {
+        safeTime = lastTime + 0.0001; // Increment slightly if needed
+      }
+      lastStartTimeRef.current[sampleName] = safeTime;
 
       console.log(
         `Playing sample ${sampleName} at time ${safeTime} for duration ${duration}s`
       );
 
-      // Start the player with the specified duration using the safe time
       player.start(safeTime, 0, duration || 0.25);
-
       return true;
     } catch (error) {
       console.error(`Error playing sample ${sampleName}:`, error);
