@@ -484,7 +484,7 @@ const App = () => {
               const pathLength = path.length;
               if (pathLength > 0) {
                 const normalizedPosition = currentBar % pathLength;
-                acc[pathId] = (pathLength - normalizedPosition) % pathLength;
+                acc[pathId] = normalizedPosition;
               } else {
                 acc[pathId] = 0;
               }
@@ -732,8 +732,7 @@ const App = () => {
                 const pathLength = path.length;
                 // Calculate the current index based purely on elapsed time and path length,
                 // allowing for true polyrhythmic relationships
-                const currentIndex =
-                  (pathLength - (rawStepsElapsed % pathLength)) % pathLength;
+                const currentIndex = rawStepsElapsed % pathLength;
                 newIndices[pathId] = currentIndex;
               }
             });
@@ -771,8 +770,7 @@ const App = () => {
                     const stepsElapsed = Math.floor(
                       Tone.Transport.seconds / baseStepDuration
                     );
-                    currentIndex =
-                      (pathLength - (stepsElapsed % pathLength)) % pathLength;
+                    currentIndex = stepsElapsed % pathLength;
                     currentIndices[pathId] = currentIndex;
                   } else {
                     currentIndex = 0;
@@ -780,7 +778,7 @@ const App = () => {
                   }
                 }
 
-                const currentHex = path[currentIndex];
+                const currentHex = path[path.length - 1 - currentIndex];
                 if (!currentHex) return;
 
                 const hexToUpdate = _.find(updatedHexes, (h) =>
@@ -914,8 +912,7 @@ const App = () => {
                 const currentIndex = currentIndices[pathId] ?? 0;
                 const effectiveSpeedRate = Math.min(speedRate, path.length);
                 currentIndices[pathId] =
-                  (currentIndex - effectiveSpeedRate + path.length) %
-                  path.length;
+                  (currentIndex + effectiveSpeedRate) % path.length;
               } else {
                 currentIndices[pathId] = 0;
               }
