@@ -503,22 +503,38 @@ const App = () => {
     let loadedCount = 0;
     const totalCount = allSamples.length;
 
-    allSamples.forEach((sample) => {
-      const player = new Tone.Player({
-        url: sample.url,
-        fadeOut: 0.01,
-        retrigger: true,
-        curve: "linear",
-        onload: () => {
-          loadedCount += 1;
-          if (loadedCount === totalCount) {
-            setIsLoadingSamples(false);
-          }
-        },
-      }).toDestination();
-      players[sample.name] = player;
-    });
+    // Create a pre-warmed player for each sample
+    const initializePlayers = async () => {
+      try {
+        await Tone.start();
 
+        for (const sample of allSamples) {
+          const player = new Tone.Player({
+            url: sample.url,
+            fadeOut: 0.01,
+            retrigger: true,
+            curve: "linear",
+            onload: () => {
+              loadedCount += 1;
+              if (loadedCount === totalCount) {
+                setIsLoadingSamples(false);
+              }
+            },
+          }).toDestination();
+
+          // Pre-warm the player with zero gain
+          const silentGain = new Tone.Gain(0).toDestination();
+          player.connect(silentGain);
+
+          // Store the initialized player
+          players[sample.name] = player;
+        }
+      } catch (error) {
+        console.error("Error initializing audio players:", error);
+      }
+    };
+
+    initializePlayers();
     samplerRef.current = players;
 
     return () => {
@@ -638,29 +654,34 @@ const App = () => {
       console.error("Error: Player not initialized for sample:", sampleName);
       return false;
     }
+
     try {
       const player = players[sampleName];
 
-      // Ensure the player is loaded before attempting to play
+      // Ensure the player is loaded
       if (!player.loaded) {
         console.warn(`Sample ${sampleName} is not yet loaded.`);
         return false;
       }
 
       const currentTime = Tone.Transport.seconds;
-      // Ensure time is strictly greater than last start time for this sample
-      let safeTime = Math.max(time, currentTime);
+      // Add a small offset to ensure clean playback
+      const safeStartTime = Math.max(time, currentTime + 0.01);
+
+      // Ensure time is strictly greater than last start time
       const lastTime = lastStartTimeRef.current[sampleName] || 0;
-      if (safeTime <= lastTime) {
-        safeTime = lastTime + 0.0001; // Increment slightly if needed
-      }
-      lastStartTimeRef.current[sampleName] = safeTime;
+      const finalStartTime = Math.max(safeStartTime, lastTime + 0.01);
+      lastStartTimeRef.current[sampleName] = finalStartTime;
+
+      // Calculate a safe duration
+      const safeDuration = Math.max(duration || 0.25, 0.1);
 
       console.log(
-        `Playing sample ${sampleName} at time ${safeTime} for duration ${duration}s`
+        `Playing sample ${sampleName} at time ${finalStartTime} for duration ${safeDuration}s`
       );
 
-      player.start(safeTime, 0, duration || 0.25);
+      // Start the player with the calculated safe times
+      player.start(finalStartTime, 0, safeDuration);
       return true;
     } catch (error) {
       console.error(`Error playing sample ${sampleName}:`, error);
@@ -670,233 +691,254 @@ const App = () => {
 
   // Within App.jsx, replace the existing useEffect for Tone.Transport with this updated version
 
+  // Replace the main useEffect for transport and playback in App.jsx
   useEffect(() => {
     if (isAudioPlaying) {
-      // Reset references and states
+      // Initialize references and state
       lastStartTimeRef.current = {};
       pathSpeedRatesRef.current = {};
 
-      // Initialize currentIndices based on the current transport position
-      const initializeCurrentIndices = () => {
-        const newIndices = {};
-        const baseStepDuration = Tone.Time(noteTime).toSeconds();
-        const stepsElapsed = Math.floor(
-          Tone.Transport.seconds / baseStepDuration
-        );
+      const initializeAndStart = async () => {
+        try {
+          await Tone.start();
 
-        pathsRef.current.forEach((pathObj) => {
-          const { id: pathId, path } = pathObj;
-          if (!path || path.length === 0) {
-            newIndices[pathId] = 0;
-            return;
-          }
-          if (currentIndicesRef.current[pathId] === undefined) {
-            const pathLength = path.length;
-            const currentIndex =
-              (pathLength - (stepsElapsed % pathLength)) % pathLength;
-            newIndices[pathId] = currentIndex;
-          }
-        });
+          // Pre-warm the audio system
+          // const players = samplerRef.current;
+          // for (const player of Object.values(players)) {
+          //   if (player.loaded) {
+          //     const silentGain = new Tone.Gain(0).toDestination();
+          //     player.connect(silentGain);
+          //     await player.start();
+          //     await player.stop();
+          //     player.disconnect(silentGain);
+          //     silentGain.dispose();
+          //   }
+          // }
 
-        currentIndicesRef.current = {
-          ...currentIndicesRef.current,
-          ...newIndices,
-        };
-        setCurrentIndices(currentIndicesRef.current);
-      };
-
-      initializeCurrentIndices();
-
-      const tickCallback = (time) => {
-        if (!isAudioPlaying) return;
-
-        const currentPaths = pathsRef.current;
-        const currentIndices = currentIndicesRef.current;
-        const soloPaths = currentPaths.filter((p) => p.solo);
-        const pathsToUse = soloPaths.length > 0 ? soloPaths : currentPaths;
-
-        setHexes((prevHexes) => {
-          const updatedHexes = _.map(prevHexes, (hex) => ({
-            ...hex,
-            isPlaying: false,
-          }));
-
-          pathsToUse.forEach((pathObj) => {
-            const { id: pathId, path } = pathObj;
-            if (!path || path.length === 0 || pathObj.bypass) return;
-
-            let currentIndex = currentIndices[pathId];
-            if (currentIndex === undefined) {
-              // Synchronize new paths based on transport position
-              const pathLength = path.length;
-              if (pathLength > 0) {
-                const baseStepDuration = Tone.Time(noteTime).toSeconds();
-                const stepsElapsed = Math.floor(
-                  Tone.Transport.seconds / baseStepDuration
-                );
-                currentIndex =
-                  (pathLength - (stepsElapsed % pathLength)) % pathLength;
-                currentIndices[pathId] = currentIndex;
-              } else {
-                currentIndex = 0;
-                currentIndices[pathId] = currentIndex;
-              }
-            }
-
-            const currentHex = path[currentIndex];
-            if (!currentHex) return;
-
-            const hexToUpdate = _.find(updatedHexes, (h) =>
-              areCoordinatesEqual(h, currentHex)
+          // Initialize currentIndices based on transport position
+          const initializeCurrentIndices = () => {
+            const newIndices = {};
+            const baseStepDuration = Tone.Time(noteTime).toSeconds();
+            // Use raw transport time to calculate steps without musical bar assumptions
+            const rawStepsElapsed = Math.floor(
+              Tone.Transport.seconds / baseStepDuration
             );
 
-            if (hexToUpdate?.sampleName) {
-              try {
-                const stepsRemaining = currentIndex;
-                const scheduledTime = Math.max(
-                  time,
-                  Tone.Transport.seconds + 0.01
+            pathsRef.current.forEach((pathObj) => {
+              const { id: pathId, path } = pathObj;
+              if (!path || path.length === 0) {
+                newIndices[pathId] = 0;
+              } else {
+                const pathLength = path.length;
+                // Calculate the current index based purely on elapsed time and path length,
+                // allowing for true polyrhythmic relationships
+                const currentIndex =
+                  (pathLength - (rawStepsElapsed % pathLength)) % pathLength;
+                newIndices[pathId] = currentIndex;
+              }
+            });
+
+            currentIndicesRef.current = newIndices;
+            setCurrentIndices(newIndices);
+          };
+
+          initializeCurrentIndices();
+
+          // Schedule the main playback loop
+          const scheduleId = Tone.Transport.scheduleRepeat((time) => {
+            if (!isAudioPlaying) return;
+
+            const currentPaths = pathsRef.current;
+            const currentIndices = currentIndicesRef.current;
+            const soloPaths = currentPaths.filter((p) => p.solo);
+            const pathsToUse = soloPaths.length > 0 ? soloPaths : currentPaths;
+
+            setHexes((prevHexes) => {
+              const updatedHexes = _.map(prevHexes, (hex) => ({
+                ...hex,
+                isPlaying: false,
+              }));
+
+              pathsToUse.forEach((pathObj) => {
+                const { id: pathId, path } = pathObj;
+                if (!path || path.length === 0 || pathObj.bypass) return;
+
+                let currentIndex = currentIndices[pathId];
+                if (currentIndex === undefined) {
+                  const pathLength = path.length;
+                  if (pathLength > 0) {
+                    const baseStepDuration = Tone.Time(noteTime).toSeconds();
+                    const stepsElapsed = Math.floor(
+                      Tone.Transport.seconds / baseStepDuration
+                    );
+                    currentIndex =
+                      (pathLength - (stepsElapsed % pathLength)) % pathLength;
+                    currentIndices[pathId] = currentIndex;
+                  } else {
+                    currentIndex = 0;
+                    currentIndices[pathId] = currentIndex;
+                  }
+                }
+
+                const currentHex = path[currentIndex];
+                if (!currentHex) return;
+
+                const hexToUpdate = _.find(updatedHexes, (h) =>
+                  areCoordinatesEqual(h, currentHex)
                 );
 
-                let playbackContext = {
-                  triggerTime: scheduledTime,
-                  duration: null,
-                  speedRate: 1,
-                };
+                if (hexToUpdate?.sampleName) {
+                  try {
+                    const stepsRemaining = currentIndex;
+                    const scheduledTime = Math.max(
+                      time + 0.05, // Add small offset for first trigger
+                      Tone.Transport.seconds + 0.01
+                    );
 
-                const connectedBranches = _.filter(
-                  branchesRef.current,
-                  (b) => b?.parentPathId === pathId
-                );
+                    let playbackContext = {
+                      triggerTime: scheduledTime,
+                      duration: null,
+                      speedRate: 1,
+                    };
 
-                const utilityBranches = connectedBranches.filter(
-                  (branch) => branch?.effect?.type === "utility"
-                );
-                const audioEffectBranches = connectedBranches.filter(
-                  (branch) => branch?.effect?.type === "fx"
-                );
+                    const connectedBranches = _.filter(
+                      branchesRef.current,
+                      (b) => b?.parentPathId === pathId
+                    );
 
-                // Apply utility effects with error handling
-                playbackContext = utilityBranches.reduce(
-                  (context, branchObj) => {
-                    if (!branchObj?.effect?.name) return context;
+                    const utilityBranches = connectedBranches.filter(
+                      (branch) => branch?.effect?.type === "utility"
+                    );
+                    const audioEffectBranches = connectedBranches.filter(
+                      (branch) => branch?.effect?.type === "fx"
+                    );
 
-                    const handler = utilityHandlers[branchObj.effect.name];
-                    if (!handler) return context;
+                    // Apply utility effects with error handling
+                    playbackContext = utilityBranches.reduce(
+                      (context, branchObj) => {
+                        if (!branchObj?.effect?.name) return context;
 
-                    try {
-                      const newContext = handler(
-                        context,
-                        branchObj.effectConfig
-                      );
+                        const handler = utilityHandlers[branchObj.effect.name];
+                        if (!handler) return context;
 
-                      if (branchObj.effect.name === "Speed") {
-                        const rate = parseFloat(
-                          branchObj.effectConfig?.rate?.value ?? 1
-                        );
-                        if (!isNaN(rate) && rate > 0) {
-                          pathSpeedRatesRef.current[pathId] = rate;
+                        try {
+                          const newContext = handler(
+                            context,
+                            branchObj.effectConfig
+                          );
+
+                          if (branchObj.effect.name === "Speed") {
+                            const rate = parseFloat(
+                              branchObj.effectConfig?.rate?.value ?? 1
+                            );
+                            if (!isNaN(rate) && rate > 0) {
+                              pathSpeedRatesRef.current[pathId] = rate;
+                            }
+                          }
+
+                          return newContext;
+                        } catch (error) {
+                          console.error("Utility handler error:", error);
+                          return context;
                         }
-                      }
+                      },
+                      playbackContext
+                    );
 
-                      return newContext;
-                    } catch (error) {
-                      console.error("Utility handler error:", error);
-                      return context;
-                    }
-                  },
-                  playbackContext
-                );
+                    // Calculate precise durations with a minimum duration
+                    const baseStepDuration = Tone.Time(noteTime).toSeconds();
+                    const speedRate = playbackContext.speedRate || 1;
+                    const oneStepDuration = baseStepDuration / speedRate;
 
-                // Calculate precise durations with a minimum duration to prevent stuttering
-                const baseStepDuration = Tone.Time(noteTime).toSeconds();
-                const speedRate = playbackContext.speedRate || 1;
-                const oneStepDuration = baseStepDuration / speedRate;
+                    const totalDuration = Math.max(
+                      stepsRemaining * oneStepDuration + oneStepDuration - 0.01,
+                      0.1
+                    );
 
-                const totalDuration = Math.max(
-                  stepsRemaining * oneStepDuration + oneStepDuration - 0.01,
-                  0.1
-                );
+                    const pathVolume = pathObj.volume ?? 1;
 
-                const pathVolume = pathObj.volume ?? 1;
-
-                // Handle audio playback through effects or direct
-                if (audioEffectBranches.length > 0) {
-                  audioEffectBranches.forEach((branch) => {
-                    const branchNode = branchEffectNodesRef.current[branch.id];
-                    if (branchNode?.players) {
-                      const player = branchNode.players[hexToUpdate.sampleName];
+                    // Handle audio playback through effects or direct
+                    if (audioEffectBranches.length > 0) {
+                      audioEffectBranches.forEach((branch) => {
+                        const branchNode =
+                          branchEffectNodesRef.current[branch.id];
+                        if (branchNode?.players) {
+                          const player =
+                            branchNode.players[hexToUpdate.sampleName];
+                          if (player && player.loaded) {
+                            player.volume.value = Tone.gainToDb(pathVolume);
+                            player.mute = false;
+                            triggerSampleWithValidation(
+                              branchNode.players,
+                              hexToUpdate.sampleName,
+                              totalDuration,
+                              playbackContext.triggerTime
+                            );
+                          }
+                        }
+                      });
+                    } else {
+                      const player = samplerRef.current[hexToUpdate.sampleName];
                       if (player && player.loaded) {
                         player.volume.value = Tone.gainToDb(pathVolume);
                         player.mute = false;
                         triggerSampleWithValidation(
-                          branchNode.players,
+                          samplerRef.current,
                           hexToUpdate.sampleName,
                           totalDuration,
                           playbackContext.triggerTime
                         );
                       }
                     }
-                  });
-                } else {
-                  const player = samplerRef.current[hexToUpdate.sampleName];
-                  if (player && player.loaded) {
-                    player.volume.value = Tone.gainToDb(pathVolume);
-                    player.mute = false;
-                    triggerSampleWithValidation(
-                      samplerRef.current,
-                      hexToUpdate.sampleName,
-                      totalDuration,
-                      playbackContext.triggerTime
+                  } catch (error) {
+                    console.error(
+                      `Error playing sample ${hexToUpdate.sampleName}:`,
+                      error
                     );
                   }
                 }
-              } catch (error) {
-                console.error(
-                  `Error playing sample ${hexToUpdate.sampleName}:`,
-                  error
-                );
+
+                if (hexToUpdate) {
+                  hexToUpdate.isPlaying = true;
+                }
+              });
+
+              return [...updatedHexes];
+            });
+
+            // Update indices with speed rate consideration
+            pathsToUse.forEach((pathObj) => {
+              const { id: pathId, path } = pathObj;
+              if (path?.length > 0) {
+                const speedRate = pathSpeedRatesRef.current[pathId] || 1;
+                const currentIndex = currentIndices[pathId] ?? 0;
+                const effectiveSpeedRate = Math.min(speedRate, path.length);
+                currentIndices[pathId] =
+                  (currentIndex - effectiveSpeedRate + path.length) %
+                  path.length;
+              } else {
+                currentIndices[pathId] = 0;
               }
-            }
+            });
 
-            if (hexToUpdate) {
-              hexToUpdate.isPlaying = true;
-            }
-          });
+            // Update the ref and state
+            currentIndicesRef.current = { ...currentIndicesRef.current };
+            setCurrentIndices(currentIndicesRef.current);
+          }, noteTime);
 
-          return [...updatedHexes];
-        });
+          transportScheduleRef.current = scheduleId;
 
-        // Update indices with speed rate consideration
-        pathsToUse.forEach((pathObj) => {
-          const { id: pathId, path } = pathObj;
-          if (path?.length > 0) {
-            const speedRate = pathSpeedRatesRef.current[pathId] || 1;
-            const currentIndex = currentIndices[pathId] ?? 0;
-            const effectiveSpeedRate = Math.min(speedRate, path.length);
-            currentIndices[pathId] =
-              (currentIndex - effectiveSpeedRate + path.length) % path.length;
-          } else {
-            currentIndices[pathId] = 0;
-          }
-        });
-
-        // Update the ref and state
-        currentIndicesRef.current = { ...currentIndicesRef.current };
-        setCurrentIndices(currentIndicesRef.current);
+          // Start transport with a small delay
+          setTimeout(() => {
+            Tone.Transport.start("+0.1");
+          }, 100);
+        } catch (error) {
+          console.error("Error starting transport:", error);
+        }
       };
 
-      // Clear any existing scheduled events to prevent multiple schedules
-      Tone.Transport.cancel();
+      initializeAndStart();
 
-      // Schedule the tickCallback with scheduleRepeat
-      const scheduleId = Tone.Transport.scheduleRepeat(tickCallback, noteTime);
-      transportScheduleRef.current = scheduleId;
-
-      // Start the transport
-      Tone.Transport.start();
-
-      // Cleanup function to cancel the schedule when effect unmounts or dependencies change
       return () => {
         if (transportScheduleRef.current !== null) {
           Tone.Transport.clear(transportScheduleRef.current);
@@ -905,12 +947,12 @@ const App = () => {
         Tone.Transport.cancel();
       };
     } else {
-      // Stop and cleanup when audio is not playing
+      // Cleanup when stopping
       const now = Tone.now();
       Tone.Transport.cancel();
       Tone.Transport.stop();
 
-      // Clean up all audio nodes
+      // Clean up audio nodes
       Object.values(samplerRef.current).forEach((player) => {
         if (player?.stop) {
           player.stop(now);
@@ -950,53 +992,103 @@ const App = () => {
       // Clear references
       lastStartTimeRef.current = {};
       pathSpeedRatesRef.current = {};
-
-      // Cancel any scheduled events
-      Tone.Transport.cancel();
-      if (transportScheduleRef.current !== null) {
-        Tone.Transport.clear(transportScheduleRef.current);
-        transportScheduleRef.current = null;
-      }
     }
 
     return () => {
-      // Cleanup on unmount
       if (transportScheduleRef.current !== null) {
         Tone.Transport.clear(transportScheduleRef.current);
         transportScheduleRef.current = null;
       }
       Tone.Transport.cancel();
       Tone.Transport.stop();
-
-      // Clean up all audio nodes
-      Object.values(samplerRef.current).forEach((player) => {
-        if (player?.stop) {
-          player.stop();
-          player.mute = true;
-        }
-      });
-
-      Object.values(branchEffectNodesRef.current).forEach((branch) => {
-        if (branch?.players) {
-          Object.values(branch.players).forEach((player) => {
-            if (player?.stop) {
-              player.stop();
-              player.mute = true;
-            }
-          });
-        }
-      });
     };
   }, [isAudioPlaying, setHexes, setCurrentIndices]);
 
   const closeControlsRef = useRef(null);
 
+  // Replace the useEffect hook for sample initialization in App.jsx
+  useEffect(() => {
+    const players = {};
+    const allSamples = [...sampleStore, ...userSamples];
+    let loadedCount = 0;
+    const totalCount = allSamples.length;
+
+    // Create a pre-warmed player for each sample
+    const initializePlayers = async () => {
+      try {
+        await Tone.start();
+
+        for (const sample of allSamples) {
+          const player = new Tone.Player({
+            url: sample.url,
+            fadeOut: 0.01,
+            retrigger: true,
+            curve: "linear",
+            onload: () => {
+              loadedCount += 1;
+              if (loadedCount === totalCount) {
+                setIsLoadingSamples(false);
+              }
+            },
+          }).toDestination();
+
+          // Pre-warm the player with zero gain
+          const silentGain = new Tone.Gain(0).toDestination();
+          player.connect(silentGain);
+
+          // Store the initialized player
+          players[sample.name] = player;
+        }
+      } catch (error) {
+        console.error("Error initializing audio players:", error);
+      }
+    };
+
+    initializePlayers();
+    samplerRef.current = players;
+
+    return () => {
+      Object.values(players).forEach((player) => {
+        player.stop();
+        player.disconnect();
+        player.dispose();
+      });
+    };
+  }, [sampleStore, userSamples]);
+
+  // Replace the handlePlayToggle function in App.jsx
   const handlePlayToggle = async () => {
     if (isAudioPlaying) {
       setIsAudioPlaying(false);
     } else {
-      await Tone.start();
-      setIsAudioPlaying(true);
+      try {
+        await Tone.start();
+
+        // Pre-warm all players with zero gain
+        const players = samplerRef.current;
+        const preWarmPromises = Object.values(players).map(async (player) => {
+          if (player.loaded) {
+            const silentGain = new Tone.Gain(0).toDestination();
+            player.connect(silentGain);
+            player.start();
+            // Use setTimeout for cleanup after brief pre-warm
+            setTimeout(() => {
+              player.stop();
+              player.disconnect(silentGain);
+              silentGain.dispose();
+            }, 100);
+          }
+        });
+
+        await Promise.all(preWarmPromises);
+
+        // Small delay before starting playback
+        setTimeout(() => {
+          setIsAudioPlaying(true);
+        }, 100);
+      } catch (error) {
+        console.error("Error starting playback:", error);
+      }
     }
   };
 
