@@ -503,7 +503,6 @@ const App = () => {
     let loadedCount = 0;
     const totalCount = allSamples.length;
 
-    // Create a pre-warmed player for each sample
     const initializePlayers = async () => {
       try {
         await Tone.start();
@@ -522,11 +521,9 @@ const App = () => {
             },
           }).toDestination();
 
-          // Pre-warm the player with zero gain
           const silentGain = new Tone.Gain(0).toDestination();
           player.connect(silentGain);
 
-          // Store the initialized player
           players[sample.name] = player;
         }
       } catch (error) {
@@ -1002,56 +999,6 @@ const App = () => {
   }, [isAudioPlaying, setHexes, setCurrentIndices]);
 
   const closeControlsRef = useRef(null);
-
-  // Replace the useEffect hook for sample initialization in App.jsx
-  useEffect(() => {
-    const players = {};
-    const allSamples = [...sampleStore, ...userSamples];
-    let loadedCount = 0;
-    const totalCount = allSamples.length;
-
-    // Create a pre-warmed player for each sample
-    const initializePlayers = async () => {
-      try {
-        await Tone.start();
-
-        for (const sample of allSamples) {
-          const player = new Tone.Player({
-            url: sample.url,
-            fadeOut: 0.01,
-            retrigger: true,
-            curve: "linear",
-            onload: () => {
-              loadedCount += 1;
-              if (loadedCount === totalCount) {
-                setIsLoadingSamples(false);
-              }
-            },
-          }).toDestination();
-
-          // Pre-warm the player with zero gain
-          const silentGain = new Tone.Gain(0).toDestination();
-          player.connect(silentGain);
-
-          // Store the initialized player
-          players[sample.name] = player;
-        }
-      } catch (error) {
-        console.error("Error initializing audio players:", error);
-      }
-    };
-
-    initializePlayers();
-    samplerRef.current = players;
-
-    return () => {
-      Object.values(players).forEach((player) => {
-        player.stop();
-        player.disconnect();
-        player.dispose();
-      });
-    };
-  }, [sampleStore, userSamples]);
 
   // Replace the handlePlayToggle function in App.jsx
   const handlePlayToggle = async () => {
