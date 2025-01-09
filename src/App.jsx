@@ -1001,30 +1001,71 @@ const App = () => {
   const closeControlsRef = useRef(null);
 
   // Replace the handlePlayToggle function in App.jsx
+  // 1. Replace the sample initialization useEffect with this version
+  useEffect(() => {
+    console.log("Initializing audio players..."); // Debug log
+    const players = {};
+    const allSamples = [...sampleStore, ...userSamples];
+    let loadedCount = 0;
+    const totalCount = allSamples.length;
+
+    allSamples.forEach((sample) => {
+      console.log(`Starting to load sample: ${sample.name}`); // Debug log
+      const player = new Tone.Player({
+        url: sample.url,
+        fadeOut: 0.01,
+        retrigger: true,
+        curve: "linear",
+        onload: () => {
+          loadedCount += 1;
+          console.log(
+            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+          ); // Debug log
+          if (loadedCount === totalCount) {
+            console.log("All samples loaded successfully"); // Debug log
+            setIsLoadingSamples(false);
+          }
+        },
+      }).toDestination();
+
+      players[sample.name] = player;
+    });
+
+    samplerRef.current = players;
+
+    return () => {
+      Object.values(players).forEach((player) => {
+        player.stop();
+        player.disconnect();
+        player.dispose();
+      });
+    };
+  }, [sampleStore, userSamples]);
+
+  // 2. Replace the handlePlayToggle function with this version
   const handlePlayToggle = async () => {
     if (isAudioPlaying) {
       setIsAudioPlaying(false);
     } else {
       try {
         await Tone.start();
+        console.log("Tone.start() successful"); // Debug log
 
-        // Pre-warm all players with zero gain
+        // Pre-warm players only when play is clicked
         const players = samplerRef.current;
         const preWarmPromises = Object.values(players).map(async (player) => {
           if (player.loaded) {
             const silentGain = new Tone.Gain(0).toDestination();
             player.connect(silentGain);
-            player.start();
-            // Use setTimeout for cleanup after brief pre-warm
-            setTimeout(() => {
-              player.stop();
-              player.disconnect(silentGain);
-              silentGain.dispose();
-            }, 100);
+            await player.start();
+            await player.stop();
+            player.disconnect(silentGain);
+            silentGain.dispose();
           }
         });
 
         await Promise.all(preWarmPromises);
+        console.log("Pre-warm complete"); // Debug log
 
         // Small delay before starting playback
         setTimeout(() => {
