@@ -784,7 +784,7 @@ const App = () => {
 
                 if (hexToUpdate?.sampleName) {
                   try {
-                    const stepsRemaining = currentIndex;
+                    const stepsRemaining = path.length - currentIndex;
                     const scheduledTime = Math.max(
                       time + 0.05, // Add small offset for first trigger
                       Tone.Transport.seconds + 0.01
