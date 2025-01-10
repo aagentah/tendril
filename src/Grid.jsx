@@ -270,8 +270,11 @@ const Grid = () => {
 
     // Handle path creation mode
     if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
-      // Get the last hex of the draft path
-      const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
+      // Lock the current draft path immediately
+      const lockedDraftPath = [...draftPath];
+
+      // Get the last hex of the locked draft path
+      const lastHexInDraft = pathEdgeFromPath(lockedDraftPath, "last");
 
       // Get all existing path end hexes
       const existingPathEnds = getPathEdges(paths, "last").filter(Boolean);
@@ -304,7 +307,7 @@ const Grid = () => {
       const { v4: uuidv4 } = await import("uuid");
       const newPathId = uuidv4();
 
-      // Establish the path
+      // Establish the path using the locked draft path
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(
           prevHexes,
@@ -312,20 +315,26 @@ const Grid = () => {
           { lastHexInPath: true }
         )
       );
+
       set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, (h) => h.isPathDraft, {
-          isPathDraft: false,
-          isPath: true,
-          isPathSelected: false,
-          isBranch: false,
-          pathId: newPathId,
-        })
+        updateHexProperties(
+          prevHexes,
+          (h) => lockedDraftPath.some((p) => areCoordinatesEqual(p, h)),
+          {
+            isPathDraft: false,
+            isPath: true,
+            isPathSelected: false,
+            isBranch: false,
+            pathId: newPathId,
+          }
+        )
       );
+
       set(pathsAtom, (prevPaths) => [
         ...prevPaths,
         {
           id: newPathId,
-          path: draftPath,
+          path: lockedDraftPath,
           volume: 1,
           solo: false,
           bypass: false,
@@ -359,6 +368,7 @@ const Grid = () => {
       // Don't deselect the sample to allow multiple placements
       return;
     }
+
     // Handle effect branch creation (unchanged)
     if (selectedEffect.name && hex.isEffectDraft) {
       const effectDraftHexes = effectDraftPath;
