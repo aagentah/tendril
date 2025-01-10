@@ -750,6 +750,25 @@ const App = () => {
             const soloPaths = currentPaths.filter((p) => p.solo);
             const pathsToUse = soloPaths.length > 0 ? soloPaths : currentPaths;
 
+            pathsToUse.forEach((pathObj) => {
+              const { id: pathId } = pathObj;
+              const connectedBranches = _.filter(
+                branchesRef.current,
+                (b) => b?.parentPathId === pathId
+              );
+
+              const speedBranch = connectedBranches.find(
+                (branch) => branch?.effect?.name === "Speed"
+              );
+
+              if (speedBranch?.effectConfig?.rate?.value) {
+                const rate = parseFloat(speedBranch.effectConfig.rate.value);
+                if (!isNaN(rate) && rate > 0) {
+                  pathSpeedRatesRef.current[pathId] = rate;
+                }
+              }
+            });
+
             setHexes((prevHexes) => {
               const updatedHexes = _.map(prevHexes, (hex) => ({
                 ...hex,
