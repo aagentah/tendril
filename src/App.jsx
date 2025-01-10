@@ -1101,7 +1101,22 @@ const App = () => {
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
         <div className="flex flex-wrap w-full max-w-screen-xl">
-          <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
+          <div className="block lg:hidden fixed top-12 left-0 right-0 text-lg my-4 text-center mx-auto">
+            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+            <p className="text-center text-sm text-neutral-500">
+              Made by{" "}
+              <a
+                className="text-neutral-500 underline"
+                href="https://daniel.aagentah.tech/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                daniel.aagentah
+              </a>
+            </p>
+          </div>
+
+          <div className="w-full lg:w-1/2 flex justify-center items-center scale-[0.9] sm:scale-100">
             <div className="relative">
               {/* Render the Grid and P5Overlay */}
               <HexGrid />
@@ -1115,7 +1130,7 @@ const App = () => {
               </div>
             ) : (
               <MobileControlsPanel onCloseRef={closeControlsRef}>
-                <div className="visible text-lg my-4 text-center mx-auto">
+                <div className="hidden lg:block text-lg my-4 text-center mx-auto">
                   <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
                   <p className="text-center text-sm text-neutral-500">
                     Made by{" "}
@@ -1128,6 +1143,10 @@ const App = () => {
                       daniel.aagentah
                     </a>
                   </p>
+                </div>
+
+                <div className="absolute top-2 left-0 right-0 block lg:hidden text-lg my-4 text-center mx-auto">
+                  <h2 className="text-lg mb-2 text-center mx-auto">Controls</h2>
                 </div>
 
                 {/* Controls panel */}
@@ -1183,25 +1202,26 @@ const MobileControlsPanel = ({ children, onCloseRef }) => {
             isOpen ? "translate-y-0" : "translate-y-full"
           }`}
         >
-          <button
-            onClick={() => setIsOpen(false)}
-            className="absolute top-4 right-4 z-50 p-2 text-white"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="absolute top-5 right-4 z-50 p-2 text-white"
             >
-              <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
-              <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
-            </svg>
-          </button>
-          <div className="h-full overflow-y-auto px-4 pt-16 pb-8">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
+                <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
+              </svg>
+            </button>
+
             {children}
           </div>
         </div>

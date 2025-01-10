@@ -162,7 +162,7 @@ const Hex = memo(
           ? `${draftPath.length.toString()}-bar`
           : "+";
 
-      fontSize = isPathCreationMode && draftPath.length > 0 ? 12 : 20;
+      fontSize = isPathCreationMode && draftPath.length > 0 ? 12 : 26;
     }
 
     // Default cursor states
