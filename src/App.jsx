@@ -1080,7 +1080,7 @@ const App = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="hidden lg:flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
         <div className="flex flex-wrap w-full max-w-screen-xl">
           <div className="w-full lg:w-1/2 flex justify-center items-center scale-75 sm:scale-100">
             <div className="relative">
@@ -1126,10 +1126,6 @@ const App = () => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex lg:hidden flex-col h-screen w-screen items-center justify-center min-h-screen bg-neutral-900 text-white p-8">
-        This project wasn't built for touch devices (sorry).
       </div>
     </DndProvider>
   );
