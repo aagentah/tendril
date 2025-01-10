@@ -241,6 +241,7 @@ export const selectedEffectAtom = atom({ type: null, name: null });
 export const effectDraftPathAtom = atom([]);
 export const userSamplesAtom = atom([]);
 export const dragPreviewAtom = atom({ show: false, x: 0, y: 0 });
+export const isPathCreationModeAtom = atom(false);
 
 // Predefined ring hexes
 export const predefinedCenterRingHexes = [

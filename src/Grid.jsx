@@ -11,6 +11,7 @@ import {
   pathsAtom,
   draftPathAtom,
   effectDraftPathAtom,
+  isPathCreationModeAtom,
 } from "./App";
 
 // Import utilities and helper functions
@@ -153,45 +154,11 @@ const Grid = () => {
   const handleHexMouseEnter = useAtomCallback(async (get, set, hex) => {
     const selectedEffect = get(selectedEffectAtom);
     const selectedSample = get(selectedSampleAtom);
+    const isPathCreationMode = get(isPathCreationModeAtom);
     const hexes = get(hexesAtom);
     const paths = get(pathsAtom);
 
-    // Effect branch drafting
-    if (selectedEffect.name && !hex.isPath) {
-      const lastHexes = getPathEdges(paths, "last").filter(Boolean);
-      if (lastHexes.length === 0) return;
-
-      let minDistance = Infinity;
-      let nearestLastHex = null;
-      for (const lastHex of lastHexes) {
-        const distance = hexDistance(hex, lastHex);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestLastHex = lastHex;
-        }
-      }
-      if (nearestLastHex) {
-        const shortestPath = findShortestPath(nearestLastHex, hex, hexes);
-        if (shortestPath.length > 0) {
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(
-              prevHexes,
-              (h) =>
-                shortestPath.find((p) => areCoordinatesEqual(p, h)) &&
-                !h.isPath,
-              { isEffectDraft: true }
-            )
-          );
-          set(effectDraftPathAtom, shortestPath);
-        }
-      }
-    }
-    // Sample path drafting
-    else if (
-      selectedSample.click === 1 &&
-      !selectedEffect.name &&
-      !hex.isPath
-    ) {
+    if (isPathCreationMode && !hex.isPath) {
       const shortestPathsToNeighbors = predefinedOuterRing
         .map((outerHex) => {
           const neighbor = hexes.find((h) => areCoordinatesEqual(h, outerHex));
@@ -218,19 +185,42 @@ const Grid = () => {
         );
         set(draftPathAtom, sp);
       }
+      return;
+    }
+
+    if (selectedEffect?.name && !hex.isPath) {
+      const lastHexes = getPathEdges(paths, "last").filter(Boolean);
+
+      for (const lastHex of lastHexes) {
+        const distance = hexDistance(hex, lastHex);
+        if (distance === 1) {
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(
+              prevHexes,
+              (h) => areCoordinatesEqual(h, hex) && !h.isPath,
+              { isEffectDraft: true }
+            )
+          );
+          set(effectDraftPathAtom, [hex]);
+          break;
+        }
+      }
     }
   }, []);
 
   const handleHexMouseLeave = useAtomCallback(async (get, set, hex) => {
     const selectedEffect = get(selectedEffectAtom);
     const selectedSample = get(selectedSampleAtom);
+    const isPathCreationMode = get(isPathCreationModeAtom);
 
-    if (selectedEffect.name) {
+    if (selectedEffect?.name) {
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(prevHexes, () => true, { isEffectDraft: false })
       );
       set(effectDraftPathAtom, []);
-    } else if (selectedSample.name) {
+    }
+
+    if (selectedSample?.name || isPathCreationMode) {
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(prevHexes, () => true, { isPathDraft: false })
       );
@@ -260,106 +250,77 @@ const Grid = () => {
     }
   };
 
-  // --------------------
-  // Main Click Handler
-  // --------------------
+  // In Grid.jsx - Simplified hex click handling
+
   const handleHexClick = useAtomCallback(async (get, set, hex) => {
     const selectedSample = get(selectedSampleAtom);
     const selectedEffect = get(selectedEffectAtom);
     const hexes = get(hexesAtom);
-    const paths = get(pathsAtom);
-    const draftPath = get(draftPathAtom);
-    const effectDraftPath = get(effectDraftPathAtom);
+    const isPathCreationMode = get(isPathCreationModeAtom);
 
-    if (mouseDownTimerRef.current) {
-      clearTimeout(mouseDownTimerRef.current);
-      mouseDownTimerRef.current = null;
-    }
-
-    // Check for dragging state
-    if (
-      !selectedSample.name &&
-      !selectedEffect.name &&
-      draggingSampleHex.current
-    ) {
-      const sourceHex = draggingSampleHex.current;
-
-      // If target hex is on center or outer ring, delete the sample
-      if ((hex.isCenterRing || hex.isMainHex) && sourceHex) {
-        console.log("yyooo");
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(
-            prevHexes,
-            (h) => areCoordinatesEqual(h, sourceHex),
-            {
-              sampleName: null,
-              isHexSelected: false,
-            }
-          )
-        );
-      }
-      // Otherwise, try to move the sample within the same path
-      else if (
-        !hex.sampleName &&
-        sourceHex &&
-        hex.pathId === sourceHex.pathId
-      ) {
-        const sampleName = sourceHex.sampleName;
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(
-            prevHexes,
-            (h) => areCoordinatesEqual(h, sourceHex),
-            {
-              sampleName: null,
-              isHexSelected: false,
-            }
-          )
-        );
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-            sampleName: sampleName,
-            isHexSelected: false,
-          })
-        );
-      }
-
-      // Clear selection on the source hex regardless of move success or deletion
-      if (sourceHex) {
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(
-            prevHexes,
-            (h) => areCoordinatesEqual(h, sourceHex),
-            {
-              isHexSelected: false,
-            }
-          )
-        );
-      }
-      draggingSampleHex.current = null;
+    // Handle path creation mode
+    if (hex.isMainHex) {
+      set(isPathCreationModeAtom, true);
+      set(draftPathAtom, []);
+      set(effectDraftPathAtom, []);
+      setSelectedEffect({ type: null, name: null });
+      setSelectedSample({ name: null });
       return;
     }
 
-    // (1) Assign sample to existing path
-    if (selectedSample.name && hex.isPath && draftPath.length === 0) {
-      // If user is placing sample for the first time (click===2),
-      // then hide the tooltip once they do it:
-      if (selectedSample.click === 2) {
-        // Resets sample selection or sets click=0 or however you wish
-        setSelectedSample({ name: null, click: 0 });
-      } else {
-        // If user was still on click=1 or something else
-        setSelectedSample({ name: null, click: 0 });
-      }
-      // Actually place the sample
+    // Handle path creation mode click
+    if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
+      const { v4: uuidv4 } = await import("uuid");
+      const newPathId = uuidv4();
+      const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
+
+      // Establish the path
+      set(hexesAtom, (prevHexes) =>
+        updateHexProperties(
+          prevHexes,
+          (h) => lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
+          { lastHexInPath: true }
+        )
+      );
+      set(hexesAtom, (prevHexes) =>
+        updateHexProperties(prevHexes, (h) => h.isPathDraft, {
+          isPathDraft: false,
+          isPath: true,
+          isPathSelected: false,
+          isBranch: false,
+          pathId: newPathId,
+        })
+      );
+      set(pathsAtom, (prevPaths) => [
+        ...prevPaths,
+        {
+          id: newPathId,
+          path: draftPath,
+          volume: 1,
+          solo: false,
+          bypass: false,
+        },
+      ]);
+
+      // Reset path creation mode
+      set(isPathCreationModeAtom, false);
+      setDraftPath([]);
+      return;
+    }
+
+    // Handle sample placement on existing path
+    if (selectedSample?.name && hex.isPath && !hex.sampleName) {
+      // Place the sample
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
           sampleName: selectedSample.name,
         })
       );
+      // Don't deselect the sample to allow multiple placements
       return;
     }
 
-    // (2) Create an effect branch
+    // Handle effect branch creation (unchanged)
     if (selectedEffect.name && hex.isEffectDraft) {
       const effectDraftHexes = effectDraftPath;
       const lastHexes = getPathEdges(paths, "last").filter(Boolean);
@@ -433,163 +394,51 @@ const Grid = () => {
       return;
     }
 
-    // (3) Finalize a new path for a sample
-    if (
-      selectedSample.name &&
-      !selectedEffect.name &&
-      hex.isPathDraft &&
-      draftPath.length > 0
-    ) {
-      const { v4: uuidv4 } = await import("uuid");
-      const newPathId = uuidv4();
-      const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
-
-      // First establish the path
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(
-          prevHexes,
-          (h) => lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
-          { lastHexInPath: true }
-        )
-      );
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, (h) => h.isPathDraft, {
-          isPathDraft: false,
-          isPath: true,
-          isPathSelected: false,
-          isBranch: false,
-          pathId: newPathId,
-        })
-      );
-      set(pathsAtom, (prevPaths) => [
-        ...prevPaths,
-        {
-          id: newPathId,
-          path: draftPath,
-          volume: 1,
-          solo: false,
-          bypass: false,
-        },
-      ]);
-
-      // Then immediately place the sample at the last hex
-      if (lastHexInDraft) {
+    // Handle path/branch selection (unchanged)
+    if (!selectedSample?.name && !selectedEffect?.name) {
+      if (hex.isPath) {
+        // Select entire path
+        const selectedPathId = hex.pathId;
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, () => true, {
+            isPathSelected: false,
+            isBranchSelected: false,
+            isHexSelected: false,
+          })
+        );
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
+            isPathSelected: true,
+          })
+        );
+      } else if (hex.isBranch && !hex.isPath) {
+        // Select the branch
+        const selectedBranchId = hex.branchId;
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, () => true, {
+            isBranchSelected: false,
+            isPathSelected: false,
+            isHexSelected: false,
+          })
+        );
         set(hexesAtom, (prevHexes) =>
           updateHexProperties(
             prevHexes,
-            (h) => areCoordinatesEqual(h, lastHexInDraft),
-            { sampleName: selectedSample.name }
+            (h) => h.branchId === selectedBranchId,
+            {
+              isBranchSelected: true,
+            }
           )
         );
-      }
-
-      // Reset everything
-      setDraftPath([]);
-      setSelectedSample({ name: null, click: 0 });
-      return;
-    }
-
-    // (4) Handle selection or movement (original non-drag behavior)
-    if (!selectedSample.name && !selectedEffect.name) {
-      const anyHexSelected = _.some(hexes, (h) => h.isHexSelected);
-      if (!anyHexSelected) {
-        if (hex.isPath && hex.sampleName && hex.isPathSelected) {
-          // picking up sample from this hex
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-              isHexSelected: true,
-            })
-          );
-        } else if (hex.isPath) {
-          // select entire path
-          const selectedPathId = hex.pathId;
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              // First deselect ALL paths
-              isPathSelected: false,
-              isBranchSelected: false,
-              isHexSelected: false,
-            })
-          );
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
-              // Then select only this path
-              isPathSelected: true,
-            })
-          );
-        } else if (hex.isBranch && !hex.isPath) {
-          // select the branch
-          const selectedBranchId = hex.branchId;
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              // First deselect ALL branches and paths
-              isBranchSelected: false,
-              isPathSelected: false,
-              isHexSelected: false,
-            })
-          );
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(
-              prevHexes,
-              (h) => h.branchId === selectedBranchId,
-              {
-                // Then select only this branch
-                isBranchSelected: true,
-              }
-            )
-          );
-        } else {
-          // Deselect everything
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              isPathSelected: false,
-              isBranchSelected: false,
-              isHexSelected: false,
-            })
-          );
-        }
       } else {
-        // Movement logic (non-drag fallback)
-        const selectedHex = hexes.find((h) => h.isHexSelected);
-        if (hex.isPathSelected && !hex.sampleName && selectedHex) {
-          // Move sample
-          const sampleName = selectedHex.sampleName;
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(
-              prevHexes,
-              (h) => areCoordinatesEqual(h, selectedHex),
-              {
-                sampleName: null,
-                isHexSelected: false,
-              }
-            )
-          );
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-              sampleName: sampleName,
-              isHexSelected: false,
-            })
-          );
-        } else if (selectedHex && areCoordinatesEqual(hex, selectedHex)) {
-          // Remove sample
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(
-              prevHexes,
-              (h) => areCoordinatesEqual(h, selectedHex),
-              {
-                sampleName: null,
-                isHexSelected: false,
-              }
-            )
-          );
-        } else {
-          // Deselect single hex
-          set(hexesAtom, (prevHexes) =>
-            updateHexProperties(prevHexes, () => true, {
-              isHexSelected: false,
-            })
-          );
-        }
+        // Deselect everything
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, () => true, {
+            isPathSelected: false,
+            isBranchSelected: false,
+            isHexSelected: false,
+          })
+        );
       }
     }
   }, []);

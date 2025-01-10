@@ -1,7 +1,6 @@
-// Hex.jsx
-
 import React, { useState, memo } from "react";
 import { useAtom } from "jotai";
+import _ from "lodash";
 
 // Import any atoms or utilities the Hex component needs
 import {
@@ -9,7 +8,10 @@ import {
   draftPathAtom,
   selectedSampleAtom,
   selectedEffectAtom,
+  isPathCreationModeAtom,
 } from "./App";
+
+import { getPathEdges, hexDistance } from "./hexUtils";
 
 /**
  * Single hex cell component.
@@ -23,8 +25,6 @@ const Hex = memo(
     anyBranchSelected,
     anyPathSelected,
     anyHexSelected,
-    onMouseDown,
-    isDragging,
   }) => {
     // Destructure hex properties, including precomputed x, y, and points
     const {
@@ -48,107 +48,150 @@ const Hex = memo(
       lastHexInPath,
     } = hex;
 
-    // Atom states (uncomment if needed; some were commented out in original code)
-    // const [paths] = useAtom(pathsAtom);
-    // const [branches] = useAtom(branchesAtom);
+    // Atom states
     const [paths] = useAtom(pathsAtom);
     const [draftPath] = useAtom(draftPathAtom);
     const [selectedSample] = useAtom(selectedSampleAtom);
     const [selectedEffect] = useAtom(selectedEffectAtom);
+    const [isPathCreationMode] = useAtom(isPathCreationModeAtom);
 
     // Local state for hover
     const [isHovered, setIsHovered] = useState(false);
 
-    // Determine fill and stroke colors
+    // ------------------------------------------------
+    // Determine base fill and stroke colors
+    // ------------------------------------------------
     let fillColor = "transparent";
     let strokeColor = "grey";
     let strokeOpacity = 0.2;
     let strokeWidth = 0.5;
+    let cursor = "cursor-default";
 
+    // Base styles when no path or sample is selected
     if (paths.length === 0 && !selectedSample?.name) {
       strokeOpacity = 0.2;
     }
 
+    // Main / Center / Outer ring styling
     if (isMainHex) {
       fillColor = "#171717";
       strokeColor = "#171717";
     }
-
     if (isCenterRing) {
       fillColor = "#171717";
       strokeColor = "#171717";
     }
-
     if (isOuterRing) {
       fillColor = "#171717";
-      // strokeColor = "#171717"; // optional
     }
 
+    // Path-draft coloring
     if (isPathDraft) {
       fillColor = "darkred";
     }
 
+    // If actual path
     if (isPath) {
       strokeOpacity = 0.75;
     }
 
+    // If playing
     if (isPlaying && sampleName) {
       fillColor = "grey";
     }
 
+    // Path/branch selection highlights
     if (isPathSelected && !(isPlaying && sampleName)) {
       fillColor = "#171717";
       strokeWidth = 4;
       strokeColor = "grey";
     }
-
     if (isBranchSelected) {
       fillColor = "blue";
     }
 
-    if (isEffectDraft && selectedEffect.type === "fx") {
-      fillColor = "grey";
+    // Effect draft on hover (old logic):
+    // if (isEffectDraft && selectedEffect?.type === "fx") {
+    //   fillColor = "grey";
+    //   strokeColor = "white";
+    //   strokeWidth = 2;
+    //   cursor = "cursor-pointer";
+    // }
+    // if (isEffectDraft && selectedEffect?.type === "utility") {
+    //   fillColor = "blue";
+    //   strokeColor = "white";
+    //   strokeWidth = 2;
+    //   cursor = "cursor-pointer";
+    // }
+
+    // ------------------------------------------------
+    // NEW #2: Sample selected ⇒ highlight available path hexes
+    // ------------------------------------------------
+    if (selectedSample?.name && isPath && !sampleName) {
+      // This hex is a path hex and has no sample, so highlight it yellow
+      fillColor = "yellow";
     }
 
-    if (isEffectDraft && selectedEffect.type === "utility") {
-      fillColor = "blue";
+    // ------------------------------------------------
+    // Figure out adjacency to path ends for effect placement
+    // ------------------------------------------------
+    const pathEnds = getPathEdges(paths, "last").filter(Boolean);
+    const isAdjacentToPathEnd = pathEnds.some(
+      (end) => hexDistance(hex, end) === 1
+    );
+
+    // ------------------------------------------------
+    // NEW #3: Effect selected ⇒ show effect colors if hex is adjacent to a path end
+    //         and not itself a path or branch
+    // ------------------------------------------------
+    if (selectedEffect?.type && isAdjacentToPathEnd && !isPath && !isBranch) {
+      if (selectedEffect.type === "fx") {
+        fillColor = "grey";
+        strokeColor = "white";
+        strokeWidth = 2;
+        cursor = "cursor-pointer";
+      } else if (selectedEffect.type === "utility") {
+        fillColor = "blue";
+        strokeColor = "white";
+        strokeWidth = 2;
+        cursor = "cursor-pointer";
+      }
     }
 
-    if (isDragging && isHovered && isPath && !sampleName) {
-      // Logic when hovering over an empty hex in a path during drag
-      // For instance, you might change fillColor or apply a special effect
-      fillColor = "yellow"; // Example change: highlight hex under drag
-    }
-
+    // ------------------------------------------------
+    // Endpoint styling (unchanged logic)
+    // ------------------------------------------------
     if (!isPathSelected && isPath && lastHexInPath) {
       strokeColor = "red";
-      // strokeOpacity = 1;
       strokeWidth = 1;
     }
-
     if (effect.type === "fx" && isBranch && lastHexInPath) {
       strokeColor = "white";
-      // strokeOpacity = 1;
       strokeWidth = 1;
     }
-
     if (effect.type === "utility" && isBranch && lastHexInPath) {
       strokeColor = "blue";
-      // strokeOpacity = 1;
       strokeWidth = 1;
     }
 
+    // ------------------------------------------------
+    // Path creation mode #1: strokeOpacity = 0.5 for ALL hexes
+    // ------------------------------------------------
+    if (isPathCreationMode) {
+      strokeOpacity = 0.5;
+    }
+
+    // ------------------------------------------------
+    // If the hex was clicked-and-held (isHexSelected), highlight stroke
+    // (unchanged from your original logic)
+    // ------------------------------------------------
     if (isHexSelected) {
       strokeColor = "yellow";
-      // strokeWidth = 4;
     }
 
-    // If a hex is selected for sample-moving, highlight potential targets
-    if (anyHexSelected && isPathSelected && !sampleName && isHovered) {
-      fillColor = "grey";
-    }
-
-    // Determine opacity
+    // ------------------------------------------------
+    // Determine overall hex opacity
+    // ------------------------------------------------
     let opacityClass = "opacity-100";
     if (isHidden) {
       opacityClass = "opacity-0";
@@ -158,88 +201,49 @@ const Hex = memo(
       opacityClass = "opacity-20";
     }
 
-    // Determine text to display
+    // ------------------------------------------------
+    // Determine the text to display on the hex
+    // ------------------------------------------------
     let text = "";
     if (sampleName) {
       text = sampleName.charAt(0);
     } else if (effect.name) {
-      // For debugging
-      console.log("effect.name", effect.name);
       text = effect.name.charAt(0);
     } else if (isMainHex) {
-      text = draftPath.length > 0 ? `${draftPath.length.toString()}-bar` : "";
+      text =
+        isPathCreationMode && draftPath.length > 0
+          ? `${draftPath.length.toString()}-bar`
+          : "+";
     }
 
-    // Determine cursor style
-    let cursor = "";
-
-    if (isDragging && (isMainHex || isCenterRing)) {
-      cursor = "cursor-grab";
-    } else if (selectedSample?.name || selectedEffect?.name) {
-      cursor = "cursor-grabbing";
-    } else if (isDragging) {
-      cursor = "cursor-grabbing";
-    } else if (isHexSelected) {
+    // Some states override the cursor to show pointer
+    if (selectedEffect?.name && isEffectDraft) {
       cursor = "cursor-pointer";
-      fillColor = "grey";
-    } else if (sampleName && isHovered) {
-      cursor = "cursor-grab";
-    } else if (selectedSample?.name && isPath && isHovered) {
-      cursor = "cursor-crosshair";
-      fillColor = "grey";
-    } else if (isPath && selectedSample?.name && !draftPath.length) {
-      cursor = "cursor-crosshair";
-      fillColor = "#171717";
-      strokeWidth = 4;
-      strokeColor = "grey";
-    } else if (selectedSample?.name && isPath) {
-      cursor = "cursor-crosshair";
-      fillColor = "darkred";
-    } else if (
-      !selectedSample?.name &&
-      !selectedEffect?.name &&
-      !isPath &&
-      !isBranch
-    ) {
-      cursor = "cursor-crosshair";
-    } else if (isEffectDraft && selectedEffect?.name) {
-      cursor = "cursor-crosshair";
-    } else if (anyHexSelected && isPathSelected && !sampleName && isHovered) {
-      cursor = "cursor-crosshair";
+    } else if (isMainHex) {
+      cursor = "cursor-pointer";
+    } else if (isPath || isBranch) {
+      cursor = "cursor-pointer";
     }
 
-    // Event handlers for hover state
+    // ------------------------------------------------
+    // Hover handlers
+    // ------------------------------------------------
     const handleMouseEnter = () => {
-      onMouseEnter();
       setIsHovered(true);
+      onMouseEnter();
     };
 
     const handleMouseLeave = () => {
-      onMouseLeave();
       setIsHovered(false);
+      onMouseLeave();
     };
 
     return (
       <g
         transform={`translate(${x}, ${y})`}
-        // onClick={onClick}
+        onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onMouseUp={onClick}
-        onMouseDown={onMouseDown}
-        onTouchMove={(e) => {
-          const touch = e.touches[0];
-          const element = document.elementFromPoint(
-            touch.clientX,
-            touch.clientY
-          );
-          if (element === e.currentTarget) {
-            handleMouseEnter();
-          } else {
-            handleMouseLeave();
-          }
-        }}
-        onTouchEnd={onClick}
         className={cursor}
       >
         <polygon
@@ -267,24 +271,9 @@ const Hex = memo(
           </text>
         )}
 
-        {isDragging && isMainHex && (
-          <svg
-            className="opacity-50"
-            x="-10"
-            y="-10"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+        {/* Additional visual indicator for main hex in path creation mode */}
+        {isPathCreationMode && isMainHex && (
+          <circle cx="0" cy="0" r="3" fill="white" className="animate-pulse" />
         )}
       </g>
     );

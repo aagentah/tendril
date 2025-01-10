@@ -364,6 +364,8 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       setIsAudioPlaying(true);
     }
 
+    setSelectedEffect({ type: null, name: null });
+    setSelectedSample({ name: null });
     onControlPress?.();
   };
 
@@ -544,35 +546,34 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
    * Handles the selection and deselection of a sample.
    * @param {Object} sample - The sample object.
    */
-  const handleSampleSelection = async (sample) => {
-    // If user clicks same sample again, deselect it
-    if (selectedSample.name === sample.name) {
-      setSelectedSample({ name: null, click: 0 });
+  const handleSampleClick = async (sample) => {
+    console.log("Sample clicked:", sample.name);
+    console.log("Current selected sample:", selectedSample?.name);
+
+    if (selectedSample?.name === sample.name) {
+      console.log("Deselecting sample");
+      setSelectedSample({ name: null });
     } else {
-      // Otherwise, select new sample and preview
-      setSelectedSample({
-        name: sample.name,
-        click: 1,
-      });
+      console.log("Selecting sample");
+      setSelectedSample({ name: sample.name });
       setSelectedEffect({ type: null, name: null });
-
-      await previewSample(sample.url);
     }
+  };
 
-    // Clear path/branch/hex selection
-    setHexes((prevHexes) =>
-      updateHexProperties(
-        prevHexes,
-        (hex) =>
-          hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
-        {
-          isPathSelected: false,
-          isBranchSelected: false,
-          isHexSelected: false,
-        }
-      )
-    );
-    onControlPress?.();
+  const handleEffectClick = (effect) => {
+    console.log("Effect clicked:", effect.name);
+
+    if (selectedEffect?.name === effect.name) {
+      console.log("Deselecting effect");
+      setSelectedEffect({ type: null, name: null });
+    } else {
+      console.log("Selecting effect");
+      setSelectedEffect({
+        type: effect.type,
+        name: effect.name,
+      });
+      setSelectedSample({ name: null }); // Clear sample selection
+    }
   };
 
   /**
@@ -754,33 +755,23 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
 
                 {/* Content: default vs user samples */}
                 {activeSamplesTab === "default" && (
-                  <div className="px-4 pb-4">
+                  <div
+                    className="px-4 pb-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex flex-wrap gap-3">
-                      {_.map(sampleStore, (sample) => (
+                      {sampleStore.map((sample) => (
                         <button
                           key={sample.name}
-                          onMouseDown={(e) => {
-                            handleSampleDragStart(sample, e.clientX, e.clientY);
-                          }}
-                          onMouseUp={() => handleSampleDragEnd(sample)}
-                          onTouchStart={(e) => {
-                            const touch = e.touches[0];
-                            handleSampleDragStart(
-                              sample,
-                              touch.clientX,
-                              touch.clientY
-                            );
-                          }}
-                          onTouchEnd={() => handleSampleDragEnd(sample)}
-                          className={`inline-flex py-1 px-2 text-xs border items-center ${
-                            selectedSample.name === sample.name
-                              ? "bg-red-800 cursor-grabbing"
-                              : "text-red-400 cursor-grab"
-                          }`}
+                          onClick={() => handleSampleClick(sample)}
+                          type="button"
+                          disabled={!paths.length}
+                          className={`px-2 py-1 text-xs border ${
+                            selectedSample?.name === sample.name
+                              ? "bg-red-800 text-white"
+                              : "text-red-400"
+                          } ${!paths.length ? "opacity-50" : ""}`}
                         >
-                          <span className="text-white mr-2">
-                            <FaBars size={8} />
-                          </span>
                           {sample.name}
                         </button>
                       ))}
@@ -801,40 +792,19 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                     {userSamples && userSamples.length > 0 ? (
                       <div className="flex flex-wrap gap-3">
                         {userSamples.map((sample) => (
-                          <div
-                            key={sample.id}
-                            className="flex flex-col relative"
+                          <button
+                            key={sample.name}
+                            onClick={() => handleSampleClick(sample)}
+                            type="button"
+                            disabled={!paths.length}
+                            className={`px-2 py-1 text-xs border ${
+                              selectedSample?.name === sample.name
+                                ? "bg-red-800 text-white"
+                                : "text-red-400"
+                            } ${!paths.length ? "opacity-50" : ""}`}
                           >
-                            <button
-                              onMouseDown={(e) => {
-                                handleSampleDragStart(
-                                  sample,
-                                  e.clientX,
-                                  e.clientY
-                                );
-                              }}
-                              onMouseUp={() => handleSampleDragEnd(sample)}
-                              onTouchStart={(e) => {
-                                const touch = e.touches[0];
-                                handleSampleDragStart(
-                                  sample,
-                                  touch.clientX,
-                                  touch.clientY
-                                );
-                              }}
-                              onTouchEnd={() => handleSampleDragEnd(sample)}
-                              className={`inline-flex py-1 px-2 text-xs border items-center ${
-                                selectedSample.name === sample.name
-                                  ? "bg-red-800 cursor-grabbing"
-                                  : "text-red-400 cursor-grab"
-                              }`}
-                            >
-                              <span className="text-white mr-2">
-                                <FaBars size={8} />
-                              </span>
-                              {sample.name}
-                            </button>
-                          </div>
+                            {sample.name}
+                          </button>
                         ))}
                       </div>
                     ) : (
@@ -856,91 +826,49 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
               </div>
 
               {/* Effects Box */}
-              <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                  Effects
-                </div>
+              <div className="w-full mt-4 border border-neutral-800 rounded-lg">
+                <div className="bg-neutral-800 px-4 py-2">Effects</div>
                 <div className="p-4 space-y-4">
-                  {/* FX Section */}
-                  <div className="flex flex-wrap gap-3">
-                    {_.map(
-                      effectStore,
-                      (effect) =>
-                        effect.type === "fx" && (
-                          <button
-                            key={effect.name}
-                            disabled={!paths.length}
-                            onMouseDown={(e) => {
-                              handleEffectDragStart(
-                                effect,
-                                e.clientX,
-                                e.clientY
-                              );
-                            }}
-                            onMouseUp={() => handleEffectDragEnd(effect)}
-                            onTouchStart={(e) => {
-                              const touch = e.touches[0];
-                              handleEffectDragStart(
-                                effect,
-                                touch.clientX,
-                                touch.clientY
-                              );
-                            }}
-                            onTouchEnd={() => handleEffectDragEnd(effect)}
-                            className={`inline-flex py-1 px-2 text-xs border items-center ${
-                              selectedEffect?.name === effect.name
-                                ? "bg-neutral-300 text-black cursor-grabbing"
-                                : "text-neutral-300 cursor-grab"
-                            } ${!paths.length ? "opacity-50" : ""}`}
-                          >
-                            <span className="text-white mr-2">
-                              <FaBars size={8} />
-                            </span>
-                            {effect.name}
-                          </button>
-                        )
-                    )}
+                  {/* FX Effects */}
+                  <div className="flex flex-wrap gap-2">
+                    {effectStore
+                      .filter((effect) => effect.type === "fx")
+                      .map((effect) => (
+                        <button
+                          key={effect.name}
+                          onClick={() => handleEffectClick(effect)}
+                          type="button"
+                          disabled={!paths.length}
+                          className={`px-2 py-1 text-xs border ${
+                            selectedEffect?.name === effect.name
+                              ? "bg-neutral-300 text-black"
+                              : "text-neutral-300"
+                          } ${!paths.length ? "opacity-50" : ""}`}
+                        >
+                          {effect.name}
+                        </button>
+                      ))}
                   </div>
 
-                  {/* Utility Effects Section */}
-                  <div className="flex flex-wrap gap-3">
-                    {_.map(
-                      effectStore,
-                      (effect) =>
-                        effect.type === "utility" && (
-                          <button
-                            key={effect.name}
-                            disabled={!paths.length}
-                            onMouseDown={(e) => {
-                              handleEffectDragStart(
-                                effect,
-                                e.clientX,
-                                e.clientY
-                              );
-                            }}
-                            onMouseUp={() => handleEffectDragEnd(effect)}
-                            onTouchStart={(e) => {
-                              const touch = e.touches[0];
-                              handleEffectDragStart(
-                                effect,
-                                touch.clientX,
-                                touch.clientY
-                              );
-                            }}
-                            onTouchEnd={() => handleEffectDragEnd(effect)}
-                            className={`inline-flex py-1 px-2 text-xs border items-center ${
-                              selectedEffect?.name === effect.name
-                                ? "bg-blue-800 cursor-grabbing"
-                                : "text-blue-400 cursor-grab"
-                            } ${!paths.length ? "opacity-50" : ""}`}
-                          >
-                            <span className="text-white mr-2">
-                              <FaBars size={8} />
-                            </span>
-                            {effect.name}
-                          </button>
-                        )
-                    )}
+                  {/* Utility Effects */}
+                  <div className="flex flex-wrap gap-2">
+                    {effectStore
+                      .filter((effect) => effect.type === "utility")
+                      .map((effect) => (
+                        <button
+                          key={effect.name}
+                          onClick={() => handleEffectClick(effect)}
+                          type="button"
+                          disabled={!paths.length}
+                          className={`px-2 py-1 text-xs border ${
+                            selectedEffect?.name === effect.name
+                              ? "bg-blue-800 text-white"
+                              : "text-blue-400"
+                          } ${!paths.length ? "opacity-50" : ""}`}
+                        >
+                          {effect.name}
+                        </button>
+                      ))}
                   </div>
                 </div>
               </div>
