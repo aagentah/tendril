@@ -521,35 +521,67 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     setUserSamples(updated);
   };
 
-  // ------------------------------------------------
-  // PREVIEW LOGIC
-  // ------------------------------------------------
-  async function previewSample(url) {
-    try {
-      await Tone.start(); // ensure audio context is unmuted
-      const player = new Tone.Player().toDestination();
-      // Wait for the buffer to load before starting
-      await player.load(url);
+  let previewPlayer = null;
 
-      player.start();
-      player.stop("+2"); // stop after 2 seconds or as you prefer
+  /**
+   * Handles sample preview playback with proper cleanup
+   * @param {string} url - URL of the sample to preview
+   * @returns {Promise<void>}
+   */
+  const previewSample = async (url) => {
+    try {
+      // Cleanup any existing preview
+      if (previewPlayer) {
+        previewPlayer.stop();
+        previewPlayer.dispose();
+      }
+
+      // Initialize audio context if needed
+      await Tone.start();
+
+      // Create new player
+      previewPlayer = new Tone.Player({
+        url,
+        autostart: true,
+        onload: () => {
+          previewPlayer.start();
+        },
+      }).toDestination();
+
+      // Auto-cleanup after 2 seconds
+      previewPlayer.stop("+2");
+      setTimeout(() => {
+        if (previewPlayer) {
+          previewPlayer.dispose();
+          previewPlayer = null;
+        }
+      }, 2100); // Slightly longer than play duration to ensure clean cutoff
     } catch (error) {
-      console.error("Error loading/playing sample preview:", error);
+      console.error("Error previewing sample:", error);
+      if (previewPlayer) {
+        previewPlayer.dispose();
+        previewPlayer = null;
+      }
     }
-  }
+  };
 
   // ------------------------------------------------
   // Event Handlers for Samples and Effects
   // ------------------------------------------------
 
   /**
-   * Handles the selection and deselection of a sample.
-   * @param {Object} sample - The sample object.
+   * Comprehensive sample click handler that integrates selection and preview
+   * @param {Object} sample - The sample object to handle
    */
   const handleSampleClick = async (sample) => {
     console.log("Sample clicked:", sample.name);
-    console.log("Current selected sample:", selectedSample?.name);
 
+    // Play preview if we have a URL
+    if (sample.url) {
+      await previewSample(sample.url);
+    }
+
+    // Handle selection state
     if (selectedSample?.name === sample.name) {
       console.log("Deselecting sample");
       setSelectedSample({ name: null });
@@ -627,7 +659,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
    * @param {Object} sample - The sample object.
    */
   const handleSampleMouseDown = (sample) => async () => {
-    await handleSampleSelection(sample);
+    // await handleSampleSelection(sample);
   };
 
   /**
