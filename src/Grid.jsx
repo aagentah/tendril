@@ -268,11 +268,41 @@ const Grid = () => {
       return;
     }
 
-    // Handle path creation mode click
+    // Handle path creation mode
     if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
+      // Get the last hex of the draft path
+      const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
+
+      // Get all existing path end hexes
+      const existingPathEnds = getPathEdges(paths, "last").filter(Boolean);
+
+      // Check if the last hex in our draft path would be adjacent to any existing path ends
+      const wouldOverlap = existingPathEnds.some((endHex) => {
+        // Get all hexes adjacent to this draft path end
+        const adjacentToNewEnd = hexes.filter(
+          (h) =>
+            !h.isPath && !h.isBranch && hexDistance(h, lastHexInDraft) === 1
+        );
+
+        // Check if any of these adjacent hexes are also adjacent to existing path ends
+        return adjacentToNewEnd.some((adjHex) =>
+          existingPathEnds.some(
+            (existingEnd) => hexDistance(adjHex, existingEnd) === 1
+          )
+        );
+      });
+
+      if (wouldOverlap) {
+        // If there would be overlap, don't create the path
+        console.warn(
+          "Cannot create path: end hex would overlap with existing path end zones"
+        );
+        return;
+      }
+
+      // If no overlap, proceed with path creation
       const { v4: uuidv4 } = await import("uuid");
       const newPathId = uuidv4();
-      const lastHexInDraft = pathEdgeFromPath(draftPath, "last");
 
       // Establish the path
       set(hexesAtom, (prevHexes) =>
@@ -308,9 +338,19 @@ const Grid = () => {
       return;
     }
 
-    // Handle sample placement on existing path
-    if (selectedSample?.name && hex.isPath && !hex.sampleName) {
-      // Place the sample
+    // Handle sample placement, removal, or replacement on existing path
+    if (selectedSample?.name && hex.isPath) {
+      // If hex already has the same sample, remove it
+      if (hex.sampleName === selectedSample.name) {
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+            sampleName: null,
+          })
+        );
+        return;
+      }
+
+      // Place the new sample (whether hex is empty or has a different sample)
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
           sampleName: selectedSample.name,
@@ -319,7 +359,6 @@ const Grid = () => {
       // Don't deselect the sample to allow multiple placements
       return;
     }
-
     // Handle effect branch creation (unchanged)
     if (selectedEffect.name && hex.isEffectDraft) {
       const effectDraftHexes = effectDraftPath;
@@ -395,7 +434,7 @@ const Grid = () => {
     }
 
     // Handle path/branch selection (unchanged)
-    if (!selectedSample?.name && !selectedEffect?.name) {
+    if (!selectedSample?.name && !selectedEffect?.name && !isPathCreationMode) {
       if (hex.isPath) {
         // Select entire path
         const selectedPathId = hex.pathId;

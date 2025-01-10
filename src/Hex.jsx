@@ -2,20 +2,17 @@ import React, { useState, memo } from "react";
 import { useAtom } from "jotai";
 import _ from "lodash";
 
-// Import any atoms or utilities the Hex component needs
 import {
   pathsAtom,
   draftPathAtom,
   selectedSampleAtom,
   selectedEffectAtom,
   isPathCreationModeAtom,
+  hexesAtom,
 } from "./App";
 
-import { getPathEdges, hexDistance } from "./hexUtils";
+import { getPathEdges, hexDistance, areCoordinatesEqual } from "./hexUtils";
 
-/**
- * Single hex cell component.
- */
 const Hex = memo(
   ({
     hex,
@@ -26,7 +23,6 @@ const Hex = memo(
     anyPathSelected,
     anyHexSelected,
   }) => {
-    // Destructure hex properties, including precomputed x, y, and points
     const {
       x,
       y,
@@ -49,35 +45,36 @@ const Hex = memo(
     } = hex;
 
     // Atom states
+    const [hexes] = useAtom(hexesAtom);
     const [paths] = useAtom(pathsAtom);
     const [draftPath] = useAtom(draftPathAtom);
     const [selectedSample] = useAtom(selectedSampleAtom);
     const [selectedEffect] = useAtom(selectedEffectAtom);
     const [isPathCreationMode] = useAtom(isPathCreationModeAtom);
 
-    // Local state for hover
     const [isHovered, setIsHovered] = useState(false);
 
-    // ------------------------------------------------
-    // Determine base fill and stroke colors
-    // ------------------------------------------------
+    // Get path ends and adjacency information
+    const pathEnds = getPathEdges(paths, "last").filter(Boolean);
+    const isAdjacentToPathEnd = pathEnds.some(
+      (end) => hexDistance(hex, end) === 1
+    );
+
+    // Base styles
     let fillColor = "transparent";
     let strokeColor = "grey";
     let strokeOpacity = 0.2;
     let strokeWidth = 0.5;
     let cursor = "cursor-default";
+    let fontSize = 12;
 
-    // Base styles when no path or sample is selected
+    // Basic styling
     if (paths.length === 0 && !selectedSample?.name) {
       strokeOpacity = 0.2;
     }
 
-    // Main / Center / Outer ring styling
-    if (isMainHex) {
-      fillColor = "#171717";
-      strokeColor = "#171717";
-    }
-    if (isCenterRing) {
+    // Main/Center/Outer ring styling
+    if (isMainHex || isCenterRing) {
       fillColor = "#171717";
       strokeColor = "#171717";
     }
@@ -85,66 +82,17 @@ const Hex = memo(
       fillColor = "#171717";
     }
 
-    // Path-draft coloring
-    if (isPathDraft) {
-      fillColor = "darkred";
-    }
-
-    // If actual path
-    if (isPath) {
-      strokeOpacity = 0.75;
-    }
-
-    // If playing
-    if (isPlaying && sampleName) {
-      fillColor = "grey";
-    }
-
-    // Path/branch selection highlights
-    if (isPathSelected && !(isPlaying && sampleName)) {
-      fillColor = "#171717";
-      strokeWidth = 4;
-      strokeColor = "grey";
-    }
-    if (isBranchSelected) {
-      fillColor = "blue";
-    }
-
-    // Effect draft on hover (old logic):
-    // if (isEffectDraft && selectedEffect?.type === "fx") {
-    //   fillColor = "grey";
-    //   strokeColor = "white";
-    //   strokeWidth = 2;
-    //   cursor = "cursor-pointer";
-    // }
-    // if (isEffectDraft && selectedEffect?.type === "utility") {
-    //   fillColor = "blue";
-    //   strokeColor = "white";
-    //   strokeWidth = 2;
-    //   cursor = "cursor-pointer";
-    // }
-
-    // ------------------------------------------------
-    // NEW #2: Sample selected ⇒ highlight available path hexes
-    // ------------------------------------------------
+    // Sample placement highlighting
     if (selectedSample?.name && isPath && !sampleName) {
-      // This hex is a path hex and has no sample, so highlight it yellow
-      fillColor = "yellow";
+      fillColor = "#999900";
     }
 
-    // ------------------------------------------------
-    // Figure out adjacency to path ends for effect placement
-    // ------------------------------------------------
-    const pathEnds = getPathEdges(paths, "last").filter(Boolean);
-    const isAdjacentToPathEnd = pathEnds.some(
-      (end) => hexDistance(hex, end) === 1
-    );
+    if (isPath || isBranch) {
+      strokeOpacity = 1;
+    }
 
-    // ------------------------------------------------
-    // NEW #3: Effect selected ⇒ show effect colors if hex is adjacent to a path end
-    //         and not itself a path or branch
-    // ------------------------------------------------
-    if (selectedEffect?.type && isAdjacentToPathEnd && !isPath && !isBranch) {
+    // Effect placement visualization
+    if (!isPath && !isBranch && selectedEffect?.type && isAdjacentToPathEnd) {
       if (selectedEffect.type === "fx") {
         fillColor = "grey";
         strokeColor = "white";
@@ -158,9 +106,22 @@ const Hex = memo(
       }
     }
 
-    // ------------------------------------------------
-    // Endpoint styling (unchanged logic)
-    // ------------------------------------------------
+    // Playing state
+    if (isPlaying && sampleName) {
+      fillColor = "grey";
+    }
+
+    // Selection highlights
+    if (isPathSelected && !(isPlaying && sampleName)) {
+      fillColor = "#171717";
+      strokeWidth = 4;
+      strokeColor = "grey";
+    }
+    if (isBranchSelected) {
+      fillColor = "blue";
+    }
+
+    // Endpoint styling
     if (!isPathSelected && isPath && lastHexInPath) {
       strokeColor = "red";
       strokeWidth = 1;
@@ -174,24 +135,12 @@ const Hex = memo(
       strokeWidth = 1;
     }
 
-    // ------------------------------------------------
-    // Path creation mode #1: strokeOpacity = 0.5 for ALL hexes
-    // ------------------------------------------------
-    if (isPathCreationMode) {
-      strokeOpacity = 0.5;
-    }
-
-    // ------------------------------------------------
-    // If the hex was clicked-and-held (isHexSelected), highlight stroke
-    // (unchanged from your original logic)
-    // ------------------------------------------------
+    // Hex selection highlight
     if (isHexSelected) {
-      strokeColor = "yellow";
+      strokeColor = "#999900";
     }
 
-    // ------------------------------------------------
-    // Determine overall hex opacity
-    // ------------------------------------------------
+    // Opacity classes
     let opacityClass = "opacity-100";
     if (isHidden) {
       opacityClass = "opacity-0";
@@ -201,9 +150,7 @@ const Hex = memo(
       opacityClass = "opacity-20";
     }
 
-    // ------------------------------------------------
-    // Determine the text to display on the hex
-    // ------------------------------------------------
+    // Text display
     let text = "";
     if (sampleName) {
       text = sampleName.charAt(0);
@@ -214,20 +161,83 @@ const Hex = memo(
         isPathCreationMode && draftPath.length > 0
           ? `${draftPath.length.toString()}-bar`
           : "+";
+
+      fontSize = isPathCreationMode && draftPath.length > 0 ? 12 : 20;
     }
 
-    // Some states override the cursor to show pointer
+    // Default cursor states
     if (selectedEffect?.name && isEffectDraft) {
       cursor = "cursor-pointer";
     } else if (isMainHex) {
       cursor = "cursor-pointer";
-    } else if (isPath || isBranch) {
+    } else if (
+      (isPath || isBranch) &&
+      cursor !== "cursor-not-allowed" &&
+      !isPathCreationMode
+    ) {
       cursor = "cursor-pointer";
+    } else if ((isPath || isBranch) && cursor !== "cursor-not-allowed") {
+      cursor = "cursor-not-allowed";
     }
 
-    // ------------------------------------------------
-    // Hover handlers
-    // ------------------------------------------------
+    // Path Creation Mode Visualization
+    if (isPathCreationMode) {
+      strokeOpacity = 0.5;
+
+      // Show existing paths and their adjacents in red
+      if (isPath || isAdjacentToPathEnd) {
+        fillColor = "#ff000033";
+        strokeColor = "#ff000033";
+        strokeWidth = 1;
+        strokeOpacity = 0.2;
+      }
+
+      // Draft path visualization
+      if (isPathDraft) {
+        fillColor = "grey";
+        cursor = "cursor-pointer";
+      }
+
+      // Adjacent to current hover visualization
+      if (draftPath.length > 0) {
+        const currentHoverPosition = draftPath[draftPath.length - 1];
+        const isAdjacentToHover = hexDistance(hex, currentHoverPosition) === 1;
+
+        // Get all hexes adjacent to current hover position
+        const adjacentHexesWouldInterfere = pathEnds.some((endHex) => {
+          // Find all potential adjacent hexes to the current hover
+          const adjacentPositions = hexes.filter(
+            (h) =>
+              hexDistance(h, currentHoverPosition) === 1 &&
+              !h.isPath &&
+              !h.isBranch
+          );
+
+          // Check if any of these adjacent positions would interfere
+          return adjacentPositions.some(
+            (adjHex) =>
+              hexDistance(adjHex, endHex) === 1 ||
+              areCoordinatesEqual(adjHex, endHex)
+          );
+        });
+
+        if (isAdjacentToHover && !isPath && !isBranch && !isPathDraft) {
+          if (adjacentHexesWouldInterfere) {
+            cursor = "cursor-not-allowed";
+            fillColor = "#ff000033";
+            strokeColor = "#ff0000";
+            strokeWidth = 1;
+            strokeOpacity = 0.5;
+          }
+        }
+
+        // Apply to draft path regardless of mouse position
+        if (isPathDraft && adjacentHexesWouldInterfere) {
+          cursor = "cursor-not-allowed";
+        }
+      }
+    }
+
     const handleMouseEnter = () => {
       setIsHovered(true);
       onMouseEnter();
@@ -262,7 +272,7 @@ const Hex = memo(
             x="0"
             y="0"
             fill="white"
-            fontSize="12"
+            fontSize={fontSize}
             fontWeight="bold"
             textAnchor="middle"
             dominantBaseline="middle"
@@ -271,10 +281,9 @@ const Hex = memo(
           </text>
         )}
 
-        {/* Additional visual indicator for main hex in path creation mode */}
-        {isPathCreationMode && isMainHex && (
+        {/* {isPathCreationMode && isMainHex && (
           <circle cx="0" cy="0" r="3" fill="white" className="animate-pulse" />
-        )}
+        )} */}
       </g>
     );
   }

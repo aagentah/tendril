@@ -558,6 +558,8 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       setSelectedSample({ name: sample.name });
       setSelectedEffect({ type: null, name: null });
     }
+
+    onControlPress?.();
   };
 
   const handleEffectClick = (effect) => {
@@ -574,6 +576,8 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       });
       setSelectedSample({ name: null }); // Clear sample selection
     }
+
+    onControlPress?.();
   };
 
   /**
