@@ -1028,51 +1028,47 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
-  // Replace the sample initialization useEffect in App.jsx
+  // In App.jsx, replace the sample loading useEffect
   useEffect(() => {
-    console.log("Initializing audio players...");
+    console.log("Starting sample initialization");
     const players = {};
     const allSamples = [...sampleStore, ...userSamples];
     let loadedCount = 0;
     const totalCount = allSamples.length;
 
-    // Initialize progress
+    // Set initial loading state
     setLoadingProgress({ loaded: 0, total: totalCount });
 
-    const initializePlayers = async () => {
-      try {
-        await Tone.start();
+    // Load each sample synchronously like in the original version
+    allSamples.forEach((sample) => {
+      console.log(`Creating player for sample: ${sample.name}`);
 
-        for (const sample of allSamples) {
-          const player = new Tone.Player({
-            url: sample.url,
-            fadeOut: 0.01,
-            retrigger: true,
-            curve: "linear",
-            onload: () => {
-              loadedCount += 1;
-              console.log(
-                `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-              );
-              setLoadingProgress({ loaded: loadedCount, total: totalCount });
-              if (loadedCount === totalCount) {
-                setIsLoadingSamples(false);
-              }
-            },
-          }).toDestination();
+      const player = new Tone.Player({
+        url: sample.url,
+        fadeOut: 0.01,
+        retrigger: true,
+        curve: "linear",
+        onload: () => {
+          loadedCount += 1;
+          console.log(
+            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+          );
+          setLoadingProgress({ loaded: loadedCount, total: totalCount });
 
-          const silentGain = new Tone.Gain(0).toDestination();
-          player.connect(silentGain);
+          if (loadedCount === totalCount) {
+            console.log("All samples loaded successfully");
+            setIsLoadingSamples(false);
+          }
+        },
+        onerror: (error) => {
+          console.error(`Error loading sample ${sample.name}:`, error);
+        },
+      }).toDestination();
 
-          players[sample.name] = player;
-        }
-      } catch (error) {
-        console.error("Error initializing audio players:", error);
-        setIsLoadingSamples(false); // Prevent UI from hanging
-      }
-    };
+      players[sample.name] = player;
+    });
 
-    initializePlayers();
+    // Set the ref immediately like in the original version
     samplerRef.current = players;
 
     return () => {
@@ -1086,7 +1082,23 @@ const App = () => {
         }
       });
     };
-  }, [sampleStore, userSamples, setLoadingProgress]); // Added setLoadingProgress to dependencies
+  }, [sampleStore, userSamples]);
+
+  // Keep the LoadingUI component as is
+  const LoadingUI = ({ loadedCount, totalCount }) => (
+    <div className="flex flex-col items-center justify-center space-y-4">
+      <div className="text-neutral-300">Loading samples...</div>
+      <div className="w-48 h-2 bg-neutral-800 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-neutral-400 transition-all duration-300"
+          style={{ width: `${(loadedCount / totalCount) * 100}%` }}
+        />
+      </div>
+      <div className="text-sm text-neutral-500">
+        {loadedCount} / {totalCount} samples loaded
+      </div>
+    </div>
+  );
 
   return (
     <DndProvider backend={HTML5Backend}>
