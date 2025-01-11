@@ -1023,35 +1023,62 @@ const App = () => {
   // Replace the handlePlayToggle function in App.jsx
   // 1. Replace the sample initialization useEffect with this version
   useEffect(() => {
-    console.log("Initializing audio players..."); // Debug log
+    console.log("Initializing audio players...");
     const players = {};
     const allSamples = [...sampleStore, ...userSamples];
     let loadedCount = 0;
     const totalCount = allSamples.length;
 
-    allSamples.forEach((sample) => {
-      console.log(`Starting to load sample: ${sample.name}`); // Debug log
-      const player = new Tone.Player({
-        url: sample.url,
-        fadeOut: 0.01,
-        retrigger: true,
-        curve: "linear",
-        onload: () => {
-          loadedCount += 1;
-          console.log(
-            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-          ); // Debug log
-          if (loadedCount === totalCount) {
-            console.log("All samples loaded successfully"); // Debug log
-            setIsLoadingSamples(false);
-          }
-        },
-      }).toDestination();
+    const initializePlayers = async () => {
+      try {
+        // Create all players first
+        for (const sample of allSamples) {
+          console.log(`Creating player for sample: ${sample.name}`);
+          const player = new Tone.Player({
+            url: sample.url,
+            fadeOut: 0.01,
+            retrigger: true,
+            curve: "linear",
+            onload: () => {
+              loadedCount += 1;
+              console.log(
+                `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+              );
+            },
+          }).toDestination();
 
-      players[sample.name] = player;
-    });
+          players[sample.name] = player;
+        }
 
-    samplerRef.current = players;
+        // Wait for all players to load and be ready
+        await Promise.all([
+          ...Object.values(players).map(
+            (player) =>
+              new Promise((resolve) => {
+                if (player.loaded) {
+                  resolve();
+                } else {
+                  player.onstatechange = function (state) {
+                    if (state === "started" || player.loaded) {
+                      resolve();
+                    }
+                  };
+                }
+              })
+          ),
+          Tone.loaded(), // Also wait for Tone.js to be fully loaded
+        ]);
+
+        console.log("All samples fully loaded and decoded");
+        samplerRef.current = players;
+        setIsLoadingSamples(false);
+      } catch (error) {
+        console.error("Error initializing audio players:", error);
+        setIsLoadingSamples(false); // Still set to false to prevent UI from hanging
+      }
+    };
+
+    initializePlayers();
 
     return () => {
       Object.values(players).forEach((player) => {
@@ -1069,30 +1096,50 @@ const App = () => {
     } else {
       try {
         await Tone.start();
-        console.log("Tone.start() successful"); // Debug log
+        console.log("Tone.start() successful");
 
-        // Pre-warm players only when play is clicked
-        const players = samplerRef.current;
-        const preWarmPromises = Object.values(players).map(async (player) => {
-          if (player.loaded) {
-            const silentGain = new Tone.Gain(0).toDestination();
-            player.connect(silentGain);
-            await player.start();
-            await player.stop();
-            player.disconnect(silentGain);
-            silentGain.dispose();
-          }
-        });
+        // Ensure all samples are truly loaded before proceeding
+        if (samplerRef.current) {
+          const allLoadedPromise = Promise.all([
+            ...Object.values(samplerRef.current).map(
+              (player) =>
+                new Promise((resolve) => {
+                  if (player.loaded) {
+                    resolve();
+                  } else {
+                    player.onstatechange = function (state) {
+                      if (state === "started" || player.loaded) {
+                        resolve();
+                      }
+                    };
+                  }
+                })
+            ),
+            Tone.loaded(),
+          ]);
 
-        await Promise.all(preWarmPromises);
-        console.log("Pre-warm complete"); // Debug log
+          // Add a timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Loading timeout")), 5000)
+          );
 
-        // Small delay before starting playback
-        setTimeout(() => {
-          setIsAudioPlaying(true);
-        }, 100);
+          await Promise.race([allLoadedPromise, timeoutPromise]);
+          console.log("All samples verified as loaded");
+
+          // Small delay before starting playback
+          setTimeout(() => {
+            setIsAudioPlaying(true);
+          }, 100);
+        }
       } catch (error) {
         console.error("Error starting playback:", error);
+        // If there's a timeout, still try to play
+        if (error.message === "Loading timeout") {
+          console.warn("Timeout reached, attempting playback anyway");
+          setTimeout(() => {
+            setIsAudioPlaying(true);
+          }, 100);
+        }
       }
     }
   };
