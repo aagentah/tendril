@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useAtom } from "jotai";
+import { atom, useAtom } from "jotai";
 import * as Tone from "tone";
 import _ from "lodash";
 import {
@@ -8,8 +8,11 @@ import {
   FaMicrophone,
   FaMicrophoneSlash,
   FaStop,
-  FaBars,
 } from "react-icons/fa";
+
+// -----------------------------------------------------------------------------
+// Exported Atom for Mobile Control Panel Visibility
+// -----------------------------------------------------------------------------
 
 // Import atoms and utility functions from your split files
 import {
@@ -30,11 +33,140 @@ import {
   effectDraftPathAtom,
   draftPathAtom,
   dragPreviewAtom,
+  mobilePanelOpenAtom,
 } from "./App";
 import { updateHexProperties } from "./hexUtils";
 
-const Controls = ({ onControlPress, onPlayToggle }) => {
-  const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
+const MobileControlsPanel = ({
+  children,
+  onCloseRef,
+  togglePlay,
+  showLibrary,
+  setShowLibrary,
+}) => {
+  // Replace local useState with the shared atom
+  const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
+
+  // Atoms for mobile “Play” / “Stop” and BPM in the bottom bar
+  const [isAudioPlaying] = useAtom(isAudioPlayingAtom);
+  const [bpm, setBpm] = useAtom(bpmAtom);
+  const [paths] = useAtom(pathsAtom);
+
+  useEffect(() => {
+    if (onCloseRef) {
+      // Expose a method to close the panel externally
+      onCloseRef.current = () => setIsOpen(false);
+    }
+  }, [onCloseRef, setIsOpen]);
+
+  return (
+    <>
+      {/* Desktop */}
+      <div className="hidden lg:block w-full relative">{children}</div>
+
+      {/* Mobile */}
+      <div className="block lg:hidden">
+        {/* Mobile “Play” + BPM + “Controls” row */}
+        <div className="fixed bottom-0 left-0 right-0">
+          <div className="flex justify-center items-center p-4 space-x-4 mb-2 text-xs">
+            <button
+              onClick={togglePlay}
+              disabled={!paths.length}
+              className={`px-4 py-2 border border-white text-white rounded flex items-center gap-2 ${
+                !paths.length ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isAudioPlaying ? <FaStop size={12} /> : <FaPlay size={12} />}
+              {isAudioPlaying ? "Stop" : "Play"}
+            </button>
+
+            <button
+              onClick={() => setIsOpen(true)}
+              className={`px-6 py-2 border border-white text-white rounded shadow-lg ${
+                !paths.length ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              Samples & Fx
+            </button>
+
+            <div className="relative">
+              <div className="flex items-center justify-center gap-x-4 relative h-[34px]">
+                <input
+                  className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  type="number"
+                  value={bpm}
+                  onChange={(e) =>
+                    setBpm(Math.min(parseInt(e.target.value) || 40, 999))
+                  }
+                  min="40"
+                  max="999"
+                />
+                <div className="absolute text-xs text-neutral-500 right-4 mt-0.5 pointer-events-none">
+                  BPM
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Link to “Pre-load sequences made by others.” */}
+          <div className="w-full mb-6 flex justify-center items-center">
+            <div
+              className="text-neutral-500 underline text-sm cursor-pointer"
+              onClick={() => {
+                setIsOpen(true);
+                setShowLibrary(true);
+              }}
+            >
+              Pre-load sequences made by others.
+            </div>
+          </div>
+        </div>
+
+        {/* Sliding Panel */}
+        <div
+          className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
+            isOpen ? "translate-y-0" : "translate-y-full"
+          }`}
+        >
+          <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="absolute top-5 right-4 z-50 p-2 text-white"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
+                <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
+              </svg>
+            </button>
+
+            {children}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const ControlsContent = ({
+  onControlPress,
+  togglePlay,
+  toggleRecording,
+  onCloseRef,
+  showLibrary,
+  setShowLibrary,
+  isRecording,
+  isRecordingArmed,
+}) => {
+  const [isAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
   const [bpm, setBpm] = useAtom(bpmAtom);
   const [hexes, setHexes] = useAtom(hexesAtom);
@@ -43,22 +175,15 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
   const [, setEffectDraftPath] = useAtom(effectDraftPathAtom);
   const [, setDraftPath] = useAtom(draftPathAtom);
   const [selectedEffect, setSelectedEffect] = useAtom(selectedEffectAtom);
-  const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
+  const [currentIndices] = useAtom(currentIndicesAtom);
   const [dragPreview, setDragPreview] = useAtom(dragPreviewAtom);
+  const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
   const [activeSamplesTab, setActiveSamplesTab] = useState("default");
 
-  // Recorder
-  const recorderRef = useRef(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isRecordingArmed, setIsRecordingArmed] = useState(false);
-
-  // Library toggle
-  const [showLibrary, setShowLibrary] = useState(false);
-
-  // Library loading indicator
+  // Loading indicator for library
   const [libraryLoading, setLibraryLoading] = useState(false);
 
   // ------------------------------------------------
@@ -107,26 +232,8 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
   }, [setUserSamples]);
 
   useEffect(() => {
-    recorderRef.current = new Tone.Recorder();
-    Tone.getDestination().connect(recorderRef.current);
-
-    return () => {
-      if (recorderRef.current) {
-        recorderRef.current.dispose();
-      }
-    };
+    // ... rest of useEffect blocks that don't rely on moved states
   }, []);
-
-  useEffect(() => {
-    const handleRecordingStart = async () => {
-      if (isRecordingArmed && isAudioPlaying && !isRecording) {
-        await recorderRef.current.start();
-        setIsRecording(true);
-        setIsRecordingArmed(false);
-      }
-    };
-    handleRecordingStart();
-  }, [isAudioPlaying, isRecordingArmed, isRecording]);
 
   // ------------------------------------------------
   // Helpers for JSON I/O
@@ -172,7 +279,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
         reconstructedSamples.push({
           id: s.id,
           name: s.name,
-          // Remove note: s.note,
           data: arrayBuffer,
           url: URL.createObjectURL(
             new Blob([arrayBuffer], { type: "audio/*" })
@@ -262,7 +368,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       return {
         id: sample.id,
         name: sample.name,
-        // Remove note: sample.note,
         base64,
       };
     });
@@ -295,7 +400,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     setPaths((prevPaths) =>
       prevPaths.map((p) => {
         if (p.id === pathId) {
-          // If turning on solo, ensure bypass is off
           if (!p.solo) {
             return { ...p, solo: true, bypass: false };
           } else {
@@ -311,7 +415,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     setPaths((prevPaths) =>
       prevPaths.map((p) => {
         if (p.id === pathId) {
-          // If turning on bypass, ensure solo is off
           if (!p.bypass) {
             return { ...p, bypass: true, solo: false };
           } else {
@@ -323,75 +426,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     );
   };
 
-  // Replace your existing togglePlay function with this:
-  const togglePlay = async () => {
-    if (isAudioPlaying) {
-      // If we're recording, stop the recording first
-      if (isRecording) {
-        const recording = await recorderRef.current.stop();
-        setIsRecording(false);
-
-        // Download link
-        const url = URL.createObjectURL(recording);
-        const link = document.createElement("a");
-        link.download = "tendril-loop.wav";
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-
-      // Stop playing
-      setIsAudioPlaying(false);
-      Tone.Transport.cancel();
-      Tone.Transport.stop();
-
-      // Reset path indices
-      const resetIndices = {};
-      paths.forEach((path) => {
-        resetIndices[path.id] = path.path.length - 1;
-      });
-      setCurrentIndices(resetIndices);
-
-      // Clear isPlaying state
-      setHexes((prevHexes) =>
-        prevHexes.map((hex) => ({
-          ...hex,
-          isPlaying: false,
-        }))
-      );
-    } else {
-      await Tone.start();
-      setIsAudioPlaying(true);
-    }
-
-    setSelectedEffect({ type: null, name: null });
-    setSelectedSample({ name: null });
-    onControlPress?.();
-  };
-
-  // Replace your existing toggleRecording function with this:
-  const toggleRecording = async () => {
-    if (isRecording) {
-      // If currently recording, stop everything
-      await togglePlay();
-    } else {
-      // Arm the recording
-      setIsRecordingArmed(!isRecordingArmed);
-
-      // If already playing, start recording immediately
-      if (isAudioPlaying) {
-        await recorderRef.current.start();
-        setIsRecording(true);
-        setIsRecordingArmed(false);
-      }
-    }
-
-    onControlPress?.();
-  };
-
-  // ------------------------------------------------
-  // Path/Branch Deletion
-  // ------------------------------------------------
   const anyPathSelected = _.some(hexes, (hex) => hex.isPathSelected);
   const anyBranchSelected = _.some(hexes, (hex) => hex.isBranchSelected);
 
@@ -486,14 +520,13 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
   // ------------------------------------------------
   async function handleFileUpload(e) {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || !files.length) return;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file || file.size === 0) continue;
-      if (file.size > 50 * 1024 * 1024) continue; // Size limit check
+      if (file.size > 50 * 1024 * 1024) continue;
 
-      // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
       const cleanName = file.name.replace(/\.[^/.]+$/, "");
 
@@ -507,11 +540,8 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
       }
     }
 
-    // Refresh local userSamples from DB
     const updated = await getAllUserSamples();
     setUserSamples(updated);
-
-    // Reset the file input
     e.target.value = null;
   }
 
@@ -523,23 +553,15 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
 
   let previewPlayer = null;
 
-  /**
-   * Handles sample preview playback with proper cleanup
-   * @param {string} url - URL of the sample to preview
-   * @returns {Promise<void>}
-   */
   const previewSample = async (url) => {
     try {
-      // Cleanup any existing preview
       if (previewPlayer) {
         previewPlayer.stop();
         previewPlayer.dispose();
       }
 
-      // Initialize audio context if needed
       await Tone.start();
 
-      // Create new player
       previewPlayer = new Tone.Player({
         url,
         autostart: true,
@@ -548,14 +570,13 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
         },
       }).toDestination();
 
-      // Auto-cleanup after 2 seconds
       previewPlayer.stop("+2");
       setTimeout(() => {
         if (previewPlayer) {
           previewPlayer.dispose();
           previewPlayer = null;
         }
-      }, 2100); // Slightly longer than play duration to ensure clean cutoff
+      }, 2100);
     } catch (error) {
       console.error("Error previewing sample:", error);
       if (previewPlayer) {
@@ -565,23 +586,13 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     }
   };
 
-  // ------------------------------------------------
-  // Event Handlers for Samples and Effects
-  // ------------------------------------------------
-
-  /**
-   * Comprehensive sample click handler that integrates selection and preview
-   * @param {Object} sample - The sample object to handle
-   */
   const handleSampleClick = async (sample) => {
     console.log("Sample clicked:", sample.name);
 
-    // Play preview if we have a URL
     if (sample.url) {
       await previewSample(sample.url);
     }
 
-    // Handle selection state
     if (selectedSample?.name === sample.name) {
       console.log("Deselecting sample");
       setSelectedSample({ name: null });
@@ -606,18 +617,13 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
         type: effect.type,
         name: effect.name,
       });
-      setSelectedSample({ name: null }); // Clear sample selection
+      setSelectedSample({ name: null });
     }
 
     onControlPress?.();
   };
 
-  /**
-   * Handles the mouse down and touch start event for samples.
-   * @param {Object} sample - The sample object.
-   */
   const handleSampleDragStart = (sample, clientX, clientY) => {
-    handleSampleMouseDown(sample)();
     setDragPreview({
       show: true,
       x: clientX,
@@ -625,18 +631,10 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     });
   };
 
-  /**
-   * Handles the mouse up and touch end event for samples.
-   * @param {Object} sample - The sample object.
-   */
   const handleSampleDragEnd = (sample) => {
     handleSampleMouseUp(sample)();
   };
 
-  /**
-   * Handles the mouse down and touch start event for effects.
-   * @param {Object} effect - The effect object.
-   */
   const handleEffectDragStart = (effect, clientX, clientY) => {
     handleEffectMouseDown(effect)();
     setDragPreview({
@@ -646,43 +644,21 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     });
   };
 
-  /**
-   * Handles the mouse up and touch end event for effects.
-   * @param {Object} effect - The effect object.
-   */
   const handleEffectDragEnd = (effect) => {
     handleEffectMouseUp(effect)();
   };
 
-  /**
-   * Handles the mouse down event for samples.
-   * @param {Object} sample - The sample object.
-   */
-  const handleSampleMouseDown = (sample) => async () => {
-    // await handleSampleSelection(sample);
-  };
-
-  /**
-   * Handles the mouse up event for samples.
-   * @param {Object} sample - The sample object.
-   */
   const handleSampleMouseUp = (sample) => async () => {
-    // If user clicks same sample again, deselect it
     if (selectedSample.name === sample.name) {
       setSelectedSample({ name: null, click: 0 });
     } else {
-      // Otherwise, select new sample and preview
       setSelectedSample({
         name: sample.name,
         click: 2,
       });
       setSelectedEffect({ type: null, name: null });
-
-      // Optionally, you can preview the sample on mouse up as well
-      // await previewSample(sample.url);
     }
 
-    // Clear path/branch/hex selection
     setHexes((prevHexes) =>
       updateHexProperties(
         prevHexes,
@@ -698,10 +674,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     onControlPress?.();
   };
 
-  /**
-   * Handles the selection and deselection of an effect.
-   * @param {Object} effect - The effect object.
-   */
   const handleEffectSelection = (effect) => () => {
     if (selectedEffect?.name === effect.name) {
       setSelectedEffect(null);
@@ -727,18 +699,10 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
     onControlPress?.();
   };
 
-  /**
-   * Handles the mouse down event for effects.
-   * @param {Object} effect - The effect object.
-   */
   const handleEffectMouseDown = (effect) => () => {
     handleEffectSelection(effect)();
   };
 
-  /**
-   * Handles the mouse up event for effects.
-   * @param {Object} effect - The effect object.
-   */
   const handleEffectMouseUp = (effect) => () => {
     handleEffectSelection(effect)();
   };
@@ -747,25 +711,23 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
   // Rendering
   // ------------------------------------------------
 
-  // Two pre-made library JSONs
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
   return (
     <div className="mt-4 flex flex-col items-center space-y-4 max-w-lg mx-auto">
-      {/* Show either the main Samples/Effects UI OR the Library Panel */}
       {!showLibrary ? (
         <>
-          {/* If no path/branch config is selected, show the sample tabs & effects */}
-          {!anyPathSelected &&
-          !(anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
+          {!_.some(hexes, (hex) => hex.isPathSelected) &&
+          !(
+            _.some(hexes, (hex) => hex.isBranchSelected) &&
+            selectedBranch &&
+            selectedEffectDefinition
+          ) ? (
             <div className="w-full flex flex-col items-center justify-center space-y-4">
-              {/* Samples Box */}
               <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
                 <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
                   Samples
                 </div>
-
-                {/* Tab Buttons */}
                 <div className="flex items-center justify-start p-4 space-x-4 bg-neutral-900">
                   <button
                     className={`text-xs px-2 py-1 border ${
@@ -788,8 +750,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                     User Uploaded
                   </button>
                 </div>
-
-                {/* Content: default vs user samples */}
                 {activeSamplesTab === "default" && (
                   <div
                     className="px-4 pb-4"
@@ -814,7 +774,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                     </div>
                   </div>
                 )}
-
                 {activeSamplesTab === "user" && (
                   <div className="px-4 pb-4 overflow-y-scroll h-40 space-y-4">
                     <input
@@ -824,7 +783,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                       onChange={handleFileUpload}
                       className="block w-full text-xs text-neutral-300 file:mr-4 file:text-xs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
                     />
-
                     {userSamples && userSamples.length > 0 ? (
                       <div className="flex flex-wrap gap-3">
                         {userSamples.map((sample) => (
@@ -848,9 +806,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                         No user samples yet. Upload to get started.
                       </div>
                     )}
-
                     <hr className="border-neutral-800" />
-
                     <div className="text-xs text-neutral-500">
                       Your uploaded samples are temporarily stored in your
                       browser and will be cleared when you close the session. If
@@ -860,12 +816,9 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                   </div>
                 )}
               </div>
-
-              {/* Effects Box */}
               <div className="w-full mt-4 border border-neutral-800 rounded-lg">
                 <div className="bg-neutral-800 px-4 py-2">Effects</div>
                 <div className="p-4 space-y-4">
-                  {/* FX Effects */}
                   <div className="flex flex-wrap gap-2">
                     {effectStore
                       .filter((effect) => effect.type === "fx")
@@ -885,8 +838,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                         </button>
                       ))}
                   </div>
-
-                  {/* Utility Effects */}
                   <div className="flex flex-wrap gap-2">
                     {effectStore
                       .filter((effect) => effect.type === "utility")
@@ -910,14 +861,11 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
               </div>
             </div>
           ) : null}
-
-          {/* Path/Branch Config UI */}
           {(anyPathSelected ||
             (anyBranchSelected &&
               selectedBranch &&
               selectedEffectDefinition)) && (
             <div className="w-full flex flex-col items-center justify-center">
-              {/* Path Config */}
               {anyPathSelected &&
                 (() => {
                   const selectedHex = _.find(
@@ -1004,8 +952,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                     </div>
                   );
                 })()}
-
-              {/* Branch Config */}
               {anyBranchSelected &&
                 selectedBranch &&
                 selectedEffectDefinition && (
@@ -1153,9 +1099,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
                 )}
             </div>
           )}
-
-          {/* Controls Box (Play, BPM, Record, Save/Load) */}
-          <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+          <div className="hidden lg:block w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
             <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
               Controls
             </div>
@@ -1250,9 +1194,7 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
               </div>
             </div>
           </div>
-
-          {/* "Pre-load sequences made by others" Label */}
-          <div className="w-full mt-4 flex justify-center items-center">
+          <div className="hidden lg:flex w-full mt-4 justify-center items-center">
             <div
               className="text-neutral-500 underline text-sm cursor-pointer"
               onClick={() => setShowLibrary(true)}
@@ -1262,9 +1204,6 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
           </div>
         </>
       ) : (
-        // -----------------------
-        //   Library Panel
-        // -----------------------
         <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
           <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
             Library
@@ -1273,20 +1212,23 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
             <p className="text-sm mb-4 text-white">
               Select a shared track to load:
             </p>
-            {/* Loading Indicator */}
-
             <div className="flex flex-col gap-3">
               {libraryFiles.map((file) => (
                 <button
                   key={file.url}
                   className="text-neutral-500 underline text-left"
-                  onClick={() => handleLibraryLoad(file.url)}
+                  onClick={() => {
+                    handleLibraryLoad(file.url);
+                    setShowLibrary(false);
+                    setIsOpen(false);
+                    // Since isOpen is managed by MobileControlsPanel, we can't directly set it here.
+                    // This will close the panel after a file is loaded.
+                  }}
                 >
                   {file.label}
                 </button>
               ))}
             </div>
-
             <div className="mt-6 flex items-end h-8">
               {libraryLoading ? (
                 <div className="flex items-center gap-2 text-sm text-white">
@@ -1315,7 +1257,11 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
               ) : (
                 <button
                   className="px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
-                  onClick={() => setShowLibrary(false)}
+                  onClick={() => {
+                    setShowLibrary(false);
+                    setIsOpen(false);
+                    // Since isOpen is managed by MobileControlsPanel, we can't directly set it here.
+                  }}
                 >
                   Back
                 </button>
@@ -1324,18 +1270,136 @@ const Controls = ({ onControlPress, onPlayToggle }) => {
           </div>
         </div>
       )}
-
-      {/* {dragPreview.show && (
-        <div
-          className="fixed size-4 bg-white rounded-full pointer-events-none"
-          style={{
-            left: dragPreview.x - 10,
-            top: dragPreview.y - 26,
-          }}
-        />
-      )} */}
     </div>
   );
 };
 
-export default Controls;
+const ControlsWrapper = (props) => {
+  const closeControlsRef = useRef(null);
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingArmed, setIsRecordingArmed] = useState(false);
+  const recorderRef = useRef(null);
+  const [paths] = useAtom(pathsAtom);
+  const [, setCurrentIndices] = useAtom(currentIndicesAtom);
+  const [, setHexes] = useAtom(hexesAtom);
+  const [, setSelectedEffect] = useAtom(selectedEffectAtom);
+  const [, setSelectedSample] = useAtom(selectedSampleAtom);
+
+  const togglePlay = async () => {
+    if (isAudioPlaying) {
+      if (isRecording) {
+        const recording = await recorderRef.current.stop();
+        setIsRecording(false);
+
+        const url = URL.createObjectURL(recording);
+        const link = document.createElement("a");
+        link.download = "tendril-loop.wav";
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      setIsAudioPlaying(false);
+      Tone.Transport.cancel();
+      Tone.Transport.stop();
+
+      const resetIndices = {};
+      paths.forEach((path) => {
+        resetIndices[path.id] = path.path.length - 1;
+      });
+      setCurrentIndices(resetIndices);
+
+      setHexes((prevHexes) =>
+        prevHexes.map((hex) => ({
+          ...hex,
+          isPlaying: false,
+        }))
+      );
+    } else {
+      await Tone.start();
+      setIsAudioPlaying(true);
+    }
+
+    setSelectedEffect({ type: null, name: null });
+    setSelectedSample({ name: null });
+    props.onControlPress?.();
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      await togglePlay();
+    } else {
+      setIsRecordingArmed(!isRecordingArmed);
+
+      if (isAudioPlaying) {
+        await recorderRef.current.start();
+        setIsRecording(true);
+        setIsRecordingArmed(false);
+      }
+    }
+
+    props.onControlPress?.();
+  };
+
+  useEffect(() => {
+    recorderRef.current = new Tone.Recorder();
+    Tone.getDestination().connect(recorderRef.current);
+
+    return () => {
+      if (recorderRef.current) {
+        recorderRef.current.dispose();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleRecordingStart = async () => {
+      if (isRecordingArmed && isAudioPlaying && !isRecording) {
+        await recorderRef.current.start();
+        setIsRecording(true);
+        setIsRecordingArmed(false);
+      }
+    };
+    handleRecordingStart();
+  }, [isAudioPlaying, isRecordingArmed, isRecording]);
+
+  return (
+    <MobileControlsPanel
+      onCloseRef={closeControlsRef}
+      togglePlay={togglePlay}
+      showLibrary={showLibrary}
+      setShowLibrary={setShowLibrary}
+    >
+      <div className="hidden lg:block text-lg my-4 text-center mx-auto">
+        <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+        <p className="text-center text-sm text-neutral-500">
+          Made by{" "}
+          <a
+            className="text-neutral-500 underline"
+            href="https://daniel.aagentah.tech/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            daniel.aagentah
+          </a>
+        </p>
+      </div>
+
+      <ControlsContent
+        onCloseRef={closeControlsRef}
+        showLibrary={showLibrary}
+        setShowLibrary={setShowLibrary}
+        togglePlay={togglePlay}
+        toggleRecording={toggleRecording}
+        isRecording={isRecording}
+        isRecordingArmed={isRecordingArmed}
+        {...props}
+      />
+    </MobileControlsPanel>
+  );
+};
+
+export default ControlsWrapper;

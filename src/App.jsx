@@ -242,6 +242,7 @@ export const effectDraftPathAtom = atom([]);
 export const userSamplesAtom = atom([]);
 export const dragPreviewAtom = atom({ show: false, x: 0, y: 0 });
 export const isPathCreationModeAtom = atom(false);
+export const mobilePanelOpenAtom = atom(false);
 
 // Predefined ring hexes
 export const predefinedCenterRingHexes = [
@@ -433,6 +434,9 @@ const App = () => {
   const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
   const [bpm] = useAtom(bpmAtom);
+  const [isPathCreationMode, setIsPathCreationMode] = useAtom(
+    isPathCreationModeAtom
+  );
 
   // Access user samples
   const [userSamples] = useAtom(userSamplesAtom);
@@ -1020,8 +1024,6 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
-  // Replace the handlePlayToggle function in App.jsx
-  // 1. Replace the sample initialization useEffect with this version
   useEffect(() => {
     console.log("Initializing audio players...");
     const players = {};
@@ -1089,61 +1091,6 @@ const App = () => {
     };
   }, [sampleStore, userSamples]);
 
-  // 2. Replace the handlePlayToggle function with this version
-  const handlePlayToggle = async () => {
-    if (isAudioPlaying) {
-      setIsAudioPlaying(false);
-    } else {
-      try {
-        await Tone.start();
-        console.log("Tone.start() successful");
-
-        // Ensure all samples are truly loaded before proceeding
-        if (samplerRef.current) {
-          const allLoadedPromise = Promise.all([
-            ...Object.values(samplerRef.current).map(
-              (player) =>
-                new Promise((resolve) => {
-                  if (player.loaded) {
-                    resolve();
-                  } else {
-                    player.onstatechange = function (state) {
-                      if (state === "started" || player.loaded) {
-                        resolve();
-                      }
-                    };
-                  }
-                })
-            ),
-            Tone.loaded(),
-          ]);
-
-          // Add a timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Loading timeout")), 5000)
-          );
-
-          await Promise.race([allLoadedPromise, timeoutPromise]);
-          console.log("All samples verified as loaded");
-
-          // Small delay before starting playback
-          setTimeout(() => {
-            setIsAudioPlaying(true);
-          }, 100);
-        }
-      } catch (error) {
-        console.error("Error starting playback:", error);
-        // If there's a timeout, still try to play
-        if (error.message === "Loading timeout") {
-          console.warn("Timeout reached, attempting playback anyway");
-          setTimeout(() => {
-            setIsAudioPlaying(true);
-          }, 100);
-        }
-      }
-    }
-  };
-
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
@@ -1176,104 +1123,20 @@ const App = () => {
                 <span>Loading samples...</span>
               </div>
             ) : (
-              <MobileControlsPanel onCloseRef={closeControlsRef}>
-                <div className="hidden lg:block text-lg my-4 text-center mx-auto">
-                  <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-                  <p className="text-center text-sm text-neutral-500">
-                    Made by{" "}
-                    <a
-                      className="text-neutral-500 underline"
-                      href="https://daniel.aagentah.tech/"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      daniel.aagentah
-                    </a>
-                  </p>
-                </div>
-
-                <div className="absolute top-2 left-0 right-0 block lg:hidden text-lg my-4 text-center mx-auto">
-                  <h2 className="text-lg mb-2 text-center mx-auto">Controls</h2>
-                </div>
-
-                {/* Controls panel */}
-                <Controls
-                  onPlayToggle={handlePlayToggle}
-                  isAudioPlaying={isAudioPlaying}
-                  selectedSample={selectedSample}
-                  setSelectedSample={(sample) => {
-                    setSelectedSample(sample);
-                    closeControlsRef.current?.();
-                  }}
-                  onControlPress={() => closeControlsRef.current?.()}
-                />
-              </MobileControlsPanel>
+              <Controls
+                isAudioPlaying={isAudioPlaying}
+                selectedSample={selectedSample}
+                setSelectedSample={(sample) => {
+                  setSelectedSample(sample);
+                  closeControlsRef.current?.();
+                }}
+                onControlPress={() => closeControlsRef.current?.()}
+              />
             )}
           </div>
         </div>
       </div>
     </DndProvider>
-  );
-};
-
-// ----------------------------------
-//  MobileControlsPanel subcomponent
-// ----------------------------------
-const MobileControlsPanel = ({ children, onCloseRef }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (onCloseRef) {
-      onCloseRef.current = () => setIsOpen(false);
-    }
-  }, [onCloseRef]);
-
-  return (
-    <>
-      {/* Desktop */}
-      <div className="hidden lg:block w-full relative">{children}</div>
-
-      {/* Mobile */}
-      <div className="block lg:hidden">
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-30 px-6 py-2 border border-white text-white shadow-lg ${
-            isOpen ? "hidden" : "block"
-          }`}
-        >
-          Controls
-        </button>
-
-        <div
-          className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
-            isOpen ? "translate-y-0" : "translate-y-full"
-          }`}
-        >
-          <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-5 right-4 z-50 p-2 text-white"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
-                <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
-              </svg>
-            </button>
-
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
   );
 };
 
