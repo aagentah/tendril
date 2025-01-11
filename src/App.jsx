@@ -437,6 +437,10 @@ const App = () => {
   const [isPathCreationMode, setIsPathCreationMode] = useAtom(
     isPathCreationModeAtom
   );
+  const [loadingProgress, setLoadingProgress] = useState({
+    loaded: 0,
+    total: 0,
+  });
 
   // Access user samples
   const [userSamples] = useAtom(userSamplesAtom);
@@ -1024,6 +1028,7 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
+  // Replace the sample initialization useEffect in App.jsx
   useEffect(() => {
     console.log("Initializing audio players...");
     const players = {};
@@ -1031,11 +1036,14 @@ const App = () => {
     let loadedCount = 0;
     const totalCount = allSamples.length;
 
+    // Initialize progress
+    setLoadingProgress({ loaded: 0, total: totalCount });
+
     const initializePlayers = async () => {
       try {
-        // Create all players first
+        await Tone.start();
+
         for (const sample of allSamples) {
-          console.log(`Creating player for sample: ${sample.name}`);
           const player = new Tone.Player({
             url: sample.url,
             fadeOut: 0.01,
@@ -1046,50 +1054,39 @@ const App = () => {
               console.log(
                 `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
               );
+              setLoadingProgress({ loaded: loadedCount, total: totalCount });
+              if (loadedCount === totalCount) {
+                setIsLoadingSamples(false);
+              }
             },
           }).toDestination();
 
+          const silentGain = new Tone.Gain(0).toDestination();
+          player.connect(silentGain);
+
           players[sample.name] = player;
         }
-
-        // Wait for all players to load and be ready
-        await Promise.all([
-          ...Object.values(players).map(
-            (player) =>
-              new Promise((resolve) => {
-                if (player.loaded) {
-                  resolve();
-                } else {
-                  player.onstatechange = function (state) {
-                    if (state === "started" || player.loaded) {
-                      resolve();
-                    }
-                  };
-                }
-              })
-          ),
-          Tone.loaded(), // Also wait for Tone.js to be fully loaded
-        ]);
-
-        console.log("All samples fully loaded and decoded");
-        samplerRef.current = players;
-        setIsLoadingSamples(false);
       } catch (error) {
         console.error("Error initializing audio players:", error);
-        setIsLoadingSamples(false); // Still set to false to prevent UI from hanging
+        setIsLoadingSamples(false); // Prevent UI from hanging
       }
     };
 
     initializePlayers();
+    samplerRef.current = players;
 
     return () => {
       Object.values(players).forEach((player) => {
-        player.stop();
-        player.disconnect();
-        player.dispose();
+        try {
+          player.stop();
+          player.disconnect();
+          player.dispose();
+        } catch (error) {
+          console.error("Error cleaning up player:", error);
+        }
       });
     };
-  }, [sampleStore, userSamples]);
+  }, [sampleStore, userSamples, setLoadingProgress]); // Added setLoadingProgress to dependencies
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -1119,9 +1116,10 @@ const App = () => {
           </div>
           <div className="w-full lg:w-1/2 flex justify-center items-center">
             {isLoadingSamples ? (
-              <div className="flex justify-center items-center">
-                <span>Loading samples...</span>
-              </div>
+              <LoadingUI
+                loadedCount={loadingProgress.loaded}
+                totalCount={loadingProgress.total}
+              />
             ) : (
               <Controls
                 isAudioPlaying={isAudioPlaying}
@@ -1139,5 +1137,20 @@ const App = () => {
     </DndProvider>
   );
 };
+
+const LoadingUI = ({ loadedCount, totalCount }) => (
+  <div className="flex flex-col items-center justify-center space-y-4">
+    <div className="text-neutral-300">Loading samples...</div>
+    <div className="w-48 h-2 bg-neutral-800 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-neutral-400 transition-all duration-300"
+        style={{ width: `${(loadedCount / totalCount) * 100}%` }}
+      />
+    </div>
+    <div className="text-sm text-neutral-500">
+      {loadedCount} / {totalCount} samples loaded
+    </div>
+  </div>
+);
 
 export default App;
