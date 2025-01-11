@@ -30,140 +30,11 @@ import {
   effectDraftPathAtom,
   draftPathAtom,
   dragPreviewAtom,
-  deviceTypeAtom,
 } from "./App";
 import { updateHexProperties } from "./hexUtils";
 
-/**
- * This is a subcomponent for toggling the configuration panel on mobile
- * and for the floating play/stop bar at the bottom on mobile devices.
- */
-const MobileControlsBar = ({
-  isAudioPlaying,
-  handlePlayToggle,
-  isConfigOpen,
-  setIsConfigOpen,
-  showLibrary,
-  setShowLibrary,
-}) => {
-  const [bpm, setBpm] = useAtom(bpmAtom);
-  const [paths] = useAtom(pathsAtom);
-
-  return (
-    <div className="fixed bottom-8 left-0 right-0 p-4">
-      <div className="flex justify-center items-center gap-2 lg:hidden text-xs">
-        <button
-          onClick={handlePlayToggle}
-          disabled={!paths.length}
-          className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center justify-center gap-2 ${
-            !paths.length ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          {isAudioPlaying ? <FaStop size={12} /> : <FaPlay size={12} />}
-          {isAudioPlaying ? "Stop" : "Play"}
-        </button>
-
-        <button
-          onClick={() => {
-            if (paths.length) {
-              setIsConfigOpen(true);
-              setShowLibrary(false);
-            }
-          }}
-          className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none min-w-[80px] ${
-            !paths.length ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          Samples & FX
-        </button>
-
-        <div className="flex items-center justify-center gap-x-4 relative h-[34px] min-w-[100px]">
-          <input
-            className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            type="number"
-            value={bpm}
-            onChange={(e) =>
-              setBpm(Math.min(parseInt(e.target.value) || 40, 999))
-            }
-            min="40"
-            max="999"
-          />
-          <div className="absolute text-xs text-neutral-500 right-4 mt-0.5 pointer-events-none">
-            BPM
-          </div>
-        </div>
-      </div>
-
-      <div className="w-full mt-4 flex justify-center items-center">
-        <div
-          className="text-neutral-500 underline text-sm cursor-pointer"
-          onClick={() => {
-            setShowLibrary(true);
-            setIsConfigOpen(true);
-          }}
-        >
-          Pre-load sequences made by others.
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/**
- * This is the sliding/fixed panel for mobile to display the same config
- * (sample selection, effect selection, etc.) that you see on desktop.
- */
-const MobileConfigPanel = ({ children, isOpen, setIsOpen }) => {
-  const onCloseRef = useRef(null);
-
-  useEffect(() => {
-    if (onCloseRef) {
-      onCloseRef.current = () => setIsOpen(false);
-    }
-  }, [setIsOpen]);
-
-  return (
-    <>
-      {/* Desktop (hidden) */}
-      <div className="hidden lg:block w-full relative max-w-lg mx-auto">
-        {children}
-      </div>
-
-      {/* Mobile view */}
-      <div className="block lg:hidden">
-        <div
-          className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
-            isOpen ? "translate-y-0" : "translate-y-full"
-          }`}
-        >
-          <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-5 right-4 z-50 p-2 text-white"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
-                <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
-              </svg>
-            </button>
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-const Controls = () => {
+const Controls = ({ onControlPress, onPlayToggle }) => {
+  const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
   const [bpm, setBpm] = useAtom(bpmAtom);
   const [hexes, setHexes] = useAtom(hexesAtom);
@@ -174,8 +45,6 @@ const Controls = () => {
   const [selectedEffect, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
   const [dragPreview, setDragPreview] = useAtom(dragPreviewAtom);
-  const [deviceType] = useAtom(deviceTypeAtom);
-  const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
@@ -192,12 +61,10 @@ const Controls = () => {
   // Library loading indicator
   const [libraryLoading, setLibraryLoading] = useState(false);
 
-  // **Now we manage the mobile config panel open state here:**
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-
   // ------------------------------------------------
   // Lifecycle / Setup
   // ------------------------------------------------
+
   useEffect(() => {
     const handleGlobalUp = () => {
       setDragPreview({ show: false, x: 0, y: 0 });
@@ -294,7 +161,7 @@ const Controls = () => {
    */
   function loadStateFromObject(loadedState) {
     if (isAudioPlaying) {
-      handlePlayToggle();
+      togglePlay();
     }
 
     // Reconstruct user samples
@@ -305,7 +172,7 @@ const Controls = () => {
         reconstructedSamples.push({
           id: s.id,
           name: s.name,
-          // Remove note if you wish, or keep if you track pitch
+          // Remove note: s.note,
           data: arrayBuffer,
           url: URL.createObjectURL(
             new Blob([arrayBuffer], { type: "audio/*" })
@@ -332,7 +199,7 @@ const Controls = () => {
     // Clear draftPath
     setDraftPath([]);
 
-    // Deselect all hexes
+    // Deselect all hexes by clearing selection-related properties
     setHexes((prevHexes) =>
       updateHexProperties(prevHexes, () => true, {
         isHexSelected: false,
@@ -344,7 +211,7 @@ const Controls = () => {
   }
 
   /**
-   * Loads state from local file input.
+   * Loads state from local file input (existing functionality).
    */
   const handleLoad = (e) => {
     if (!e.target.files || !e.target.files[0]) return;
@@ -354,12 +221,16 @@ const Controls = () => {
       try {
         const loadedState = JSON.parse(event.target.result);
         loadStateFromObject(loadedState);
+
+        // Clean up file input
         e.target.value = null;
       } catch (err) {
         console.error("Error parsing or loading JSON state:", err);
       }
     };
     reader.readAsText(file);
+
+    onControlPress?.();
   };
 
   /**
@@ -391,6 +262,7 @@ const Controls = () => {
       return {
         id: sample.id,
         name: sample.name,
+        // Remove note: sample.note,
         base64,
       };
     });
@@ -413,6 +285,7 @@ const Controls = () => {
     link.click();
 
     URL.revokeObjectURL(url);
+    onControlPress?.();
   };
 
   // ------------------------------------------------
@@ -450,19 +323,57 @@ const Controls = () => {
     );
   };
 
-  const [anyPathSelected, setAnyPathSelected] = useState(false);
-  const [anyBranchSelected, setAnyBranchSelected] = useState(false);
+  // Replace your existing togglePlay function with this:
+  const togglePlay = async () => {
+    if (isAudioPlaying) {
+      // If we're recording, stop the recording first
+      if (isRecording) {
+        const recording = await recorderRef.current.stop();
+        setIsRecording(false);
 
-  useEffect(() => {
-    setAnyPathSelected(_.some(hexes, (hex) => hex.isPathSelected));
-    setAnyBranchSelected(_.some(hexes, (hex) => hex.isBranchSelected));
-  }, [hexes]);
+        // Download link
+        const url = URL.createObjectURL(recording);
+        const link = document.createElement("a");
+        link.download = "tendril-loop.wav";
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // Stop playing
+      setIsAudioPlaying(false);
+      Tone.Transport.cancel();
+      Tone.Transport.stop();
+
+      // Reset path indices
+      const resetIndices = {};
+      paths.forEach((path) => {
+        resetIndices[path.id] = path.path.length - 1;
+      });
+      setCurrentIndices(resetIndices);
+
+      // Clear isPlaying state
+      setHexes((prevHexes) =>
+        prevHexes.map((hex) => ({
+          ...hex,
+          isPlaying: false,
+        }))
+      );
+    } else {
+      await Tone.start();
+      setIsAudioPlaying(true);
+    }
+
+    setSelectedEffect({ type: null, name: null });
+    setSelectedSample({ name: null });
+    onControlPress?.();
+  };
 
   // Replace your existing toggleRecording function with this:
   const toggleRecording = async () => {
     if (isRecording) {
       // If currently recording, stop everything
-      await handlePlayToggle();
+      await togglePlay();
     } else {
       // Arm the recording
       setIsRecordingArmed(!isRecordingArmed);
@@ -474,11 +385,16 @@ const Controls = () => {
         setIsRecordingArmed(false);
       }
     }
+
+    onControlPress?.();
   };
 
   // ------------------------------------------------
   // Path/Branch Deletion
   // ------------------------------------------------
+  const anyPathSelected = _.some(hexes, (hex) => hex.isPathSelected);
+  const anyBranchSelected = _.some(hexes, (hex) => hex.isBranchSelected);
+
   const resetPath = () => {
     const selectedHex = _.find(hexes, (hex) => hex.isPathSelected);
     if (!selectedHex) return;
@@ -610,6 +526,7 @@ const Controls = () => {
   /**
    * Handles sample preview playback with proper cleanup
    * @param {string} url - URL of the sample to preview
+   * @returns {Promise<void>}
    */
   const previewSample = async (url) => {
     try {
@@ -638,7 +555,7 @@ const Controls = () => {
           previewPlayer.dispose();
           previewPlayer = null;
         }
-      }, 2100);
+      }, 2100); // Slightly longer than play duration to ensure clean cutoff
     } catch (error) {
       console.error("Error previewing sample:", error);
       if (previewPlayer) {
@@ -651,33 +568,54 @@ const Controls = () => {
   // ------------------------------------------------
   // Event Handlers for Samples and Effects
   // ------------------------------------------------
+
+  /**
+   * Comprehensive sample click handler that integrates selection and preview
+   * @param {Object} sample - The sample object to handle
+   */
   const handleSampleClick = async (sample) => {
     console.log("Sample clicked:", sample.name);
+
+    // Play preview if we have a URL
     if (sample.url) {
       await previewSample(sample.url);
     }
+
+    // Handle selection state
     if (selectedSample?.name === sample.name) {
+      console.log("Deselecting sample");
       setSelectedSample({ name: null });
     } else {
+      console.log("Selecting sample");
       setSelectedSample({ name: sample.name });
       setSelectedEffect({ type: null, name: null });
     }
 
-    setIsConfigOpen(false);
+    onControlPress?.();
   };
 
   const handleEffectClick = (effect) => {
     console.log("Effect clicked:", effect.name);
+
     if (selectedEffect?.name === effect.name) {
+      console.log("Deselecting effect");
       setSelectedEffect({ type: null, name: null });
     } else {
-      setSelectedEffect({ type: effect.type, name: effect.name });
-      setSelectedSample({ name: null });
+      console.log("Selecting effect");
+      setSelectedEffect({
+        type: effect.type,
+        name: effect.name,
+      });
+      setSelectedSample({ name: null }); // Clear sample selection
     }
 
-    setIsConfigOpen(false);
+    onControlPress?.();
   };
 
+  /**
+   * Handles the mouse down and touch start event for samples.
+   * @param {Object} sample - The sample object.
+   */
   const handleSampleDragStart = (sample, clientX, clientY) => {
     handleSampleMouseDown(sample)();
     setDragPreview({
@@ -687,10 +625,18 @@ const Controls = () => {
     });
   };
 
+  /**
+   * Handles the mouse up and touch end event for samples.
+   * @param {Object} sample - The sample object.
+   */
   const handleSampleDragEnd = (sample) => {
     handleSampleMouseUp(sample)();
   };
 
+  /**
+   * Handles the mouse down and touch start event for effects.
+   * @param {Object} effect - The effect object.
+   */
   const handleEffectDragStart = (effect, clientX, clientY) => {
     handleEffectMouseDown(effect)();
     setDragPreview({
@@ -700,41 +646,70 @@ const Controls = () => {
     });
   };
 
+  /**
+   * Handles the mouse up and touch end event for effects.
+   * @param {Object} effect - The effect object.
+   */
   const handleEffectDragEnd = (effect) => {
     handleEffectMouseUp(effect)();
   };
 
+  /**
+   * Handles the mouse down event for samples.
+   * @param {Object} sample - The sample object.
+   */
   const handleSampleMouseDown = (sample) => async () => {
-    // optionally handle selection logic
+    // await handleSampleSelection(sample);
   };
 
+  /**
+   * Handles the mouse up event for samples.
+   * @param {Object} sample - The sample object.
+   */
   const handleSampleMouseUp = (sample) => async () => {
+    // If user clicks same sample again, deselect it
     if (selectedSample.name === sample.name) {
       setSelectedSample({ name: null, click: 0 });
     } else {
+      // Otherwise, select new sample and preview
       setSelectedSample({
         name: sample.name,
         click: 2,
       });
       setSelectedEffect({ type: null, name: null });
+
+      // Optionally, you can preview the sample on mouse up as well
+      // await previewSample(sample.url);
     }
+
+    // Clear path/branch/hex selection
     setHexes((prevHexes) =>
       updateHexProperties(
         prevHexes,
         (hex) =>
           hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
-        { isPathSelected: false, isBranchSelected: false, isHexSelected: false }
+        {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        }
       )
     );
-
-    setIsConfigOpen(false);
+    onControlPress?.();
   };
 
+  /**
+   * Handles the selection and deselection of an effect.
+   * @param {Object} effect - The effect object.
+   */
   const handleEffectSelection = (effect) => () => {
     if (selectedEffect?.name === effect.name) {
       setSelectedEffect(null);
     } else {
-      setSelectedEffect({ type: effect.type, name: effect.name });
+      setSelectedEffect({
+        type: effect.type,
+        name: effect.name,
+      });
       setSelectedSample({ name: null, click: 0 });
     }
     setHexes((prevHexes) =>
@@ -742,190 +717,88 @@ const Controls = () => {
         prevHexes,
         (hex) =>
           hex.isPathSelected || hex.isBranchSelected || hex.isHexSelected,
-        { isPathSelected: false, isBranchSelected: false, isHexSelected: false }
+        {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        }
       )
     );
-
-    setIsConfigOpen(false);
+    onControlPress?.();
   };
 
+  /**
+   * Handles the mouse down event for effects.
+   * @param {Object} effect - The effect object.
+   */
   const handleEffectMouseDown = (effect) => () => {
     handleEffectSelection(effect)();
   };
 
+  /**
+   * Handles the mouse up event for effects.
+   * @param {Object} effect - The effect object.
+   */
   const handleEffectMouseUp = (effect) => () => {
     handleEffectSelection(effect)();
   };
 
-  const handleSetShowLibrary = (bool) => {
-    setShowLibrary(bool);
-  };
-
   // ------------------------------------------------
-  // Render
+  // Rendering
   // ------------------------------------------------
 
-  // Some library JSONs
+  // Two pre-made library JSONs
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
-  // 2. Replace the handlePlayToggle function with this version
-  // Replace your existing togglePlay function with this:
-  const handlePlayToggle = async () => {
-    if (isAudioPlaying) {
-      // If we're recording, stop the recording first
-      if (isRecording) {
-        const recording = await recorderRef.current.stop();
-        setIsRecording(false);
-
-        // Download link
-        const url = URL.createObjectURL(recording);
-        const link = document.createElement("a");
-        link.download = "tendril-loop.wav";
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-
-      // Stop playing
-      setIsAudioPlaying(false);
-      Tone.Transport.cancel();
-      Tone.Transport.stop();
-
-      // Reset path indices
-      const resetIndices = {};
-      paths.forEach((path) => {
-        resetIndices[path.id] = path.path.length - 1;
-      });
-      setCurrentIndices(resetIndices);
-
-      // Clear isPlaying state
-      setHexes((prevHexes) =>
-        prevHexes.map((hex) => ({
-          ...hex,
-          isPlaying: false,
-        }))
-      );
-    } else {
-      await Tone.start();
-      setIsAudioPlaying(true);
-    }
-
-    setSelectedEffect({ type: null, name: null });
-    setSelectedSample({ name: null });
-
-    setIsConfigOpen(false);
-  };
-
   return (
-    <>
-      {/* 
-          The mobile-floating bar at the bottom 
-          (only visible on small devices) 
-      */}
-      {deviceType.isSmallDevice && (
-        <MobileControlsBar
-          isAudioPlaying={isAudioPlaying}
-          handlePlayToggle={handlePlayToggle}
-          isConfigOpen={isConfigOpen}
-          setIsConfigOpen={setIsConfigOpen}
-          showLibrary={showLibrary}
-          setShowLibrary={handleSetShowLibrary}
-        />
-      )}
-
-      {/*
-        The panel that slides up on mobile, 
-        or is just visible on desktop
-      */}
-      <MobileConfigPanel isOpen={isConfigOpen} setIsOpen={setIsConfigOpen}>
-        <div className="hidden lg:block text-lg my-4 text-center">
-          <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-          <p className="text-center text-sm text-neutral-500">
-            Made by{" "}
-            <a
-              className="text-neutral-500 underline"
-              href="https://daniel.aagentah.tech/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              daniel.aagentah
-            </a>
-          </p>
-        </div>
-
-        {/* If we do NOT have a selected path or branch config open, show the main Samples/FX UI */}
-        {!anyPathSelected &&
-        !showLibrary &&
-        !(anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
-          <div className="w-full flex flex-col items-center justify-center space-y-4">
-            {/* Samples Box */}
-            <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-              <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                Samples
-              </div>
-
-              {/* Tab Buttons */}
-              <div className="flex items-center justify-start p-4 space-x-4 bg-neutral-900">
-                <button
-                  className={`text-xs px-2 py-1 border ${
-                    activeSamplesTab === "default"
-                      ? "bg-neutral-800 border-neutral-800"
-                      : "border-neutral-800 text-neutral-400"
-                  }`}
-                  onClick={() => setActiveSamplesTab("default")}
-                >
-                  Default
-                </button>
-                <button
-                  className={`text-xs px-2 py-1 border ${
-                    activeSamplesTab === "user"
-                      ? "bg-neutral-800 border-neutral-800"
-                      : "border-neutral-800 text-neutral-400"
-                  }`}
-                  onClick={() => setActiveSamplesTab("user")}
-                >
-                  User Uploaded
-                </button>
-              </div>
-
-              {/* Default vs User samples */}
-              {activeSamplesTab === "default" && (
-                <div className="px-4 pb-4" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex flex-wrap gap-3">
-                    {sampleStore.map((sample) => (
-                      <button
-                        key={sample.name}
-                        onClick={() => handleSampleClick(sample)}
-                        type="button"
-                        disabled={!paths.length}
-                        className={`px-2 py-1 text-xs border ${
-                          selectedSample?.name === sample.name
-                            ? "bg-red-800 text-white"
-                            : "text-red-400"
-                        } ${!paths.length ? "opacity-50" : ""}`}
-                      >
-                        {sample.name}
-                      </button>
-                    ))}
-                  </div>
+    <div className="mt-4 flex flex-col items-center space-y-4 max-w-lg mx-auto">
+      {/* Show either the main Samples/Effects UI OR the Library Panel */}
+      {!showLibrary ? (
+        <>
+          {/* If no path/branch config is selected, show the sample tabs & effects */}
+          {!anyPathSelected &&
+          !(anyBranchSelected && selectedBranch && selectedEffectDefinition) ? (
+            <div className="w-full flex flex-col items-center justify-center space-y-4">
+              {/* Samples Box */}
+              <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                  Samples
                 </div>
-              )}
 
-              {activeSamplesTab === "user" && (
-                <div className="px-4 pb-4 overflow-y-scroll h-40 space-y-4">
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    multiple
-                    onChange={handleFileUpload}
-                    className="block w-full text-xs text-neutral-300 file:mr-4 file:text-xs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
-                  />
+                {/* Tab Buttons */}
+                <div className="flex items-center justify-start p-4 space-x-4 bg-neutral-900">
+                  <button
+                    className={`text-xs px-2 py-1 border ${
+                      activeSamplesTab === "default"
+                        ? "bg-neutral-800 border-neutral-800"
+                        : "border-neutral-800 text-neutral-400"
+                    }`}
+                    onClick={() => setActiveSamplesTab("default")}
+                  >
+                    Default
+                  </button>
+                  <button
+                    className={`text-xs px-2 py-1 border ${
+                      activeSamplesTab === "user"
+                        ? "bg-neutral-800 border-neutral-800"
+                        : "border-neutral-800 text-neutral-400"
+                    }`}
+                    onClick={() => setActiveSamplesTab("user")}
+                  >
+                    User Uploaded
+                  </button>
+                </div>
 
-                  {userSamples && userSamples.length > 0 ? (
+                {/* Content: default vs user samples */}
+                {activeSamplesTab === "default" && (
+                  <div
+                    className="px-4 pb-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex flex-wrap gap-3">
-                      {userSamples.map((sample) => (
+                      {sampleStore.map((sample) => (
                         <button
-                          key={sample.id}
+                          key={sample.name}
                           onClick={() => handleSampleClick(sample)}
                           type="button"
                           disabled={!paths.length}
@@ -939,315 +812,349 @@ const Controls = () => {
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <div className="text-xs text-neutral-500">
-                      No user samples yet. Upload to get started.
-                    </div>
-                  )}
-
-                  <hr className="border-neutral-800" />
-
-                  <div className="text-xs text-neutral-500">
-                    Your uploaded samples are temporarily stored in your
-                    browser’s IndexedDB and will be cleared if you fully reset
-                    or close your session. If you save your entire session as
-                    JSON, the samples become base64 inside the JSON so you can
-                    re-load them later.
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Effects Box */}
-            <div className="w-full mt-4 border border-neutral-800 rounded-lg">
-              <div className="bg-neutral-800 px-4 py-2">Effects</div>
-              <div className="p-4 space-y-4">
-                {/* FX Effects */}
-                <div className="flex flex-wrap gap-2">
-                  {effectStore
-                    .filter((effect) => effect.type === "fx")
-                    .map((effect) => (
-                      <button
-                        key={effect.name}
-                        onClick={() => handleEffectClick(effect)}
-                        type="button"
-                        disabled={!paths.length}
-                        className={`px-2 py-1 text-xs border ${
-                          selectedEffect?.name === effect.name
-                            ? "bg-neutral-300 text-black"
-                            : "text-neutral-300"
-                        } ${!paths.length ? "opacity-50" : ""}`}
-                      >
-                        {effect.name}
-                      </button>
-                    ))}
-                </div>
+                {activeSamplesTab === "user" && (
+                  <div className="px-4 pb-4 overflow-y-scroll h-40 space-y-4">
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="block w-full text-xs text-neutral-300 file:mr-4 file:text-xs file:py-1 file:px-4 file:border-0 file:text-sm file:bg-neutral-800 file:text-neutral-300 file:rounded-md hover:file:bg-neutral-700 file:cursor-pointer cursor-pointer border border-neutral-700 rounded-md"
+                    />
 
-                {/* Utility Effects */}
-                <div className="flex flex-wrap gap-2">
-                  {effectStore
-                    .filter((effect) => effect.type === "utility")
-                    .map((effect) => (
-                      <button
-                        key={effect.name}
-                        onClick={() => handleEffectClick(effect)}
-                        type="button"
-                        disabled={!paths.length}
-                        className={`px-2 py-1 text-xs border ${
-                          selectedEffect?.name === effect.name
-                            ? "bg-blue-800 text-white"
-                            : "text-blue-400"
-                        } ${!paths.length ? "opacity-50" : ""}`}
-                      >
-                        {effect.name}
-                      </button>
-                    ))}
+                    {userSamples && userSamples.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {userSamples.map((sample) => (
+                          <button
+                            key={sample.name}
+                            onClick={() => handleSampleClick(sample)}
+                            type="button"
+                            disabled={!paths.length}
+                            className={`px-2 py-1 text-xs border ${
+                              selectedSample?.name === sample.name
+                                ? "bg-red-800 text-white"
+                                : "text-red-400"
+                            } ${!paths.length ? "opacity-50" : ""}`}
+                          >
+                            {sample.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-neutral-500">
+                        No user samples yet. Upload to get started.
+                      </div>
+                    )}
+
+                    <hr className="border-neutral-800" />
+
+                    <div className="text-xs text-neutral-500">
+                      Your uploaded samples are temporarily stored in your
+                      browser and will be cleared when you close the session. If
+                      you decide to "Save" your session, the samples will be
+                      included in the downloaded .json file.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Effects Box */}
+              <div className="w-full mt-4 border border-neutral-800 rounded-lg">
+                <div className="bg-neutral-800 px-4 py-2">Effects</div>
+                <div className="p-4 space-y-4">
+                  {/* FX Effects */}
+                  <div className="flex flex-wrap gap-2">
+                    {effectStore
+                      .filter((effect) => effect.type === "fx")
+                      .map((effect) => (
+                        <button
+                          key={effect.name}
+                          onClick={() => handleEffectClick(effect)}
+                          type="button"
+                          disabled={!paths.length}
+                          className={`px-2 py-1 text-xs border ${
+                            selectedEffect?.name === effect.name
+                              ? "bg-neutral-300 text-black"
+                              : "text-neutral-300"
+                          } ${!paths.length ? "opacity-50" : ""}`}
+                        >
+                          {effect.name}
+                        </button>
+                      ))}
+                  </div>
+
+                  {/* Utility Effects */}
+                  <div className="flex flex-wrap gap-2">
+                    {effectStore
+                      .filter((effect) => effect.type === "utility")
+                      .map((effect) => (
+                        <button
+                          key={effect.name}
+                          onClick={() => handleEffectClick(effect)}
+                          type="button"
+                          disabled={!paths.length}
+                          className={`px-2 py-1 text-xs border ${
+                            selectedEffect?.name === effect.name
+                              ? "bg-blue-800 text-white"
+                              : "text-blue-400"
+                          } ${!paths.length ? "opacity-50" : ""}`}
+                        >
+                          {effect.name}
+                        </button>
+                      ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {/* Path/Branch config UI */}
-        {(anyPathSelected ||
-          (anyBranchSelected &&
-            selectedBranch &&
-            selectedEffectDefinition)) && (
-          <div className="w-full flex flex-col items-center justify-center space-y-4">
-            {/* Path Config */}
-            {anyPathSelected &&
-              (() => {
-                const selectedHex = _.find(hexes, (hex) => hex.isPathSelected);
-                if (!selectedHex) return null;
-                const pathId = selectedHex.pathId;
-                const currentPath = paths.find((p) => p.id === pathId);
-                const volume =
-                  currentPath?.volume !== undefined ? currentPath.volume : 1;
-
-                return (
-                  <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                    <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                      Path Config
-                    </div>
-                    <div className="p-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1 text-white">
-                          Volume
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={volume}
-                          onChange={(e) => {
-                            const newVolume = parseFloat(e.target.value);
-                            setPaths((prevPaths) => {
-                              const newPaths = [...prevPaths];
-                              const pathIndex = newPaths.findIndex(
-                                (p) => p.id === pathId
-                              );
-                              if (pathIndex !== -1) {
-                                newPaths[pathIndex] = {
-                                  ...newPaths[pathIndex],
-                                  volume: newVolume,
-                                };
-                              }
-                              return newPaths;
-                            });
-                          }}
-                          className="w-full"
-                        />
-                        <span className="text-white">{volume.toFixed(2)}</span>
+          {/* Path/Branch Config UI */}
+          {(anyPathSelected ||
+            (anyBranchSelected &&
+              selectedBranch &&
+              selectedEffectDefinition)) && (
+            <div className="w-full flex flex-col items-center justify-center">
+              {/* Path Config */}
+              {anyPathSelected &&
+                (() => {
+                  const selectedHex = _.find(
+                    hexes,
+                    (hex) => hex.isPathSelected
+                  );
+                  if (!selectedHex) return null;
+                  const pathId = selectedHex.pathId;
+                  const currentPath = paths.find((p) => p.id === pathId);
+                  const volume =
+                    currentPath?.volume !== undefined ? currentPath.volume : 1;
+                  return (
+                    <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                      <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                        Path Config
                       </div>
+                      <div className="p-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-white">
+                            Volume
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={volume}
+                            onChange={(e) => {
+                              const newVolume = parseFloat(e.target.value);
+                              setPaths((prevPaths) => {
+                                const newPaths = [...prevPaths];
+                                const pathIndex = newPaths.findIndex(
+                                  (p) => p.id === pathId
+                                );
+                                if (pathIndex !== -1) {
+                                  newPaths[pathIndex] = {
+                                    ...newPaths[pathIndex],
+                                    volume: newVolume,
+                                  };
+                                }
+                                return newPaths;
+                              });
+                            }}
+                            className="w-full"
+                          />
+                          <span className="text-white">
+                            {volume.toFixed(2)}
+                          </span>
+                        </div>
 
-                      <div className="border-b border-neutral-800 my-4" />
+                        <div className="border-b border-neutral-800 my-4" />
 
-                      <div className="flex justify-between items-center text-xs">
-                        <div className="flex space-x-4">
+                        <div className="flex justify-between items-center text-xs">
+                          <div className="flex space-x-4">
+                            <button
+                              onClick={() => toggleSolo(pathId)}
+                              className={`px-4 py-2 rounded transition-colors duration-150 ${
+                                currentPath?.solo
+                                  ? "bg-amber-500 hover:bg-amber-600"
+                                  : "bg-neutral-800 hover:bg-neutral-700"
+                              } text-white`}
+                            >
+                              Solo
+                            </button>
+                            <button
+                              onClick={() => toggleBypass(pathId)}
+                              className={`px-4 py-2 rounded transition-colors duration-150 ${
+                                currentPath?.bypass
+                                  ? "bg-red-500 hover:bg-red-600"
+                                  : "bg-neutral-800 hover:bg-neutral-700"
+                              } text-white`}
+                            >
+                              Bypass
+                            </button>
+                          </div>
                           <button
-                            onClick={() => toggleSolo(pathId)}
-                            className={`px-4 py-2 rounded transition-colors duration-150 ${
-                              currentPath?.solo
-                                ? "bg-amber-500 hover:bg-amber-600"
-                                : "bg-neutral-800 hover:bg-neutral-700"
-                            } text-white`}
+                            onClick={resetPath}
+                            className="text-red-600 hover:text-red-700 cursor-pointer"
                           >
-                            Solo
-                          </button>
-                          <button
-                            onClick={() => toggleBypass(pathId)}
-                            className={`px-4 py-2 rounded transition-colors duration-150 ${
-                              currentPath?.bypass
-                                ? "bg-red-500 hover:bg-red-600"
-                                : "bg-neutral-800 hover:bg-neutral-700"
-                            } text-white`}
-                          >
-                            Bypass
+                            Delete Path
                           </button>
                         </div>
-                        <button
-                          onClick={resetPath}
-                          className="text-red-600 hover:text-red-700 cursor-pointer"
-                        >
-                          Delete Path
-                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
-            {/* Branch Config */}
-            {anyBranchSelected &&
-              selectedBranch &&
-              selectedEffectDefinition && (
-                <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                  <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                    Branch Config
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm mb-4 text-white">
-                      {selectedEffectDefinition.name}
-                    </p>
-
-                    <div className="flex flex-wrap gap-3">
-                      {Object.keys(selectedBranch.effectConfig).map(
-                        (paramName) => {
-                          const param = selectedBranch.effectConfig[paramName];
-                          const effectParam =
-                            selectedEffectDefinition.config[paramName];
-
-                          if (effectParam.options) {
-                            return (
-                              <div key={paramName} className="mb-2">
-                                <label className="block text-sm font-medium mb-1 text-white">
-                                  {paramName}
-                                </label>
-                                <select
-                                  className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1"
-                                  value={param.value}
-                                  onChange={(e) => {
-                                    setBranches((prevBranches) =>
-                                      prevBranches.map((branch) => {
-                                        if (branch.id === selectedBranch.id) {
-                                          return {
-                                            ...branch,
-                                            effectConfig: {
-                                              ...branch.effectConfig,
-                                              [paramName]: {
-                                                ...param,
-                                                value: e.target.value,
-                                              },
-                                            },
-                                          };
-                                        }
-                                        return branch;
-                                      })
-                                    );
-                                  }}
-                                >
-                                  {effectParam.options.map((option) => (
-                                    <option
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            );
-                          } else if (typeof param.value === "number") {
-                            return (
-                              <div key={paramName} className="mb-2">
-                                <label className="block text-sm font-medium mb-1 text-white">
-                                  {paramName}
-                                </label>
-                                <input
-                                  type="range"
-                                  min={effectParam.min || 0}
-                                  max={effectParam.max || 1}
-                                  step={effectParam.step || 0.01}
-                                  value={param.value}
-                                  onChange={(e) => {
-                                    setBranches((prevBranches) =>
-                                      prevBranches.map((branch) => {
-                                        if (branch.id === selectedBranch.id) {
-                                          return {
-                                            ...branch,
-                                            effectConfig: {
-                                              ...branch.effectConfig,
-                                              [paramName]: {
-                                                ...param,
-                                                value: parseFloat(
-                                                  e.target.value
-                                                ),
-                                              },
-                                            },
-                                          };
-                                        }
-                                        return branch;
-                                      })
-                                    );
-                                  }}
-                                />
-                                <span className="ml-2 text-sm text-white">
-                                  {Number(param.value).toFixed(1)}
-                                </span>
-                              </div>
-                            );
-                          } else if (typeof param.value === "string") {
-                            return (
-                              <div key={paramName} className="mb-2">
-                                <label className="block text-sm font-medium mb-1 text-white">
-                                  {paramName}
-                                </label>
-                                <input
-                                  type="text"
-                                  className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white"
-                                  value={param.value}
-                                  onChange={(e) => {
-                                    setBranches((prevBranches) =>
-                                      prevBranches.map((branch) => {
-                                        if (branch.id === selectedBranch.id) {
-                                          return {
-                                            ...branch,
-                                            effectConfig: {
-                                              ...branch.effectConfig,
-                                              [paramName]: {
-                                                ...param,
-                                                value: e.target.value,
-                                              },
-                                            },
-                                          };
-                                        }
-                                        return branch;
-                                      })
-                                    );
-                                  }}
-                                />
-                              </div>
-                            );
-                          }
-                          return null;
-                        }
-                      )}
+              {/* Branch Config */}
+              {anyBranchSelected &&
+                selectedBranch &&
+                selectedEffectDefinition && (
+                  <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+                    <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+                      Branch Config
                     </div>
-                    <span
-                      onClick={deleteSelectedBranch}
-                      className="text-red-600 mt-4 cursor-pointer"
-                    >
-                      Delete Branch
-                    </span>
-                  </div>
-                </div>
-              )}
-          </div>
-        )}
+                    <div className="p-4">
+                      <p className="text-sm mb-4 text-white">
+                        {selectedEffectDefinition.name}
+                      </p>
 
-        {/* Controls Box (Play, BPM, Record, Save/Load) only on Desktop */}
-        {!deviceType.isSmallDevice && !showLibrary && (
+                      <div className="flex flex-wrap gap-3">
+                        {Object.keys(selectedBranch.effectConfig).map(
+                          (paramName) => {
+                            const param =
+                              selectedBranch.effectConfig[paramName];
+                            const effectParam =
+                              selectedEffectDefinition.config[paramName];
+
+                            if (effectParam.options) {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <select
+                                    className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1"
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: e.target.value,
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  >
+                                    {effectParam.options.map((option) => (
+                                      <option
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            } else if (typeof param.value === "number") {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <input
+                                    type="range"
+                                    min={effectParam.min || 0}
+                                    max={effectParam.max || 1}
+                                    step={effectParam.step || 0.01}
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: parseFloat(
+                                                    e.target.value
+                                                  ),
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  />
+                                  <span className="ml-2 text-sm text-white">
+                                    {Number(param.value).toFixed(1)}{" "}
+                                  </span>
+                                </div>
+                              );
+                            } else if (typeof param.value === "string") {
+                              return (
+                                <div key={paramName} className="mb-2">
+                                  <label className="block text-sm font-medium mb-1 text-white">
+                                    {paramName}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-white"
+                                    value={param.value}
+                                    onChange={(e) => {
+                                      setBranches((prevBranches) =>
+                                        prevBranches.map((branch) => {
+                                          if (branch.id === selectedBranch.id) {
+                                            return {
+                                              ...branch,
+                                              effectConfig: {
+                                                ...branch.effectConfig,
+                                                [paramName]: {
+                                                  ...param,
+                                                  value: e.target.value,
+                                                },
+                                              },
+                                            };
+                                          }
+                                          return branch;
+                                        })
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              );
+                            }
+                            return null;
+                          }
+                        )}
+                      </div>
+                      <span
+                        onClick={deleteSelectedBranch}
+                        className="text-red-600 mt-4 cursor-pointer"
+                      >
+                        Delete Branch
+                      </span>
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
+          {/* Controls Box (Play, BPM, Record, Save/Load) */}
           <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
             <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
               Controls
@@ -1256,7 +1163,7 @@ const Controls = () => {
               <div className="w-full flex flex-col items-center justify-center space-y-4">
                 <div className="flex flex-wrap sm:flex-nowrap justify-start md:justify-center gap-4 md:gap-2 text-sm">
                   <button
-                    onClick={handlePlayToggle}
+                    onClick={togglePlay}
                     disabled={!paths.length}
                     className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center gap-2 ${
                       !paths.length ? "opacity-50 cursor-not-allowed" : ""
@@ -1343,11 +1250,9 @@ const Controls = () => {
               </div>
             </div>
           </div>
-        )}
 
-        {/* "Pre-load sequences made by others" Label */}
-        {!showLibrary && (
-          <div className="hidden lg:flex w-full mt-4 justify-center items-center">
+          {/* "Pre-load sequences made by others" Label */}
+          <div className="w-full mt-4 flex justify-center items-center">
             <div
               className="text-neutral-500 underline text-sm cursor-pointer"
               onClick={() => setShowLibrary(true)}
@@ -1355,73 +1260,81 @@ const Controls = () => {
               Pre-load sequences made by others.
             </div>
           </div>
-        )}
+        </>
+      ) : (
+        // -----------------------
+        //   Library Panel
+        // -----------------------
+        <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+          <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
+            Library
+          </div>
+          <div className="p-4">
+            <p className="text-sm mb-4 text-white">
+              Select a shared track to load:
+            </p>
+            {/* Loading Indicator */}
 
-        {/* Library panel */}
-        {showLibrary && (
-          <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-            <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-              Library
+            <div className="flex flex-col gap-3">
+              {libraryFiles.map((file) => (
+                <button
+                  key={file.url}
+                  className="text-neutral-500 underline text-left"
+                  onClick={() => handleLibraryLoad(file.url)}
+                >
+                  {file.label}
+                </button>
+              ))}
             </div>
-            <div className="p-4">
-              <p className="text-sm mb-4 text-white">
-                Select a shared track to load:
-              </p>
 
-              <div className="flex flex-col gap-3">
-                {libraryFiles.map((file) => (
-                  <button
-                    key={file.url}
-                    className="text-neutral-500 underline text-left"
-                    onClick={() => {
-                      handleLibraryLoad(file.url);
-                      setIsConfigOpen(false);
-                    }}
+            <div className="mt-6 flex items-end h-8">
+              {libraryLoading ? (
+                <div className="flex items-center gap-2 text-sm text-white">
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
                   >
-                    {file.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-6 flex items-end h-8">
-                {libraryLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-white">
-                    <svg
-                      className="animate-spin h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <button
-                    className="hidden lg:visible px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
-                    onClick={() => setShowLibrary(false)}
-                  >
-                    Back
-                  </button>
-                )}
-              </div>
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <button
+                  className="px-3 py-1 border border-neutral-600 text-neutral-300 text-sm"
+                  onClick={() => setShowLibrary(false)}
+                >
+                  Back
+                </button>
+              )}
             </div>
           </div>
-        )}
-      </MobileConfigPanel>
-    </>
+        </div>
+      )}
+
+      {/* {dragPreview.show && (
+        <div
+          className="fixed size-4 bg-white rounded-full pointer-events-none"
+          style={{
+            left: dragPreview.x - 10,
+            top: dragPreview.y - 26,
+          }}
+        />
+      )} */}
+    </div>
   );
 };
 
