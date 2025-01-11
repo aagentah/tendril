@@ -12,6 +12,7 @@ import {
   draftPathAtom,
   effectDraftPathAtom,
   isPathCreationModeAtom,
+  deviceTypeAtom,
 } from "./App";
 
 // Import utilities and helper functions
@@ -41,6 +42,7 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
   const [visible, setVisible] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [hasShownOnce, setHasShownOnce] = useState(false);
+  const [deviceType] = useAtom(deviceTypeAtom);
 
   // Convert SVG coordinates to screen coordinates
   const convertToScreenCoords = (x, y) => {
@@ -83,11 +85,10 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
         const { x: sx, y: sy } = convertToScreenCoords(lastHex.x, lastHex.y);
 
         // Add responsive offsets
-        const isMobile = window.innerWidth <= 768;
-        const offsetX = isMobile ? -60 : -150; // Smaller offset on mobile
+        const offsetX = deviceType.isSmallDevice ? -60 : -150; // Smaller offset on mobile
         let offsetY;
 
-        if (isMobile) {
+        if (deviceType.isSmallDevice) {
           offsetY = lastHex.y > 0 ? 40 : -90;
         } else {
           offsetY = lastHex.y > 0 ? 20 : -60;
