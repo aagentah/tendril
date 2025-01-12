@@ -350,41 +350,70 @@ const Grid = () => {
     }
 
     // Handle path creation mode
+    // In handleHexClick function within Grid.jsx, replace the path creation mode block with this:
+
+    // Handle path creation mode
+    // In handleHexClick function within Grid.jsx, update the path creation mode block:
+
+    // Handle path creation mode
     if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
       // Lock the current draft path immediately
       const lockedDraftPath = [...draftPath];
 
       // Get the last hex of the locked draft path
-      const lastHexInDraft = pathEdgeFromPath(lockedDraftPath, "last");
+      const lastHexInDraft = lockedDraftPath[lockedDraftPath.length - 1];
 
-      // Get all existing path end hexes
-      const existingPathEnds = getPathEdges(paths, "last").filter(Boolean);
+      // Get all existing path hexes and their end points
+      const existingPathHexes = paths.flatMap((path) => path.path);
+      const existingEndPoints = paths.map(
+        (path) => path.path[path.path.length - 1]
+      );
 
-      // Check if the last hex in our draft path would be adjacent to any existing path ends
-      const wouldOverlap = existingPathEnds.some((endHex) => {
-        // Get all hexes adjacent to this draft path end
-        const adjacentToNewEnd = hexes.filter(
-          (h) =>
-            !h.isPath && !h.isBranch && hexDistance(h, lastHexInDraft) === 1
-        );
+      // Function to get adjacent hex positions for a given hex
+      const getAdjacentPositions = (hex) => {
+        // Define the 6 possible directions for adjacent hexes
+        const directions = [
+          { q: 1, r: 0 },
+          { q: 1, r: -1 },
+          { q: 0, r: -1 },
+          { q: -1, r: 0 },
+          { q: -1, r: 1 },
+          { q: 0, r: 1 },
+        ];
 
-        // Check if any of these adjacent hexes are also adjacent to existing path ends
-        return adjacentToNewEnd.some((adjHex) =>
-          existingPathEnds.some(
-            (existingEnd) => hexDistance(adjHex, existingEnd) === 1
+        return directions.map((dir) => ({
+          q: hex.q + dir.q,
+          r: hex.r + dir.r,
+        }));
+      };
+
+      // Get adjacent positions for the draft path's end hex
+      const draftEndAdjacents = getAdjacentPositions(lastHexInDraft);
+
+      // Check for overlapping adjacents with existing path endpoints
+      const hasOverlappingAdjacents = existingEndPoints.some((endPoint) => {
+        const endPointAdjacents = getAdjacentPositions(endPoint);
+
+        return draftEndAdjacents.some((draftAdj) =>
+          endPointAdjacents.some(
+            (existingAdj) =>
+              existingAdj.q === draftAdj.q && existingAdj.r === draftAdj.r
           )
         );
       });
 
-      if (wouldOverlap) {
-        // If there would be overlap, don't create the path
-        console.warn(
-          "Cannot create path: end hex would overlap with existing path end zones"
-        );
+      // Check if the last hex would be adjacent to existing path hexes
+      const wouldBeAdjacentToPath = existingPathHexes.some(
+        (pathHex) => hexDistance(lastHexInDraft, pathHex) === 1
+      );
+
+      if (wouldBeAdjacentToPath || hasOverlappingAdjacents) {
+        // If there would be adjacency or overlapping adjacents, don't create the path
+        console.warn("Cannot create path: invalid end hex position");
         return;
       }
 
-      // If no overlap, proceed with path creation
+      // If no adjacency issues, proceed with path creation
       const { v4: uuidv4 } = await import("uuid");
       const newPathId = uuidv4();
 

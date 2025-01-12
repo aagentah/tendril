@@ -212,6 +212,12 @@ const Hex = memo(
         const currentHoverPosition = draftPath[draftPath.length - 1];
         const isAdjacentToHover = hexDistance(hex, currentHoverPosition) === 1;
 
+        // Check if current hover position would be adjacent to any existing path hex
+        const existingPathHexes = paths.flatMap((path) => path.path);
+        const wouldBeAdjacentToPath = existingPathHexes.some(
+          (pathHex) => hexDistance(currentHoverPosition, pathHex) === 1
+        );
+
         // Get all hexes adjacent to current hover position
         const adjacentHexesWouldInterfere = pathEnds.some((endHex) => {
           // Find all potential adjacent hexes to the current hover
@@ -231,7 +237,10 @@ const Hex = memo(
         });
 
         if (isAdjacentToHover && !isPath && !isBranch && !isPathDraft) {
-          if (adjacentHexesWouldInterfere) {
+          if (
+            (adjacentHexesWouldInterfere || wouldBeAdjacentToPath) &&
+            !isCenterRing
+          ) {
             cursor = "cursor-not-allowed";
             fillColor = "#ff000033";
             strokeColor = "#ff0000";
@@ -241,8 +250,16 @@ const Hex = memo(
         }
 
         // Apply to draft path regardless of mouse position
-        if (isPathDraft && adjacentHexesWouldInterfere) {
+        if (
+          isPathDraft &&
+          (adjacentHexesWouldInterfere || wouldBeAdjacentToPath) &&
+          !isCenterRing
+        ) {
           cursor = "cursor-not-allowed";
+          fillColor = "#ff000033";
+          strokeColor = "#ff0000";
+          strokeWidth = 1;
+          strokeOpacity = 0.5;
         }
       }
     }
