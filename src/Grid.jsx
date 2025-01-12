@@ -595,6 +595,7 @@ const Grid = () => {
         setIsOpen(true);
       } else {
         // Deselect everything
+
         set(hexesAtom, (prevHexes) =>
           updateHexProperties(prevHexes, () => true, {
             isPathSelected: false,
@@ -605,6 +606,17 @@ const Grid = () => {
 
         setIsOpen(false);
       }
+    } else {
+      set(hexesAtom, (prevHexes) =>
+        updateHexProperties(prevHexes, () => true, {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        })
+      );
+
+      setSelectedSample({ name: null });
+      setSelectedEffect({ type: null, name: null });
     }
   }, []);
 
