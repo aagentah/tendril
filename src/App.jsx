@@ -1141,6 +1141,7 @@ const App = () => {
                   closeControlsRef.current?.();
                 }}
                 onControlPress={() => closeControlsRef.current?.()}
+                samplerRef={samplerRef} // Add this line
               />
             )}
           </div>

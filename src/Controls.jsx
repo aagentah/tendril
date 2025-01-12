@@ -174,6 +174,7 @@ const MobileControlsPanel = ({
 };
 
 const ControlsContent = ({
+  samplerRef,
   onControlPress,
   togglePlay,
   toggleRecording,
@@ -570,34 +571,47 @@ const ControlsContent = ({
 
   let previewPlayer = null;
 
-  const previewSample = async (url) => {
+  const previewSample = async (url, sampleName) => {
     try {
-      if (previewPlayer) {
-        previewPlayer.stop();
-        previewPlayer.dispose();
-      }
-
       await Tone.start();
 
-      previewPlayer = new Tone.Player({
-        url,
-        autostart: true,
-        onload: () => {
-          previewPlayer.start();
-        },
-      }).toDestination();
+      const existingPlayer = samplerRef.current[sampleName];
+      if (!existingPlayer) {
+        console.warn(`No pre-loaded player found for sample: ${sampleName}`);
+        return;
+      }
 
-      previewPlayer.stop("+2");
+      if (!existingPlayer.loaded) {
+        console.warn(`Sample ${sampleName} is not yet loaded`);
+        return;
+      }
+
+      // Stop any currently playing preview
+      if (previewPlayer) {
+        previewPlayer.stop();
+      }
+
+      // Store reference to current player
+      previewPlayer = existingPlayer;
+
+      // Reset volume and unmute to ensure it's audible
+      existingPlayer.volume.value = 0;
+      existingPlayer.mute = false;
+
+      // Play the sample
+      const now = Tone.now();
+      existingPlayer.start(now);
+      existingPlayer.stop(now + 2); // Stop after 2 seconds
+
+      // Clean up
       setTimeout(() => {
-        if (previewPlayer) {
-          previewPlayer.dispose();
+        if (previewPlayer === existingPlayer) {
           previewPlayer = null;
         }
       }, 2100);
     } catch (error) {
       console.error("Error previewing sample:", error);
       if (previewPlayer) {
-        previewPlayer.dispose();
         previewPlayer = null;
       }
     }
@@ -606,15 +620,16 @@ const ControlsContent = ({
   const handleSampleClick = async (sample) => {
     console.log("Sample clicked:", sample.name);
 
-    if (sample.url) {
-      await previewSample(sample.url);
-    }
-
     if (selectedSample?.name === sample.name) {
       console.log("Deselecting sample");
       setSelectedSample({ name: null });
     } else {
       console.log("Selecting sample");
+
+      if (sample.url) {
+        await previewSample(sample.url, sample.name);
+      }
+
       setSelectedSample({ name: sample.name });
       setSelectedEffect({ type: null, name: null });
     }
@@ -1291,7 +1306,7 @@ const ControlsContent = ({
   );
 };
 
-const ControlsWrapper = (props) => {
+const ControlsWrapper = ({ samplerRef, ...props }) => {
   const closeControlsRef = useRef(null);
   const [showLibrary, setShowLibrary] = useState(false);
 
@@ -1406,6 +1421,7 @@ const ControlsWrapper = (props) => {
       </div>
 
       <ControlsContent
+        samplerRef={samplerRef}
         onCloseRef={closeControlsRef}
         showLibrary={showLibrary}
         setShowLibrary={setShowLibrary}
