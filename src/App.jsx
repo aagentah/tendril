@@ -1104,7 +1104,7 @@ const App = () => {
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
         <div className="flex flex-wrap w-full max-w-screen-xl">
-          <div className="block lg:hidden fixed top-12 left-0 right-0 text-lg my-4 text-center mx-auto">
+          <div className="block lg:hidden fixed top-12 left-0 right-0 text-lg my-4 text-center mx-auto z-50">
             <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
             <p className="text-center text-sm text-neutral-500">
               Made by{" "}
@@ -1119,7 +1119,7 @@ const App = () => {
             </p>
           </div>
 
-          <div className="w-full lg:w-1/2 flex justify-center items-center origin-top scale-[0.9] sm:scale-100">
+          <div className="w-full lg:w-1/2 flex justify-center items-center origin-top scale-[0.8] sm:scale-100">
             <div className="relative">
               {/* Render the Grid and P5Overlay */}
               <HexGrid />

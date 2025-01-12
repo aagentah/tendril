@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { atom, useAtom } from "jotai";
+import { useAtomCallback } from "jotai/utils";
+
 import * as Tone from "tone";
 import _ from "lodash";
 import {
@@ -58,6 +60,17 @@ const MobileControlsPanel = ({
       onCloseRef.current = () => setIsOpen(false);
     }
   }, [onCloseRef, setIsOpen]);
+
+  const deselectHexes = useAtomCallback(async (get, set) => {
+    // Deselect everything
+    set(hexesAtom, (prevHexes) =>
+      updateHexProperties(prevHexes, () => true, {
+        isPathSelected: false,
+        isBranchSelected: false,
+        isHexSelected: false,
+      })
+    );
+  });
 
   return (
     <>
@@ -130,7 +143,10 @@ const MobileControlsPanel = ({
         >
           <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                deselectHexes();
+              }}
               className="absolute top-5 right-4 z-50 p-2 text-white"
             >
               <svg

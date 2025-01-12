@@ -12,6 +12,7 @@ import {
   draftPathAtom,
   effectDraftPathAtom,
   isPathCreationModeAtom,
+  mobilePanelOpenAtom,
 } from "./App";
 
 // Import utilities and helper functions
@@ -143,6 +144,7 @@ const Grid = () => {
   const [paths, setPaths] = useAtom(pathsAtom);
   const [draftPath, setDraftPath] = useAtom(draftPathAtom);
   const [effectDraftPath, setEffectDraftPath] = useAtom(effectDraftPathAtom);
+  const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
@@ -460,6 +462,8 @@ const Grid = () => {
             isPathSelected: true,
           })
         );
+
+        setIsOpen(true);
       } else if (hex.isBranch && !hex.isPath) {
         // Select the branch
         const selectedBranchId = hex.branchId;
@@ -479,6 +483,8 @@ const Grid = () => {
             }
           )
         );
+
+        setIsOpen(true);
       } else {
         // Deselect everything
         set(hexesAtom, (prevHexes) =>
@@ -488,6 +494,8 @@ const Grid = () => {
             isHexSelected: false,
           })
         );
+
+        setIsOpen(false);
       }
     }
   }, []);
