@@ -37,6 +37,7 @@ import {
   dragPreviewAtom,
   mobilePanelOpenAtom,
 } from "./App";
+
 import { updateHexProperties } from "./hexUtils";
 
 const MobileControlsPanel = ({

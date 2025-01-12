@@ -276,3 +276,89 @@ export const branchEdgeFromBranch = (branch, edge = "last") => {
 
   return edge === "first" ? branch[0] : branch[branch.length - 1];
 };
+
+/**
+ * Determines if more paths can be created in the current grid state
+ * @param {Array} hexes - The current hex grid
+ * @param {Array} existingPaths - Currently existing paths
+ * @returns {boolean} - True if more paths can be created, false otherwise
+ */
+export const canCreateMorePaths = (hexes, existingPaths) => {
+  // Get all potential starting points (must be in outer ring and not already in a path)
+  const potentialStarts = hexes.filter(
+    (hex) => hex.isOuterRing && !hex.isPath && !hex.isHidden
+  );
+
+  // Get all existing path endpoints
+  const pathEndPoints = existingPaths.map(
+    (path) => path.path[path.path.length - 1]
+  );
+
+  // Find the center hex
+  const centerHex = hexes.find((h) => h.isMainHex);
+  if (!centerHex) return false;
+
+  // Check each potential starting point
+  for (const startHex of potentialStarts) {
+    // Check if this start point is too close to any existing path endpoints
+    const isTooClose = pathEndPoints.some((endPoint) => {
+      // Get hexes adjacent to the endpoint
+      const adjacentToEnd = hexes.filter(
+        (h) => !h.isPath && hexDistance(h, endPoint) === 1
+      );
+
+      // If our potential start is adjacent to any hex that's adjacent to a path end,
+      // it's too close and would create overlapping path zones
+      return adjacentToEnd.some(
+        (adjHex) => hexDistance(adjHex, startHex) === 1
+      );
+    });
+
+    if (isTooClose) continue;
+
+    // Get all hexes that are unavailable (part of existing paths or reserved)
+    const unavailableHexes = new Set([
+      // Add existing path hexes
+      ...existingPaths.flatMap((path) => path.path.map((h) => `${h.q},${h.r}`)),
+      // Add hexes adjacent to path endpoints (reserved zones)
+      ...pathEndPoints.flatMap((endPoint) =>
+        hexes
+          .filter((h) => hexDistance(h, endPoint) === 1)
+          .map((h) => `${h.q},${h.r}`)
+      ),
+    ]);
+
+    // Try to find a path to center using breadth-first search
+    const queue = [[startHex]];
+    const visited = new Set([`${startHex.q},${startHex.r}`]);
+
+    while (queue.length > 0) {
+      const currentPath = queue.shift();
+      const currentHex = currentPath[currentPath.length - 1];
+
+      if (currentHex.isMainHex) {
+        // Found a valid path to center
+        return true;
+      }
+
+      // Get valid neighbors
+      const neighbors = hexes.filter((h) => {
+        const key = `${h.q},${h.r}`;
+        return (
+          hexDistance(h, currentHex) === 1 &&
+          !visited.has(key) &&
+          !unavailableHexes.has(key) &&
+          !h.isHidden
+        );
+      });
+
+      for (const neighbor of neighbors) {
+        visited.add(`${neighbor.q},${neighbor.r}`);
+        queue.push([...currentPath, neighbor]);
+      }
+    }
+  }
+
+  // If we get here, no valid paths were found
+  return false;
+};

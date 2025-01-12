@@ -24,6 +24,7 @@ import {
   hexDistance,
   pathEdgeFromPath,
   branchEdgeFromBranch,
+  canCreateMorePaths,
 } from "./hexUtils";
 
 // Import the Hex component
@@ -339,8 +340,8 @@ const Grid = () => {
     const isPathCreationMode = get(isPathCreationModeAtom);
 
     // Handle path creation mode
-    if (hex.isMainHex) {
-      set(isPathCreationModeAtom, true);
+    if (hex.isMainHex && canCreateMorePaths(hexes, paths)) {
+      set(isPathCreationModeAtom, !isPathCreationMode);
       set(draftPathAtom, []);
       set(effectDraftPathAtom, []);
       setSelectedEffect({ type: null, name: null });

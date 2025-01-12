@@ -11,7 +11,12 @@ import {
   hexesAtom,
 } from "./App";
 
-import { getPathEdges, hexDistance, areCoordinatesEqual } from "./hexUtils";
+import {
+  getPathEdges,
+  hexDistance,
+  areCoordinatesEqual,
+  canCreateMorePaths,
+} from "./hexUtils";
 
 const Hex = memo(
   ({
@@ -169,7 +174,11 @@ const Hex = memo(
     if (selectedEffect?.name && isEffectDraft) {
       cursor = "cursor-pointer";
     } else if (isMainHex) {
-      cursor = "cursor-pointer";
+      if (canCreateMorePaths(hexes, paths)) {
+        cursor = "cursor-pointer";
+      } else {
+        cursor = "cursor-not-allowed";
+      }
     } else if (
       (isPath || isBranch) &&
       cursor !== "cursor-not-allowed" &&
@@ -267,7 +276,9 @@ const Hex = memo(
 
         {text && (
           <text
-            className="transition-opacity duration-500 opacity-100"
+            className={`transition-opacity duration-500 ${
+              canCreateMorePaths(hexes, paths) ? "opacity-100" : "opacity-30"
+            }`}
             style={{ pointerEvents: "none" }}
             x="0"
             y="0"
