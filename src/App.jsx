@@ -444,7 +444,7 @@ const App = () => {
 
   // Access user samples
   const [userSamples] = useAtom(userSamplesAtom);
-  console.log("Current userSamples:", userSamples);
+  console.log("paths", paths);
 
   const [isLoadingSamples, setIsLoadingSamples] = useState(true);
 

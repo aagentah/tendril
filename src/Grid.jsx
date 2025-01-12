@@ -160,12 +160,73 @@ const Grid = () => {
     const hexes = get(hexesAtom);
     const paths = get(pathsAtom);
 
+    // Get all path end hexes
+    const existingPathEnds = paths
+      .map((path) => path.path[path.path.length - 1])
+      .filter(Boolean);
+
+    // Find all hexes adjacent to path ends - these should be treated as reserved
+    const reservedHexes = _.flatMap(existingPathEnds, (endHex) =>
+      hexes.filter((h) => hexDistance(h, endHex) === 1)
+    );
+
+    // Check if this hex is already part of any existing path or is reserved
+    const isHexInExistingPath = paths.some((existingPath) =>
+      existingPath.path.some((pathHex) => areCoordinatesEqual(pathHex, hex))
+    );
+
+    const isHexReserved = reservedHexes.some((reservedHex) =>
+      areCoordinatesEqual(reservedHex, hex)
+    );
+
+    // Check if this hex is adjacent to any existing path endpoints
+    const isAdjacentToPathEnd = existingPathEnds.some((endHex) => {
+      const distance = hexDistance(hex, endHex);
+      return distance <= 1;
+    });
+
     if (isPathCreationMode && !hex.isPath) {
+      // Skip path drafting if hex is already in a path, reserved, or too close to an endpoint
+      if (isHexInExistingPath || isHexReserved || isAdjacentToPathEnd) {
+        return;
+      }
+
       const shortestPathsToNeighbors = predefinedOuterRing
         .map((outerHex) => {
           const neighbor = hexes.find((h) => areCoordinatesEqual(h, outerHex));
           if (!neighbor) return null;
-          const path = findShortestPath(neighbor, hex, hexes);
+
+          // Modified path finding to consider reserved hexes as blocked
+          const path = findShortestPath(
+            neighbor,
+            hex,
+            hexes.map((h) => ({
+              ...h,
+              isPath:
+                h.isPath ||
+                reservedHexes.some((reserved) =>
+                  areCoordinatesEqual(reserved, h)
+                ),
+            }))
+          );
+
+          // Check if any hex in this potential path is already used or reserved
+          if (
+            path.some(
+              (pathHex) =>
+                paths.some((existingPath) =>
+                  existingPath.path.some((existing) =>
+                    areCoordinatesEqual(existing, pathHex)
+                  )
+                ) ||
+                reservedHexes.some((reserved) =>
+                  areCoordinatesEqual(reserved, pathHex)
+                )
+            )
+          ) {
+            return null;
+          }
+
           return { neighbor, path };
         })
         .filter(Boolean);
@@ -173,19 +234,36 @@ const Grid = () => {
       const validPaths = shortestPathsToNeighbors.filter(
         ({ path }) => path.length > 0
       );
+
       if (validPaths.length > 0) {
         const shortestPathEntry = validPaths.reduce((minEntry, entry) =>
           entry.path.length < minEntry.path.length ? entry : minEntry
         );
         const { path: sp } = shortestPathEntry;
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(
-            prevHexes,
-            (h) => sp.find((p) => areCoordinatesEqual(p, h)) && !h.isPath,
-            { isPathDraft: true }
-          )
+
+        // Final validation check including reserved hexes
+        const hasCollision = sp.some(
+          (pathHex) =>
+            paths.some((existingPath) =>
+              existingPath.path.some((existing) =>
+                areCoordinatesEqual(existing, pathHex)
+              )
+            ) ||
+            reservedHexes.some((reserved) =>
+              areCoordinatesEqual(reserved, pathHex)
+            )
         );
-        set(draftPathAtom, sp);
+
+        if (!hasCollision) {
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(
+              prevHexes,
+              (h) => sp.find((p) => areCoordinatesEqual(p, h)) && !h.isPath,
+              { isPathDraft: true }
+            )
+          );
+          set(draftPathAtom, sp);
+        }
       }
       return;
     }
