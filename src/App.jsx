@@ -808,7 +808,8 @@ const App = () => {
                   }
                 }
 
-                const currentHex = path[path.length - 1 - currentIndex];
+                // (line ~388)
+                const currentHex = path[currentIndex];
                 if (!currentHex) return;
 
                 const hexToUpdate = _.find(updatedHexes, (h) =>
@@ -999,11 +1000,11 @@ const App = () => {
       });
 
       // Reset states
+      // (line ~494)
       setCurrentIndices(() => {
         const resetIndices = {};
         paths.forEach((path) => {
-          resetIndices[path.id] =
-            path.path.length > 0 ? path.path.length - 1 : 0;
+          resetIndices[path.id] = 0;
         });
         currentIndicesRef.current = resetIndices;
         return resetIndices;
