@@ -1479,6 +1479,19 @@ const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
     props.onControlPress?.();
   };
 
+  // In ControlsWrapper
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.code === "Space" && e.target === document.body) {
+        e.preventDefault();
+        togglePlay();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [togglePlay]);
+
   const toggleRecording = async () => {
     if (isRecording) {
       await togglePlay();
