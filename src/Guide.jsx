@@ -1,7 +1,7 @@
 // Guide.jsx
 import React, { useEffect, useState } from "react";
 import { atom, useAtom } from "jotai";
-import Cookies from "js-cookie"; // Import js-cookie
+import Cookies from "js-cookie";
 
 // Atoms specific to Guide
 export const guideStepAtom = atom(1);
@@ -38,13 +38,31 @@ const getElementCoords = (ref, useTopLeft = false) => {
   };
 };
 
+const GUIDE_COOKIE_NAME = "guide_completed";
+const COOKIE_EXPIRY_DAYS = 365;
+
 const Guide = () => {
-  const [currentStep, setCurrentStep] = useAtom(guideStepAtom);
+  const [currentStep] = useAtom(guideStepAtom);
   const [isVisible, setIsVisible] = useAtom(guideVisibleAtom);
   const [targetRefs] = useAtom(guideTargetRefsAtom);
   const [targetCoords, setTargetCoords] = useState({ x: 0, y: 0 });
 
   const isMobile = window.innerWidth <= 768;
+
+  useEffect(() => {
+    // Check if guide has been completed before
+    const hasCompletedGuide = Cookies.get(GUIDE_COOKIE_NAME);
+    if (hasCompletedGuide === "true") {
+      setIsVisible(false);
+    }
+  }, [setIsVisible]);
+
+  useEffect(() => {
+    // When guide reaches the last step, mark it as completed
+    if (currentStep === 8) {
+      Cookies.set(GUIDE_COOKIE_NAME, "true", { expires: COOKIE_EXPIRY_DAYS });
+    }
+  }, [currentStep]);
 
   // Define the guides outside the component to ensure stable reference
   const guides = {
@@ -107,29 +125,13 @@ const Guide = () => {
   };
 
   // Define the default offsets for the line start coordinates
-  const DEFAULT_LINE_START_OFFSET_X = 0; // pixels to subtract from target x for x1
-  const DEFAULT_LINE_START_OFFSET_Y = 0; // pixels to subtract from target y for y1
+  const DEFAULT_LINE_START_OFFSET_X = 0;
+  const DEFAULT_LINE_START_OFFSET_Y = 0;
 
   // Define the default offsets for the guide text
-  const DEFAULT_GUIDE_VERTICAL_OFFSET = 10; // pixels above the line's start point (y1)
+  const DEFAULT_GUIDE_VERTICAL_OFFSET = 10;
 
   useEffect(() => {
-    // Check if the guide has been shown before using a cookie
-    const guideShown = Cookies.get("guideShown");
-
-    if (guideShown) {
-      // If the guide has been shown, hide it
-      setIsVisible(false);
-    } else {
-      // If the guide hasn't been shown, set a cookie to indicate it has been shown
-      // The cookie expires in 1 year
-      Cookies.set("guideShown", "true", { expires: 365 });
-    }
-  }, [setIsVisible]);
-
-  useEffect(() => {
-    if (!isVisible) return; // Exit if the guide is not visible
-
     const handleResize = () => {
       const currentGuide = guides[currentStep];
       if (!currentGuide) return;
@@ -165,13 +167,11 @@ const Guide = () => {
       }
       window.removeEventListener("resize", handleResize);
     };
-  }, [currentStep, targetRefs, isVisible]); // Added 'isVisible' to dependencies
+  }, [currentStep, targetRefs]);
 
   if (!isVisible) return null;
 
   const currentGuide = guides[currentStep];
-
-  if (!currentGuide) return null; // Ensure currentGuide exists
 
   // Calculate the line start coordinates with relative offsets
   const x1 =
@@ -194,7 +194,6 @@ const Guide = () => {
             transform: "translate(-50%, -25%)",
             borderColor: "#ff8080",
             color: "#ff8080",
-            // whiteSpace: "nowrap",
           }}
         >
           {currentGuide.text}
