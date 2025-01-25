@@ -36,8 +36,12 @@ import {
 // p5.js overlay (unchanged, just imported)
 import P5Overlay from "./P5Overlay";
 
+// Guide
+import Guide, { guideStepAtom, guideVisibleAtom } from "./Guide";
+
 // Import your newly separated components
-import Controls from "./Controls";
+import ControlsWrapper from "./Controls";
+
 import HexGrid from "./Grid";
 
 // -------------------------------------------
@@ -313,6 +317,7 @@ const createHexGrid = (size) => {
         branchId: null,
         isHexSelected: false,
       };
+
       hexes.push(hex);
       hexMap.set(`${q},${r}`, hex);
     }
@@ -1028,61 +1033,61 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
-  // In App.jsx, replace the sample loading useEffect
-  useEffect(() => {
-    console.log("Starting sample initialization");
-    const players = {};
-    const allSamples = [...sampleStore, ...userSamples];
-    let loadedCount = 0;
-    const totalCount = allSamples.length;
+  // // In App.jsx, replace the sample loading useEffect
+  // useEffect(() => {
+  //   console.log("Starting sample initialization");
+  //   const players = {};
+  //   const allSamples = [...sampleStore, ...userSamples];
+  //   let loadedCount = 0;
+  //   const totalCount = allSamples.length;
 
-    // Set initial loading state
-    setLoadingProgress({ loaded: 0, total: totalCount });
+  //   // Set initial loading state
+  //   setLoadingProgress({ loaded: 0, total: totalCount });
 
-    // Load each sample synchronously like in the original version
-    allSamples.forEach((sample) => {
-      console.log(`Creating player for sample: ${sample.name}`);
+  //   // Load each sample synchronously like in the original version
+  //   allSamples.forEach((sample) => {
+  //     console.log(`Creating player for sample: ${sample.name}`);
 
-      const player = new Tone.Player({
-        url: sample.url,
-        fadeOut: 0.01,
-        retrigger: true,
-        curve: "linear",
-        onload: () => {
-          loadedCount += 1;
-          console.log(
-            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-          );
-          setLoadingProgress({ loaded: loadedCount, total: totalCount });
+  //     const player = new Tone.Player({
+  //       url: sample.url,
+  //       fadeOut: 0.01,
+  //       retrigger: true,
+  //       curve: "linear",
+  //       onload: () => {
+  //         loadedCount += 1;
+  //         console.log(
+  //           `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+  //         );
+  //         setLoadingProgress({ loaded: loadedCount, total: totalCount });
 
-          if (loadedCount === totalCount) {
-            console.log("All samples loaded successfully");
-            setIsLoadingSamples(false);
-          }
-        },
-        onerror: (error) => {
-          console.error(`Error loading sample ${sample.name}:`, error);
-        },
-      }).toDestination();
+  //         if (loadedCount === totalCount) {
+  //           console.log("All samples loaded successfully");
+  //           setIsLoadingSamples(false);
+  //         }
+  //       },
+  //       onerror: (error) => {
+  //         console.error(`Error loading sample ${sample.name}:`, error);
+  //       },
+  //     }).toDestination();
 
-      players[sample.name] = player;
-    });
+  //     players[sample.name] = player;
+  //   });
 
-    // Set the ref immediately like in the original version
-    samplerRef.current = players;
+  //   // Set the ref immediately like in the original version
+  //   samplerRef.current = players;
 
-    return () => {
-      Object.values(players).forEach((player) => {
-        try {
-          player.stop();
-          player.disconnect();
-          player.dispose();
-        } catch (error) {
-          console.error("Error cleaning up player:", error);
-        }
-      });
-    };
-  }, [sampleStore, userSamples]);
+  //   return () => {
+  //     Object.values(players).forEach((player) => {
+  //       try {
+  //         player.stop();
+  //         player.disconnect();
+  //         player.dispose();
+  //       } catch (error) {
+  //         console.error("Error cleaning up player:", error);
+  //       }
+  //     });
+  //   };
+  // }, [sampleStore, userSamples]);
 
   // Keep the LoadingUI component as is
   const LoadingUI = ({ loadedCount, totalCount }) => (
@@ -1101,69 +1106,54 @@ const App = () => {
   );
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
-        <div className="flex flex-wrap w-full max-w-screen-xl">
-          <div className="block lg:hidden fixed top-12 left-0 right-0 text-lg my-4 text-center mx-auto z-50">
-            <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
-            <p className="text-center text-sm text-neutral-500">
-              Made by{" "}
-              <a
-                className="text-neutral-500 underline"
-                href="https://daniel.aagentah.tech/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                daniel.aagentah
-              </a>
-            </p>
-          </div>
+    <>
+      <Guide />
+      <DndProvider backend={HTML5Backend}>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white">
+          <div className="flex flex-wrap w-full max-w-screen-xl">
+            <div className="block lg:hidden fixed top-12 left-0 right-0 text-lg my-4 text-center mx-auto z-50">
+              <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
+              <p className="text-center text-sm text-neutral-500">
+                Made by{" "}
+                <a
+                  className="text-neutral-500 underline"
+                  href="https://daniel.aagentah.tech/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  daniel.aagentah
+                </a>
+              </p>
+            </div>
 
-          <div className="w-full lg:w-1/2 flex justify-center items-center origin-top scale-[0.8] sm:scale-100">
-            <div className="relative">
-              {/* Render the Grid and P5Overlay */}
-              <HexGrid />
-              <P5Overlay />
+            <div className="w-full lg:w-1/2 flex justify-center items-center origin-top scale-[0.8] sm:scale-100">
+              <div className="relative">
+                {/* Render the Grid and P5Overlay */}
+                <HexGrid />
+                <P5Overlay />
+              </div>
+            </div>
+            <div className="w-full lg:w-1/2 flex justify-center items-center">
+              {isLoadingSamples ? (
+                <LoadingUI
+                  loadedCount={loadingProgress.loaded}
+                  totalCount={loadingProgress.total}
+                />
+              ) : (
+                <ControlsWrapper
+                  isAudioPlaying={isAudioPlaying}
+                  selectedSample={selectedSample}
+                  setSelectedSample={setSelectedSample}
+                  onControlPress={() => {}}
+                  samplerRef={samplerRef}
+                />
+              )}
             </div>
           </div>
-          <div className="w-full lg:w-1/2 flex justify-center items-center">
-            {isLoadingSamples ? (
-              <LoadingUI
-                loadedCount={loadingProgress.loaded}
-                totalCount={loadingProgress.total}
-              />
-            ) : (
-              <Controls
-                isAudioPlaying={isAudioPlaying}
-                selectedSample={selectedSample}
-                setSelectedSample={(sample) => {
-                  setSelectedSample(sample);
-                  closeControlsRef.current?.();
-                }}
-                onControlPress={() => closeControlsRef.current?.()}
-                samplerRef={samplerRef} // Add this line
-              />
-            )}
-          </div>
         </div>
-      </div>
-    </DndProvider>
+      </DndProvider>
+    </>
   );
 };
-
-const LoadingUI = ({ loadedCount, totalCount }) => (
-  <div className="flex flex-col items-center justify-center space-y-4">
-    <div className="text-neutral-300">Loading samples...</div>
-    <div className="w-48 h-2 bg-neutral-800 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-neutral-400 transition-all duration-300"
-        style={{ width: `${(loadedCount / totalCount) * 100}%` }}
-      />
-    </div>
-    <div className="text-sm text-neutral-500">
-      {loadedCount} / {totalCount} samples loaded
-    </div>
-  </div>
-);
 
 export default App;

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import _ from "lodash";
+import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
 
 // Import atoms from App.jsx
 import {
@@ -146,10 +147,37 @@ const Grid = () => {
   const [draftPath, setDraftPath] = useAtom(draftPathAtom);
   const [effectDraftPath, setEffectDraftPath] = useAtom(effectDraftPathAtom);
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
+  const [guideStep, setGuideStep] = useAtom(guideStepAtom);
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
   const mouseDownTimerRef = useRef(null);
+
+  const firstHexRef = useRef(null);
+  const effectDraftRef = useRef(null);
+  const mainHexRef = useRef(null);
+  const pathHexRef = useRef(null);
+  const pathEndRef = useRef(null);
+
+  const [, setGuideTargetRefs] = useAtom(guideTargetRefsAtom);
+
+  useEffect(() => {
+    console.log("Setting guide target refs...");
+
+    setGuideTargetRefs((prev) => {
+      console.log("Before update:", prev);
+      const updatedRefs = {
+        ...prev,
+        firstHex: firstHexRef,
+        effectDraft: effectDraftRef,
+        mainHex: mainHexRef,
+        pathHex: pathHexRef,
+        pathEnd: pathEndRef,
+      };
+      console.log("After update:", updatedRefs);
+      return updatedRefs;
+    });
+  }, []);
 
   // --------------------
   // Debounced Handlers
@@ -338,6 +366,7 @@ const Grid = () => {
     const selectedEffect = get(selectedEffectAtom);
     const hexes = get(hexesAtom);
     const isPathCreationMode = get(isPathCreationModeAtom);
+    const currentStep = get(guideStepAtom);
 
     // Handle path creation mode
     if (hex.isMainHex && canCreateMorePaths(hexes, paths)) {
@@ -346,6 +375,13 @@ const Grid = () => {
       set(effectDraftPathAtom, []);
       setSelectedEffect({ type: null, name: null });
       setSelectedSample({ name: null });
+
+      if (currentStep === 1) {
+        set(guideStepAtom, 2);
+      } else {
+        set(guideVisibleAtom, false);
+      }
+
       return;
     }
 
@@ -454,11 +490,17 @@ const Grid = () => {
       // Reset path creation mode
       set(isPathCreationModeAtom, false);
       setDraftPath([]);
+      set(guideStepAtom, 3);
+
       return;
     }
 
     // Handle sample placement, removal, or replacement on existing path
     if (selectedSample?.name && hex.isPath) {
+      if (guideStep === 4) {
+        set(guideStepAtom, 5);
+      }
+
       // If hex already has the same sample, remove it
       if (hex.sampleName === selectedSample.name) {
         set(hexesAtom, (prevHexes) =>
@@ -481,6 +523,10 @@ const Grid = () => {
 
     // Handle effect branch creation (unchanged)
     if (selectedEffect.name && hex.isEffectDraft) {
+      if (guideStep === 7) {
+        setGuideStep(8);
+      }
+
       const effectDraftHexes = effectDraftPath;
       const lastHexes = getPathEdges(paths, "last").filter(Boolean);
       if (!lastHexes.length) return;
@@ -635,6 +681,30 @@ const Grid = () => {
     10
   );
 
+  const isAdjacentToPathEnd = (hex) => {
+    const pathEnds = getPathEdges(paths, "last").filter(Boolean);
+    return pathEnds.some((end) => hexDistance(hex, end) === 1);
+  };
+
+  // Determine the correct ref for each hex
+  const getHexRef = (hex) => {
+    if (hex.q === 5 && hex.r === -5) return firstHexRef;
+
+    if (
+      !hex.isPath &&
+      !hex.isBranch &&
+      selectedEffect?.type &&
+      isAdjacentToPathEnd(hex)
+    ) {
+      return effectDraftRef;
+    }
+
+    if (hex.isMainHex) return mainHexRef;
+    if (hex.isPath) return pathHexRef;
+    if (hex.lastHexInPath) return pathEndRef;
+    return null;
+  };
+
   return (
     <div className="relative">
       {/* The SVG itself */}
@@ -659,6 +729,7 @@ const Grid = () => {
               anyBranchSelected={anyBranchSelected}
               anyHexSelected={anyHexSelected}
               isDragging={!!draggingSampleHex.current}
+              ref={getHexRef(hex)}
             />
           ))}
         </g>

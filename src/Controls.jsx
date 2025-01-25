@@ -39,6 +39,7 @@ import {
 } from "./App";
 
 import { updateHexProperties } from "./hexUtils";
+import { guideStepAtom, guideTargetRefsAtom } from "./Guide";
 
 const MobileControlsPanel = ({
   children,
@@ -73,104 +74,110 @@ const MobileControlsPanel = ({
     );
   });
 
-  return (
-    <>
-      {/* Desktop */}
-      <div className="hidden lg:block w-full relative">{children}</div>
+  const isMobile = window.innerWidth <= 768;
 
-      {/* Mobile */}
-      <div className="block lg:hidden">
-        {/* Mobile “Play” + BPM + “Controls” row */}
-        <div className="fixed bottom-0 left-0 right-0">
-          <div className="flex justify-center items-center p-4 space-x-4 mb-2 text-xs">
-            <button
-              onClick={togglePlay}
-              disabled={!paths.length}
-              className={`px-4 py-2 border border-white text-white rounded flex items-center gap-2 ${
-                !paths.length ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              {isAudioPlaying ? <FaStop size={12} /> : <FaPlay size={12} />}
-              {isAudioPlaying ? "Stop" : "Play"}
-            </button>
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile */}
+        <div className="block lg:hidden">
+          {/* Mobile “Play” + BPM + “Controls” row */}
+          <div className="fixed bottom-0 left-0 right-0">
+            <div className="flex justify-center items-center p-4 space-x-4 mb-2 text-xs">
+              <button
+                onClick={togglePlay}
+                disabled={!paths.length}
+                className={`px-4 py-2 border border-white text-white rounded flex items-center gap-2 ${
+                  !paths.length ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                {isAudioPlaying ? <FaStop size={12} /> : <FaPlay size={12} />}
+                {isAudioPlaying ? "Stop" : "Play"}
+              </button>
 
-            <button
-              onClick={() => setIsOpen(true)}
-              className={`px-6 py-2 border border-white text-white rounded shadow-lg ${
-                !paths.length ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              Samples & Fx
-            </button>
+              <button
+                onClick={() => setIsOpen(true)}
+                className={`px-6 py-2 border border-white text-white rounded shadow-lg ${
+                  !paths.length ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                Samples & Fx
+              </button>
 
-            <div className="relative">
-              <div className="flex items-center justify-center gap-x-4 relative h-[34px]">
-                <input
-                  className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  type="number"
-                  value={bpm}
-                  onChange={(e) =>
-                    setBpm(Math.min(parseInt(e.target.value) || 40, 999))
-                  }
-                  min="40"
-                  max="999"
-                />
-                <div className="absolute text-xs text-neutral-500 right-4 mt-0.5 pointer-events-none">
-                  BPM
+              <div className="relative">
+                <div className="flex items-center justify-center gap-x-4 relative h-[34px]">
+                  <input
+                    className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    type="number"
+                    value={bpm}
+                    onChange={(e) =>
+                      setBpm(Math.min(parseInt(e.target.value) || 40, 999))
+                    }
+                    min="40"
+                    max="999"
+                  />
+                  <div className="absolute text-xs text-neutral-500 right-4 mt-0.5 pointer-events-none">
+                    BPM
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Link to “Pre-load sequences made by others.” */}
+            <div className="w-full mb-6 flex justify-center items-center">
+              <div
+                className="text-neutral-500 underline text-sm cursor-pointer"
+                onClick={() => {
+                  setIsOpen(true);
+                  setShowLibrary(true);
+                }}
+              >
+                Pre-load sequences made by others.
               </div>
             </div>
           </div>
 
-          {/* Link to “Pre-load sequences made by others.” */}
-          <div className="w-full mb-6 flex justify-center items-center">
-            <div
-              className="text-neutral-500 underline text-sm cursor-pointer"
-              onClick={() => {
-                setIsOpen(true);
-                setShowLibrary(true);
-              }}
-            >
-              Pre-load sequences made by others.
+          {/* Sliding Panel */}
+          <div
+            className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
+              isOpen ? "translate-y-0" : "translate-y-full"
+            }`}
+          >
+            <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  deselectHexes();
+                }}
+                className="absolute top-5 right-4 z-50 p-2 text-white"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
+                  <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
+                </svg>
+              </button>
+
+              {children}
             </div>
           </div>
         </div>
-
-        {/* Sliding Panel */}
-        <div
-          className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
-            isOpen ? "translate-y-0" : "translate-y-full"
-          }`}
-        >
-          <div className="h-full relative overflow-y-auto px-4 pt-12 lg:pt-16 pb-8">
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                deselectHexes();
-              }}
-              className="absolute top-5 right-4 z-50 p-2 text-white"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="13.5" y1="4.5" x2="4.5" y2="13.5"></line>
-                <line x1="4.5" y1="4.5" x2="13.5" y2="13.5"></line>
-              </svg>
-            </button>
-
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  } else {
+    {
+      /* Desktop */
+    }
+    return <div className="hidden lg:block w-full relative">{children}</div>;
+  }
 };
 
 const ControlsContent = ({
@@ -196,6 +203,7 @@ const ControlsContent = ({
   const [currentIndices] = useAtom(currentIndicesAtom);
   const [dragPreview, setDragPreview] = useAtom(dragPreviewAtom);
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
+  const [guideStep, setGuideStep] = useAtom(guideStepAtom);
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
@@ -203,6 +211,21 @@ const ControlsContent = ({
 
   // Loading indicator for library
   const [libraryLoading, setLibraryLoading] = useState(false);
+
+  const samplePanelRef = useRef(null);
+  const playButtonRef = useRef(null);
+  const effectPanelRef = useRef(null);
+
+  const [, setGuideTargetRefs] = useAtom(guideTargetRefsAtom);
+
+  useEffect(() => {
+    setGuideTargetRefs((prev) => ({
+      ...prev,
+      samplePanel: samplePanelRef,
+      playButton: playButtonRef,
+      effectPanel: effectPanelRef,
+    }));
+  }, []);
 
   // ------------------------------------------------
   // Lifecycle / Setup
@@ -618,7 +641,9 @@ const ControlsContent = ({
   };
 
   const handleSampleClick = async (sample) => {
-    console.log("Sample clicked:", sample.name);
+    if (guideStep === 3) {
+      setGuideStep(4);
+    }
 
     if (selectedSample?.name === sample.name) {
       console.log("Deselecting sample");
@@ -639,6 +664,10 @@ const ControlsContent = ({
 
   const handleEffectClick = (effect) => {
     console.log("Effect clicked:", effect.name);
+
+    if (guideStep === 6) {
+      setGuideStep(7);
+    }
 
     if (selectedEffect?.name === effect.name) {
       console.log("Deselecting effect");
@@ -745,8 +774,29 @@ const ControlsContent = ({
 
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
+  const fadedSamples =
+    guideStep === 1 ||
+    guideStep === 2 ||
+    guideStep === 4 ||
+    guideStep === 5 ||
+    guideStep === 6;
+  const fadedEffects =
+    guideStep === 1 ||
+    guideStep === 2 ||
+    guideStep === 3 ||
+    guideStep === 4 ||
+    guideStep === 5;
+  const fadedControls =
+    guideStep === 1 ||
+    guideStep === 2 ||
+    guideStep === 3 ||
+    guideStep === 4 ||
+    guideStep === 6;
+
   return (
-    <div className="mt-4 flex flex-col items-center space-y-4 max-w-lg mx-auto">
+    <div
+      className={`mt-4 flex flex-col items-center space-y-4 max-w-lg mx-auto`}
+    >
       {!showLibrary ? (
         <>
           {!_.some(hexes, (hex) => hex.isPathSelected) &&
@@ -756,7 +806,10 @@ const ControlsContent = ({
             selectedEffectDefinition
           ) ? (
             <div className="w-full flex flex-col items-center justify-center space-y-4">
-              <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+              <div
+                className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all"
+               ${fadedSamples && "opacity-20"}`}
+              >
                 <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
                   Samples
                 </div>
@@ -788,9 +841,10 @@ const ControlsContent = ({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex flex-wrap gap-3">
-                      {sampleStore.map((sample) => (
+                      {sampleStore.map((sample, i) => (
                         <button
                           key={sample.name}
+                          ref={i === 0 ? samplePanelRef : null}
                           onClick={() => handleSampleClick(sample)}
                           type="button"
                           disabled={!paths.length}
@@ -848,15 +902,20 @@ const ControlsContent = ({
                   </div>
                 )}
               </div>
-              <div className="w-full mt-4 border border-neutral-800 rounded-lg">
+              <div
+                className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all" ${
+                  fadedEffects && "opacity-20"
+                }`}
+              >
                 <div className="bg-neutral-800 px-4 py-2">Effects</div>
                 <div className="p-4 space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {effectStore
                       .filter((effect) => effect.type === "fx")
-                      .map((effect) => (
+                      .map((effect, i) => (
                         <button
                           key={effect.name}
+                          ref={i === 0 ? effectPanelRef : null}
                           onClick={() => handleEffectClick(effect)}
                           type="button"
                           disabled={!paths.length}
@@ -1131,7 +1190,11 @@ const ControlsContent = ({
                 )}
             </div>
           )}
-          <div className="hidden lg:block w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
+          <div
+            className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all ${
+              fadedControls && "opacity-20"
+            }`}
+          >
             <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
               Controls
             </div>
@@ -1144,6 +1207,7 @@ const ControlsContent = ({
                     className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center gap-2 ${
                       !paths.length ? "opacity-50 cursor-not-allowed" : ""
                     }`}
+                    ref={playButtonRef}
                   >
                     {isAudioPlaying ? (
                       <FaStop size={12} />
@@ -1306,7 +1370,9 @@ const ControlsContent = ({
   );
 };
 
-const ControlsWrapper = ({ samplerRef, ...props }) => {
+const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
+  console.trace("ControlsWrapper rendering");
+
   const closeControlsRef = useRef(null);
   const [showLibrary, setShowLibrary] = useState(false);
 
@@ -1319,8 +1385,13 @@ const ControlsWrapper = ({ samplerRef, ...props }) => {
   const [, setHexes] = useAtom(hexesAtom);
   const [, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [, setSelectedSample] = useAtom(selectedSampleAtom);
+  const [guideStep, setGuideStep] = useAtom(guideStepAtom);
 
   const togglePlay = async () => {
+    if (guideStep === 5) {
+      setGuideStep(6);
+    }
+
     if (isAudioPlaying) {
       if (isRecording) {
         const recording = await recorderRef.current.stop();
@@ -1433,6 +1504,6 @@ const ControlsWrapper = ({ samplerRef, ...props }) => {
       />
     </MobileControlsPanel>
   );
-};
+});
 
 export default ControlsWrapper;

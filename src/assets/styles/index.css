@@ -20,6 +20,10 @@ body {
   animation-delay: 0.3s;
 }
 
+* {
+  font-family: monospace;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
