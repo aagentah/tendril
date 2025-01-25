@@ -47,6 +47,9 @@ const MobileControlsPanel = ({
   togglePlay,
   showLibrary,
   setShowLibrary,
+  samplePanelRef,
+  playButtonRef,
+  effectPanelRef,
 }) => {
   // Replace local useState with the shared atom
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
@@ -76,6 +79,8 @@ const MobileControlsPanel = ({
 
   const isMobile = window.innerWidth <= 768;
 
+  const [guideStep, setGuideStep] = useAtom(guideStepAtom);
+
   if (isMobile) {
     return (
       <>
@@ -85,6 +90,7 @@ const MobileControlsPanel = ({
           <div className="fixed bottom-0 left-0 right-0">
             <div className="flex justify-center items-center p-4 space-x-4 mb-2 text-xs">
               <button
+                ref={playButtonRef}
                 onClick={togglePlay}
                 disabled={!paths.length}
                 className={`px-4 py-2 border border-white text-white rounded flex items-center gap-2 ${
@@ -96,6 +102,7 @@ const MobileControlsPanel = ({
               </button>
 
               <button
+                ref={guideStep === 3 ? samplePanelRef : effectPanelRef}
                 onClick={() => setIsOpen(true)}
                 className={`px-6 py-2 border border-white text-white rounded shadow-lg ${
                   !paths.length ? "opacity-50 cursor-not-allowed" : ""
@@ -139,7 +146,7 @@ const MobileControlsPanel = ({
 
           {/* Sliding Panel */}
           <div
-            className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl ${
+            className={`h-3/4 bottom-0 fixed inset-x-0 bg-neutral-900 z-40 transition-transform duration-300 ease-in-out border-t border-t-neutral-500 rounded-t-xl z-40 ${
               isOpen ? "translate-y-0" : "translate-y-full"
             }`}
           >
@@ -190,6 +197,9 @@ const ControlsContent = ({
   setShowLibrary,
   isRecording,
   isRecordingArmed,
+  samplePanelRef,
+  playButtonRef,
+  effectPanelRef,
 }) => {
   const [isAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
@@ -212,21 +222,6 @@ const ControlsContent = ({
 
   // Loading indicator for library
   const [libraryLoading, setLibraryLoading] = useState(false);
-
-  const samplePanelRef = useRef(null);
-  const playButtonRef = useRef(null);
-  const effectPanelRef = useRef(null);
-
-  const [, setGuideTargetRefs] = useAtom(guideTargetRefsAtom);
-
-  useEffect(() => {
-    setGuideTargetRefs((prev) => ({
-      ...prev,
-      samplePanel: samplePanelRef,
-      playButton: playButtonRef,
-      effectPanel: effectPanelRef,
-    }));
-  }, []);
 
   // ------------------------------------------------
   // Lifecycle / Setup
@@ -813,7 +808,7 @@ const ControlsContent = ({
           ) ? (
             <div className="w-full flex flex-col items-center justify-center space-y-4">
               <div
-                className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all"
+                className={`w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all"
                ${fadedSamples && "opacity-20"}`}
               >
                 <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
@@ -909,7 +904,7 @@ const ControlsContent = ({
                 )}
               </div>
               <div
-                className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all" ${
+                className={`w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all" ${
                   fadedEffects && "opacity-20"
                 }`}
               >
@@ -1197,7 +1192,7 @@ const ControlsContent = ({
             </div>
           )}
           <div
-            className={`"w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all ${
+            className={`w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all ${
               fadedControls && "opacity-20"
             }`}
           >
@@ -1210,7 +1205,7 @@ const ControlsContent = ({
                   <button
                     onClick={togglePlay}
                     disabled={!paths.length}
-                    className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none flex items-center gap-2 ${
+                    className={`hidden lg:flex px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none items-center gap-2 ${
                       !paths.length ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     ref={playButtonRef}
@@ -1277,7 +1272,7 @@ const ControlsContent = ({
                     />
                   </label>
 
-                  <div className="flex items-center justify-center gap-x-4 relative h-[38px]">
+                  <div className="hidden lg:flex items-center justify-center gap-x-4 relative h-[38px]">
                     <input
                       className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       type="number"
@@ -1379,6 +1374,8 @@ const ControlsContent = ({
 const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
   console.trace("ControlsWrapper rendering");
 
+  const isMobile = window.innerWidth <= 768;
+
   const closeControlsRef = useRef(null);
   const [showLibrary, setShowLibrary] = useState(false);
 
@@ -1392,6 +1389,21 @@ const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
   const [, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [, setSelectedSample] = useAtom(selectedSampleAtom);
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
+
+  const samplePanelRef = useRef(null);
+  const playButtonRef = useRef(null);
+  const effectPanelRef = useRef(null);
+
+  const [, setGuideTargetRefs] = useAtom(guideTargetRefsAtom);
+
+  useEffect(() => {
+    setGuideTargetRefs((prev) => ({
+      ...prev,
+      samplePanel: samplePanelRef,
+      playButton: playButtonRef,
+      effectPanel: effectPanelRef,
+    }));
+  }, []);
 
   const togglePlay = async () => {
     if (guideStep === 5) {
@@ -1481,6 +1493,9 @@ const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
       togglePlay={togglePlay}
       showLibrary={showLibrary}
       setShowLibrary={setShowLibrary}
+      samplePanelRef={isMobile ? samplePanelRef : null}
+      playButtonRef={isMobile ? playButtonRef : null}
+      effectPanelRef={isMobile ? effectPanelRef : null}
     >
       <div className="hidden lg:block text-lg my-4 text-center mx-auto">
         <h1 className="text-lg mb-2 text-center mx-auto">tendril</h1>
@@ -1506,6 +1521,9 @@ const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
         toggleRecording={toggleRecording}
         isRecording={isRecording}
         isRecordingArmed={isRecordingArmed}
+        samplePanelRef={isMobile ? null : samplePanelRef}
+        playButtonRef={isMobile ? null : playButtonRef}
+        effectPanelRef={isMobile ? null : effectPanelRef}
         {...props}
       />
     </MobileControlsPanel>

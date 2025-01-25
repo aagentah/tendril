@@ -37,79 +37,81 @@ const getElementCoords = (ref, useTopLeft = false) => {
   };
 };
 
-// Define the guides outside the component to ensure stable reference
-const guides = {
-  1: {
-    text: "1: Click here to start drafting a path",
-    getTarget: (targetRefs) => targetRefs.mainHex,
-    // Specific offsets for step 1
-    xOffset: 0, // Example: shift 0 pixels horizontally
-    yOffset: -75, // Example: shift 75 pixels upwards
-    useTopLeft: false, // Center position
-  },
-  2: {
-    text: "2: Click any hex in the grid to establish path",
-    getTarget: (targetRefs) => targetRefs.firstHex,
-    // No additional offsets; uses default
-    xOffset: 0,
-    yOffset: -75,
-    useTopLeft: false, // Center position
-  },
-  3: {
-    text: "3: Select a sample",
-    getTarget: (targetRefs) => targetRefs.samplePanel,
-    // Offsets and top-left position for samplePanel
-    xOffset: -200,
-    yOffset: -75,
-    useTopLeft: true, // Top-left position
-  },
-  4: {
-    text: "4: Place sample anywhere on your path",
-    getTarget: (targetRefs) => targetRefs.pathHex,
-    // No additional offsets; uses default
-    xOffset: 0,
-    yOffset: -75,
-    useTopLeft: false, // Center position
-  },
-  5: {
-    text: "5: Press play to hear your sequence",
-    getTarget: (targetRefs) => targetRefs.playButton,
-    // Offsets and top-left position for playButton
-    xOffset: -200,
-    yOffset: -75,
-    useTopLeft: true, // Top-left position
-  },
-  6: {
-    text: "6: Click an effect to add",
-    getTarget: (targetRefs) => targetRefs.effectPanel,
-    // Offsets and top-left position for effectPanel
-    xOffset: -200,
-    yOffset: 75,
-    useTopLeft: true, // Top-left position
-  },
-  7: {
-    text: "7: Place effect on path end",
-    getTarget: (targetRefs) => targetRefs.effectDraft,
-    // No additional offsets; uses default
-    xOffset: 0,
-    yOffset: -75,
-    useTopLeft: false, // Center position
-  },
-  8: {
-    text: "8: That's the basics. Create more paths and have fun.",
-    getTarget: (targetRefs) => targetRefs.mainHex,
-    // No additional offsets; uses default
-    xOffset: 0,
-    yOffset: 75,
-    useTopLeft: false, // Center position
-  },
-};
-
 const Guide = () => {
   const [currentStep] = useAtom(guideStepAtom);
   const [isVisible] = useAtom(guideVisibleAtom);
   const [targetRefs] = useAtom(guideTargetRefsAtom);
   const [targetCoords, setTargetCoords] = useState({ x: 0, y: 0 });
+
+  const isMobile = window.innerWidth <= 768;
+
+  // Define the guides outside the component to ensure stable reference
+  const guides = {
+    1: {
+      text: "1: Click here to start drafting a path",
+      getTarget: (targetRefs) => targetRefs.mainHex,
+      // Specific offsets for step 1
+      xOffset: 0, // Example: shift 0 pixels horizontally
+      yOffset: -75, // Example: shift 75 pixels upwards
+      useTopLeft: isMobile ? false : false, // Center position
+    },
+    2: {
+      text: "2: Click any hex in the grid to establish path",
+      getTarget: (targetRefs) => targetRefs.firstHex,
+      // No additional offsets; uses default
+      xOffset: 0,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : false, // Center position
+    },
+    3: {
+      text: "3: Select a sample",
+      getTarget: (targetRefs) => targetRefs.samplePanel,
+      // Offsets and top-left position for samplePanel
+      xOffset: isMobile ? 0 : -200,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : true, // Top-left position
+    },
+    4: {
+      text: "4: Place sample anywhere on your path",
+      getTarget: (targetRefs) => targetRefs.pathHex,
+      // No additional offsets; uses default
+      xOffset: 0,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : false, // Center position
+    },
+    5: {
+      text: "5: Press play to hear your sequence",
+      getTarget: (targetRefs) => targetRefs.playButton,
+      // Offsets and top-left position for playButton
+      xOffset: isMobile ? 0 : -200,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : true, // Top-left position
+    },
+    6: {
+      text: "6: Click an effect to add",
+      getTarget: (targetRefs) => targetRefs.effectPanel,
+      // Offsets and top-left position for effectPanel
+      xOffset: isMobile ? 0 : -200,
+      yOffset: isMobile ? -75 : 75,
+      useTopLeft: isMobile ? false : true, // Top-left position
+    },
+    7: {
+      text: "7: Place effect on any neighbouring hex",
+      getTarget: (targetRefs) => targetRefs.effectDraft,
+      // No additional offsets; uses default
+      xOffset: 0,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : false, // Center position
+    },
+    8: {
+      text: "8: That's the basics. Create more paths and have fun.",
+      getTarget: (targetRefs) => targetRefs.mainHex,
+      // No additional offsets; uses default
+      xOffset: 0,
+      yOffset: 75,
+      useTopLeft: isMobile ? false : false, // Center position
+    },
+  };
 
   // Define the default offsets for the line start coordinates
   const DEFAULT_LINE_START_OFFSET_X = 0; // pixels to subtract from target x for x1
@@ -171,14 +173,16 @@ const Guide = () => {
   const y2 = targetCoords.y;
 
   return (
-    <div className="fixed left-0 top-0 w-full h-full pointer-events-none z-50">
+    <div className="fixed left-0 top-0 w-full h-full pointer-events-none z-30">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <span
-          className="bg-neutral-900 border border-white text-xxs px-2 py-1.5 text-white absolute"
+          className="bg-neutral-900 border text-xxs px-2 py-1.5 absolute"
           style={{
             left: x1,
             top: y1 - DEFAULT_GUIDE_VERTICAL_OFFSET,
             transform: "translate(-50%, -25%)",
+            borderColor: "#ff8080",
+            color: "#ff8080",
             // whiteSpace: "nowrap",
           }}
         >
@@ -195,7 +199,7 @@ const Guide = () => {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="white"
+            stroke="#ff8080"
             strokeWidth="1"
             opacity="0.5"
           />
