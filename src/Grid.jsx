@@ -179,6 +179,30 @@ const Grid = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        setSelectedSample({ name: null });
+        setSelectedEffect({ type: null, name: null });
+        setHexes((prevHexes) =>
+          updateHexProperties(prevHexes, () => true, {
+            isPathSelected: false,
+            isBranchSelected: false,
+            isHexSelected: false,
+            isPathDraft: false,
+            isEffectDraft: false,
+          })
+        );
+        setDraftPath([]);
+        setEffectDraftPath([]);
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return;
+  }, []);
+
   // --------------------
   // Debounced Handlers
   // --------------------

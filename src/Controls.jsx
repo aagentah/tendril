@@ -971,8 +971,23 @@ const ControlsContent = ({
                     currentPath?.volume !== undefined ? currentPath.volume : 1;
                   return (
                     <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                      <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                        Path Config
+                      <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200 flex justify-between">
+                        <span>Path Config</span>
+                        <button
+                          onClick={() => {
+                            setHexes((prevHexes) =>
+                              updateHexProperties(prevHexes, () => true, {
+                                isPathSelected: false,
+                                isBranchSelected: false,
+                                isHexSelected: false,
+                              })
+                            );
+                            setIsOpen(false);
+                          }}
+                          className="text-neutral-400 hover:text-neutral-200"
+                        >
+                          Back
+                        </button>
                       </div>
                       <div className="p-4">
                         <div>
@@ -1048,8 +1063,23 @@ const ControlsContent = ({
                 selectedBranch &&
                 selectedEffectDefinition && (
                   <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
-                    <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200">
-                      Branch Config
+                    <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200 flex justify-between">
+                      <span>Branch Config</span>
+                      <button
+                        onClick={() => {
+                          setHexes((prevHexes) =>
+                            updateHexProperties(prevHexes, () => true, {
+                              isPathSelected: false,
+                              isBranchSelected: false,
+                              isHexSelected: false,
+                            })
+                          );
+                          setIsOpen(false);
+                        }}
+                        className="text-neutral-400 hover:text-neutral-200"
+                      >
+                        Back
+                      </button>
                     </div>
                     <div className="p-4">
                       <p className="text-sm mb-4 text-white">
