@@ -16,8 +16,8 @@ import { axialToPixel, generateHexPoints } from "./hexUtils";
 const NUM_LAYERS_PATH = 5; // Number of lines per path
 const NUM_LAYERS_BRANCH = 3; // Number of lines per bracn
 const NOISE_INCREMENT = 0.01; // Controls the speed of the noise animation
-const NOISE_FACTOR_PATH = 5; // Base distortion factor path
-const NOISE_FACTOR_BRANCH = 7.5; // Base distortion factor branch
+const NOISE_FACTOR_PATH = 5.5; // Base distortion factor path
+const NOISE_FACTOR_BRANCH = 8; // Base distortion factor branch
 
 const P5Overlay = () => {
   const containerRef = useRef(null);
@@ -30,7 +30,7 @@ const P5Overlay = () => {
   const branchesRef = useRef(branches);
   const hexesRef = useRef(hexes);
 
-  const CENTER_HEX_RADIUS = 1; // Radius of the hex circle
+  const CENTER_HEX_RADIUS = 1.1; // Radius of the hex circle
 
   const generateHexCircle = (radius) => {
     const hexes = [];
@@ -225,7 +225,13 @@ const P5Overlay = () => {
                   x += SVG_WIDTH / 2;
                   y += SVG_HEIGHT / 2;
 
-                  if (index === 0 || index === pathData.length - 1) {
+                  if (index === pathData.length - 1) {
+                    const controlX = x - HEX_RADIUS * 0.2;
+                    const controlY = y - HEX_RADIUS * 0.3;
+                    p.curveVertex(controlX, controlY);
+                    p.curveVertex(x, y + HEX_RADIUS * 0.4);
+                    p.curveVertex(x, y + HEX_RADIUS * 0.4);
+                  } else if (index === 0) {
                     p.curveVertex(x, y);
                     p.curveVertex(x, y);
                   } else {

@@ -74,7 +74,7 @@ const Hex = memo(
 
       // Base styles
       let fillColor = "transparent";
-      let strokeColor = "grey";
+      let strokeColor = "#666666";
       let strokeOpacity = 0.2;
       let strokeWidth = 0.5;
       let cursor = "cursor-default";
@@ -106,7 +106,7 @@ const Hex = memo(
       // Effect placement visualization
       if (!isPath && !isBranch && selectedEffect?.type && isAdjacentToPathEnd) {
         if (selectedEffect.type === "fx") {
-          fillColor = "grey";
+          fillColor = "#666666";
           strokeColor = "white";
           strokeWidth = 2;
           cursor = "cursor-pointer";
@@ -120,21 +120,21 @@ const Hex = memo(
 
       // Playing state
       if (isPlaying && sampleName) {
-        fillColor = "grey";
+        fillColor = "#666666";
       }
 
       // Selection highlights
       if (isPathSelected && !(isPlaying && sampleName)) {
         fillColor = "#171717";
         strokeWidth = 4;
-        strokeColor = "grey";
+        strokeColor = "#666666";
       }
       if (isBranchSelected) {
         fillColor = "blue";
       }
 
       // Endpoint styling
-      if (!isPathSelected && isPath) {
+      if (!isPathSelected && isPath && lastHexInPath) {
         strokeColor = "red";
         strokeWidth = 0.5;
       }
@@ -202,15 +202,16 @@ const Hex = memo(
 
         // Show existing paths and their adjacents in red
         if (isPath || isAdjacentToPathEnd) {
-          fillColor = "#ff000033";
-          strokeColor = "#ff000033";
+          cursor = "cursor-not-allowed";
+          fillColor = "#1a1a1a";
+          strokeColor = "#1a1a1a";
           strokeWidth = 1;
-          strokeOpacity = 0.2;
+          strokeOpacity = 1;
         }
 
         // Draft path visualization
         if (isPathDraft) {
-          fillColor = "grey";
+          fillColor = "#666666";
           cursor = "cursor-pointer";
         }
 
@@ -245,15 +246,23 @@ const Hex = memo(
           });
 
           if (isAdjacentToHover && !isPath && !isBranch && !isPathDraft) {
+            cursor = "cursor-not-allowed";
+            fillColor = "#333333";
+            strokeColor = "#333333";
+            strokeWidth = 1;
+            strokeOpacity = 1;
+          }
+
+          if (isAdjacentToHover && !isPath && !isBranch && !isPathDraft) {
             if (
               (adjacentHexesWouldInterfere || wouldBeAdjacentToPath) &&
               !isCenterRing
             ) {
               cursor = "cursor-not-allowed";
-              fillColor = "#ff000033";
-              strokeColor = "#ff0000";
+              fillColor = "#1a1a1a";
+              strokeColor = "#1a1a1a";
               strokeWidth = 1;
-              strokeOpacity = 0.5;
+              strokeOpacity = 1;
             }
           }
 
@@ -264,10 +273,10 @@ const Hex = memo(
             !isCenterRing
           ) {
             cursor = "cursor-not-allowed";
-            fillColor = "#ff000033";
-            strokeColor = "#ff0000";
+            fillColor = "#1a1a1a";
+            strokeColor = "#1a1a1a";
             strokeWidth = 1;
-            strokeOpacity = 0.5;
+            strokeOpacity = 1;
           }
         }
       }
