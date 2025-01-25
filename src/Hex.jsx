@@ -1,4 +1,4 @@
-import React, { useState, memo, forwardRef } from "react";
+import React, { useState, memo, forwardRef, useEffect } from "react";
 import { useAtom } from "jotai";
 import _ from "lodash";
 
@@ -94,26 +94,21 @@ const Hex = memo(
         fillColor = "#171717";
       }
 
-      // Sample placement highlighting
-      if (selectedSample?.name && isPath && !sampleName) {
-        fillColor = "#999900";
-      }
-
       if (isPath || isBranch) {
         strokeOpacity = 1;
       }
 
-      // Effect placement visualization
+      // Effect placement visualization (now static fill colors, no animations)
       if (!isPath && !isBranch && selectedEffect?.type && isAdjacentToPathEnd) {
         if (selectedEffect.type === "fx") {
-          fillColor = "#666666";
-          strokeColor = "white";
+          fillColor = "grey"; // Static grey for fx
           strokeWidth = 2;
+          strokeOpacity = 1;
           cursor = "cursor-pointer";
         } else if (selectedEffect.type === "utility") {
-          fillColor = "blue";
-          strokeColor = "white";
+          fillColor = "#172AA0"; // Static blue-ish for utility
           strokeWidth = 2;
+          strokeOpacity = 1;
           cursor = "cursor-pointer";
         }
       }
@@ -130,26 +125,21 @@ const Hex = memo(
         strokeColor = "#666666";
       }
       if (isBranchSelected) {
-        fillColor = "blue";
+        fillColor = "#172AA0";
       }
 
       // Endpoint styling
       if (!isPathSelected && isPath && lastHexInPath) {
-        strokeColor = "red";
-        strokeWidth = 0.5;
+        strokeColor = "#850D15";
+        strokeWidth = 1;
       }
       if (effect.type === "fx" && isBranch && lastHexInPath) {
-        strokeColor = "white";
+        strokeColor = "grey";
         strokeWidth = 1;
       }
       if (effect.type === "utility" && isBranch && lastHexInPath) {
-        strokeColor = "blue";
+        strokeColor = "#172AA0";
         strokeWidth = 1;
-      }
-
-      // Hex selection highlight
-      if (isHexSelected) {
-        strokeColor = "#999900";
       }
 
       // Opacity classes
@@ -200,36 +190,29 @@ const Hex = memo(
       if (isPathCreationMode) {
         strokeOpacity = 0.5;
 
-        // Show existing paths and their adjacents in red
         if (isPath || isAdjacentToPathEnd) {
           cursor = "cursor-not-allowed";
           fillColor = "#1a1a1a";
-          strokeColor = "#1a1a1a";
+          strokeColor = "#666666";
           strokeWidth = 1;
           strokeOpacity = 1;
         }
 
-        // Draft path visualization
         if (isPathDraft) {
           fillColor = "#666666";
           cursor = "cursor-pointer";
         }
 
-        // Adjacent to current hover visualization
         if (draftPath.length > 0) {
           const currentHoverPosition = draftPath[draftPath.length - 1];
           const isAdjacentToHover =
             hexDistance(hex, currentHoverPosition) === 1;
-
-          // Check if current hover position would be adjacent to any existing path hex
           const existingPathHexes = paths.flatMap((path) => path.path);
           const wouldBeAdjacentToPath = existingPathHexes.some(
             (pathHex) => hexDistance(currentHoverPosition, pathHex) === 1
           );
 
-          // Get all hexes adjacent to current hover position
           const adjacentHexesWouldInterfere = pathEnds.some((endHex) => {
-            // Find all potential adjacent hexes to the current hover
             const adjacentPositions = hexes.filter(
               (h) =>
                 hexDistance(h, currentHoverPosition) === 1 &&
@@ -237,7 +220,6 @@ const Hex = memo(
                 !h.isBranch
             );
 
-            // Check if any of these adjacent positions would interfere
             return adjacentPositions.some(
               (adjHex) =>
                 hexDistance(adjHex, endHex) === 1 ||
@@ -246,7 +228,6 @@ const Hex = memo(
           });
 
           if (isAdjacentToHover && !isPath && !isBranch && !isPathDraft) {
-            cursor = "cursor-not-allowed";
             fillColor = "#333333";
             strokeColor = "#333333";
             strokeWidth = 1;
@@ -259,31 +240,28 @@ const Hex = memo(
               !isCenterRing
             ) {
               cursor = "cursor-not-allowed";
-              fillColor = "#1a1a1a";
-              strokeColor = "#1a1a1a";
+              fillColor = "#333333";
+              strokeColor = "#333333";
               strokeWidth = 1;
               strokeOpacity = 1;
             }
           }
 
-          // Apply to draft path regardless of mouse position
           if (
             isPathDraft &&
             (adjacentHexesWouldInterfere || wouldBeAdjacentToPath) &&
             !isCenterRing
           ) {
             cursor = "cursor-not-allowed";
-            fillColor = "#1a1a1a";
-            strokeColor = "#1a1a1a";
+            fillColor = "#333333";
+            strokeColor = "#333333";
             strokeWidth = 1;
             strokeOpacity = 1;
           }
         }
       }
 
-      // Check if current step is 2 and hex is not in the path
-      // Step 2: Reduce opacity if hex is not within the predefined q, r range
-      // Step 2: Reduce opacity if hex is NOT in the predefined list of valid hexes
+      // Guide step visualization
       if (guideStep === 2) {
         const validHexes = [
           { q: 2, r: -2 },
@@ -298,10 +276,8 @@ const Hex = memo(
 
         if (!isHexInValidPath) {
           strokeOpacity = 0.2;
-          // fillColor = "transparent";
         } else {
           strokeOpacity = 1;
-          // fillColor = "transparent";
         }
       }
 
@@ -314,6 +290,33 @@ const Hex = memo(
         setIsHovered(false);
         onMouseLeave();
       };
+
+      // Final fill (no flashing, just static conditions)
+      let finalFillColor = fillColor;
+      let finalFillOpacity = 1;
+
+      // If a sample can be placed here (and there's no sample yet)
+      if (selectedSample?.name && isPath && !sampleName) {
+        finalFillColor = "#850D15"; // Static red for sample placement
+      }
+      // If an FX can be placed here
+      else if (
+        selectedEffect?.type === "fx" &&
+        !isPath &&
+        !isBranch &&
+        isAdjacentToPathEnd
+      ) {
+        finalFillColor = "grey"; // Static grey for FX
+      }
+      // If a utility can be placed here
+      else if (
+        selectedEffect?.type === "utility" &&
+        !isPath &&
+        !isBranch &&
+        isAdjacentToPathEnd
+      ) {
+        finalFillColor = "#172AA0"; // Static blue for utility
+      }
 
       return (
         <g
@@ -328,7 +331,8 @@ const Hex = memo(
           <polygon
             className={`transition-all duration-300 ${opacityClass}`}
             points={points}
-            fill={fillColor}
+            fill={finalFillColor}
+            fillOpacity={finalFillOpacity}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
             strokeOpacity={strokeOpacity}
@@ -351,10 +355,6 @@ const Hex = memo(
               {text}
             </text>
           )}
-
-          {/* {isPathCreationMode && isMainHex && (
-          <circle cx="0" cy="0" r="3" fill="white" className="animate-pulse" />
-        )} */}
         </g>
       );
     }

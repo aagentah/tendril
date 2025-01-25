@@ -229,8 +229,8 @@ const P5Overlay = () => {
                     const controlX = x - HEX_RADIUS * 0.2;
                     const controlY = y - HEX_RADIUS * 0.3;
                     p.curveVertex(controlX, controlY);
-                    p.curveVertex(x, y + HEX_RADIUS * 0.4);
-                    p.curveVertex(x, y + HEX_RADIUS * 0.4);
+                    p.curveVertex(x, y + HEX_RADIUS * 0.2);
+                    p.curveVertex(x, y + HEX_RADIUS * 0.2);
                   } else if (index === 0) {
                     p.curveVertex(x, y);
                     p.curveVertex(x, y);
