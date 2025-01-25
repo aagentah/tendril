@@ -1034,60 +1034,60 @@ const App = () => {
   const closeControlsRef = useRef(null);
 
   // // In App.jsx, replace the sample loading useEffect
-  // useEffect(() => {
-  //   console.log("Starting sample initialization");
-  //   const players = {};
-  //   const allSamples = [...sampleStore, ...userSamples];
-  //   let loadedCount = 0;
-  //   const totalCount = allSamples.length;
+  useEffect(() => {
+    console.log("Starting sample initialization");
+    const players = {};
+    const allSamples = [...sampleStore, ...userSamples];
+    let loadedCount = 0;
+    const totalCount = allSamples.length;
 
-  //   // Set initial loading state
-  //   setLoadingProgress({ loaded: 0, total: totalCount });
+    // Set initial loading state
+    setLoadingProgress({ loaded: 0, total: totalCount });
 
-  //   // Load each sample synchronously like in the original version
-  //   allSamples.forEach((sample) => {
-  //     console.log(`Creating player for sample: ${sample.name}`);
+    // Load each sample synchronously like in the original version
+    allSamples.forEach((sample) => {
+      console.log(`Creating player for sample: ${sample.name}`);
 
-  //     const player = new Tone.Player({
-  //       url: sample.url,
-  //       fadeOut: 0.01,
-  //       retrigger: true,
-  //       curve: "linear",
-  //       onload: () => {
-  //         loadedCount += 1;
-  //         console.log(
-  //           `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-  //         );
-  //         setLoadingProgress({ loaded: loadedCount, total: totalCount });
+      const player = new Tone.Player({
+        url: sample.url,
+        fadeOut: 0.01,
+        retrigger: true,
+        curve: "linear",
+        onload: () => {
+          loadedCount += 1;
+          console.log(
+            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+          );
+          setLoadingProgress({ loaded: loadedCount, total: totalCount });
 
-  //         if (loadedCount === totalCount) {
-  //           console.log("All samples loaded successfully");
-  //           setIsLoadingSamples(false);
-  //         }
-  //       },
-  //       onerror: (error) => {
-  //         console.error(`Error loading sample ${sample.name}:`, error);
-  //       },
-  //     }).toDestination();
+          if (loadedCount === totalCount) {
+            console.log("All samples loaded successfully");
+            setIsLoadingSamples(false);
+          }
+        },
+        onerror: (error) => {
+          console.error(`Error loading sample ${sample.name}:`, error);
+        },
+      }).toDestination();
 
-  //     players[sample.name] = player;
-  //   });
+      players[sample.name] = player;
+    });
 
-  //   // Set the ref immediately like in the original version
-  //   samplerRef.current = players;
+    // Set the ref immediately like in the original version
+    samplerRef.current = players;
 
-  //   return () => {
-  //     Object.values(players).forEach((player) => {
-  //       try {
-  //         player.stop();
-  //         player.disconnect();
-  //         player.dispose();
-  //       } catch (error) {
-  //         console.error("Error cleaning up player:", error);
-  //       }
-  //     });
-  //   };
-  // }, [sampleStore, userSamples]);
+    return () => {
+      Object.values(players).forEach((player) => {
+        try {
+          player.stop();
+          player.disconnect();
+          player.dispose();
+        } catch (error) {
+          console.error("Error cleaning up player:", error);
+        }
+      });
+    };
+  }, [sampleStore, userSamples]);
 
   // Keep the LoadingUI component as is
   const LoadingUI = ({ loadedCount, totalCount }) => (

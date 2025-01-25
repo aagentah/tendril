@@ -1,6 +1,7 @@
 // Guide.jsx
 import React, { useEffect, useState } from "react";
 import { atom, useAtom } from "jotai";
+import Cookies from "js-cookie"; // Import js-cookie
 
 // Atoms specific to Guide
 export const guideStepAtom = atom(1);
@@ -38,8 +39,8 @@ const getElementCoords = (ref, useTopLeft = false) => {
 };
 
 const Guide = () => {
-  const [currentStep] = useAtom(guideStepAtom);
-  const [isVisible] = useAtom(guideVisibleAtom);
+  const [currentStep, setCurrentStep] = useAtom(guideStepAtom);
+  const [isVisible, setIsVisible] = useAtom(guideVisibleAtom);
   const [targetRefs] = useAtom(guideTargetRefsAtom);
   const [targetCoords, setTargetCoords] = useState({ x: 0, y: 0 });
 
@@ -50,66 +51,58 @@ const Guide = () => {
     1: {
       text: "1: Click here to start drafting a path",
       getTarget: (targetRefs) => targetRefs.mainHex,
-      // Specific offsets for step 1
-      xOffset: 0, // Example: shift 0 pixels horizontally
-      yOffset: -75, // Example: shift 75 pixels upwards
-      useTopLeft: isMobile ? false : false, // Center position
+      xOffset: 0,
+      yOffset: -75,
+      useTopLeft: isMobile ? false : false,
     },
     2: {
       text: "2: Click any hex in the grid to establish path",
       getTarget: (targetRefs) => targetRefs.firstHex,
-      // No additional offsets; uses default
       xOffset: 0,
       yOffset: -75,
-      useTopLeft: isMobile ? false : false, // Center position
+      useTopLeft: isMobile ? false : false,
     },
     3: {
       text: "3: Select a sample",
       getTarget: (targetRefs) => targetRefs.samplePanel,
-      // Offsets and top-left position for samplePanel
       xOffset: isMobile ? 0 : -200,
       yOffset: -75,
-      useTopLeft: isMobile ? false : true, // Top-left position
+      useTopLeft: isMobile ? false : true,
     },
     4: {
       text: "4: Place sample anywhere on your path",
       getTarget: (targetRefs) => targetRefs.pathHex,
-      // No additional offsets; uses default
       xOffset: 0,
       yOffset: -75,
-      useTopLeft: isMobile ? false : false, // Center position
+      useTopLeft: isMobile ? false : false,
     },
     5: {
       text: "5: Press play to hear your sequence",
       getTarget: (targetRefs) => targetRefs.playButton,
-      // Offsets and top-left position for playButton
       xOffset: isMobile ? 0 : -200,
       yOffset: -75,
-      useTopLeft: isMobile ? false : true, // Top-left position
+      useTopLeft: isMobile ? false : true,
     },
     6: {
       text: "6: Click an effect to add",
       getTarget: (targetRefs) => targetRefs.effectPanel,
-      // Offsets and top-left position for effectPanel
       xOffset: isMobile ? 0 : -200,
       yOffset: isMobile ? -75 : 75,
-      useTopLeft: isMobile ? false : true, // Top-left position
+      useTopLeft: isMobile ? false : true,
     },
     7: {
       text: "7: Place effect on any neighbouring hex",
       getTarget: (targetRefs) => targetRefs.effectDraft,
-      // No additional offsets; uses default
       xOffset: 0,
       yOffset: -75,
-      useTopLeft: isMobile ? false : false, // Center position
+      useTopLeft: isMobile ? false : false,
     },
     8: {
       text: "8: That's the basics. Create more paths and have fun.",
       getTarget: (targetRefs) => targetRefs.mainHex,
-      // No additional offsets; uses default
       xOffset: 0,
       yOffset: 75,
-      useTopLeft: isMobile ? false : false, // Center position
+      useTopLeft: isMobile ? false : false,
     },
   };
 
@@ -121,6 +114,22 @@ const Guide = () => {
   const DEFAULT_GUIDE_VERTICAL_OFFSET = 10; // pixels above the line's start point (y1)
 
   useEffect(() => {
+    // Check if the guide has been shown before using a cookie
+    const guideShown = Cookies.get("guideShown");
+
+    if (guideShown) {
+      // If the guide has been shown, hide it
+      setIsVisible(false);
+    } else {
+      // If the guide hasn't been shown, set a cookie to indicate it has been shown
+      // The cookie expires in 1 year
+      Cookies.set("guideShown", "true", { expires: 365 });
+    }
+  }, [setIsVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return; // Exit if the guide is not visible
+
     const handleResize = () => {
       const currentGuide = guides[currentStep];
       if (!currentGuide) return;
@@ -156,11 +165,13 @@ const Guide = () => {
       }
       window.removeEventListener("resize", handleResize);
     };
-  }, [currentStep, targetRefs]); // Removed 'guides' from dependencies
+  }, [currentStep, targetRefs, isVisible]); // Added 'isVisible' to dependencies
 
   if (!isVisible) return null;
 
   const currentGuide = guides[currentStep];
+
+  if (!currentGuide) return null; // Ensure currentGuide exists
 
   // Calculate the line start coordinates with relative offsets
   const x1 =
