@@ -39,7 +39,7 @@ import {
 } from "./App";
 
 import { updateHexProperties } from "./hexUtils";
-import { guideStepAtom, guideTargetRefsAtom } from "./Guide";
+import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
 
 const MobileControlsPanel = ({
   children,
@@ -204,6 +204,7 @@ const ControlsContent = ({
   const [dragPreview, setDragPreview] = useAtom(dragPreviewAtom);
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
+  const [guideVisible] = useAtom(guideVisibleAtom);
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
@@ -775,23 +776,28 @@ const ControlsContent = ({
   const libraryFiles = [{ label: "aagentah.json", url: "/json/aagentah.json" }];
 
   const fadedSamples =
-    guideStep === 1 ||
-    guideStep === 2 ||
-    guideStep === 4 ||
-    guideStep === 5 ||
-    guideStep === 6;
+    guideVisible &&
+    (guideStep === 1 ||
+      guideStep === 2 ||
+      guideStep === 4 ||
+      guideStep === 5 ||
+      guideStep === 6);
+
   const fadedEffects =
-    guideStep === 1 ||
-    guideStep === 2 ||
-    guideStep === 3 ||
-    guideStep === 4 ||
-    guideStep === 5;
+    guideVisible &&
+    (guideStep === 1 ||
+      guideStep === 2 ||
+      guideStep === 3 ||
+      guideStep === 4 ||
+      guideStep === 5);
+
   const fadedControls =
-    guideStep === 1 ||
-    guideStep === 2 ||
-    guideStep === 3 ||
-    guideStep === 4 ||
-    guideStep === 6;
+    guideVisible &&
+    (guideStep === 1 ||
+      guideStep === 2 ||
+      guideStep === 3 ||
+      guideStep === 4 ||
+      guideStep === 6);
 
   return (
     <div

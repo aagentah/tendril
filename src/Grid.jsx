@@ -376,6 +376,16 @@ const Grid = () => {
       setSelectedEffect({ type: null, name: null });
       setSelectedSample({ name: null });
 
+      set(hexesAtom, (prevHexes) =>
+        updateHexProperties(prevHexes, () => true, {
+          isPathSelected: false,
+          isBranchSelected: false,
+          isHexSelected: false,
+        })
+      );
+
+      setIsOpen(false);
+
       if (currentStep === 1) {
         set(guideStepAtom, 2);
       } else {

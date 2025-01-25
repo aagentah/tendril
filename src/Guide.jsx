@@ -18,6 +18,93 @@ export const guideTargetRefsAtom = atom({
   pathEnd: null,
 });
 
+/**
+ * Retrieves the coordinates of an element.
+ * @param {React.RefObject} ref - The ref of the target element.
+ * @param {boolean} useTopLeft - Whether to use the top-left corner instead of the center.
+ * @returns {Object|null} - The x and y coordinates or null if ref is not available.
+ */
+const getElementCoords = (ref, useTopLeft = false) => {
+  if (!ref?.current) return null;
+  const rect = ref.current.getBoundingClientRect();
+  return {
+    x: useTopLeft
+      ? rect.left + window.scrollX
+      : rect.left + rect.width / 2 + window.scrollX,
+    y: useTopLeft
+      ? rect.top + window.scrollY + 12
+      : rect.top + rect.height / 2 + window.scrollY,
+  };
+};
+
+// Define the guides outside the component to ensure stable reference
+const guides = {
+  1: {
+    text: "1: Click here to start drafting a path",
+    getTarget: (targetRefs) => targetRefs.mainHex,
+    // Specific offsets for step 1
+    xOffset: 0, // Example: shift 0 pixels horizontally
+    yOffset: -75, // Example: shift 75 pixels upwards
+    useTopLeft: false, // Center position
+  },
+  2: {
+    text: "2: Click any hex in the grid to establish path",
+    getTarget: (targetRefs) => targetRefs.firstHex,
+    // No additional offsets; uses default
+    xOffset: 0,
+    yOffset: -75,
+    useTopLeft: false, // Center position
+  },
+  3: {
+    text: "3: Select a sample",
+    getTarget: (targetRefs) => targetRefs.samplePanel,
+    // Offsets and top-left position for samplePanel
+    xOffset: -200,
+    yOffset: -75,
+    useTopLeft: true, // Top-left position
+  },
+  4: {
+    text: "4: Place sample anywhere on your path",
+    getTarget: (targetRefs) => targetRefs.pathHex,
+    // No additional offsets; uses default
+    xOffset: 0,
+    yOffset: -75,
+    useTopLeft: false, // Center position
+  },
+  5: {
+    text: "5: Press play to hear your sequence",
+    getTarget: (targetRefs) => targetRefs.playButton,
+    // Offsets and top-left position for playButton
+    xOffset: -200,
+    yOffset: -75,
+    useTopLeft: true, // Top-left position
+  },
+  6: {
+    text: "6: Click an effect to add",
+    getTarget: (targetRefs) => targetRefs.effectPanel,
+    // Offsets and top-left position for effectPanel
+    xOffset: -200,
+    yOffset: 75,
+    useTopLeft: true, // Top-left position
+  },
+  7: {
+    text: "7: Place effect on path end",
+    getTarget: (targetRefs) => targetRefs.effectDraft,
+    // No additional offsets; uses default
+    xOffset: 0,
+    yOffset: -75,
+    useTopLeft: false, // Center position
+  },
+  8: {
+    text: "8: That's the basics. Create more paths and have fun.",
+    getTarget: (targetRefs) => targetRefs.mainHex,
+    // No additional offsets; uses default
+    xOffset: 0,
+    yOffset: 75,
+    useTopLeft: false, // Center position
+  },
+};
+
 const Guide = () => {
   const [currentStep] = useAtom(guideStepAtom);
   const [isVisible] = useAtom(guideVisibleAtom);
@@ -31,98 +118,12 @@ const Guide = () => {
   // Define the default offsets for the guide text
   const DEFAULT_GUIDE_VERTICAL_OFFSET = 10; // pixels above the line's start point (y1)
 
-  /**
-   * Retrieves the coordinates of an element.
-   * @param {React.RefObject} ref - The ref of the target element.
-   * @param {boolean} useTopLeft - Whether to use the top-left corner instead of the center.
-   * @returns {Object|null} - The x and y coordinates or null if ref is not available.
-   */
-  const getElementCoords = (ref, useTopLeft = false) => {
-    if (!ref?.current) return null;
-    const rect = ref.current.getBoundingClientRect();
-    return {
-      x: useTopLeft
-        ? rect.left + window.scrollX
-        : rect.left + rect.width / 2 + window.scrollX,
-      y: useTopLeft
-        ? rect.top + window.scrollY + 12
-        : rect.top + rect.height / 2 + window.scrollY,
-    };
-  };
-
-  const guides = {
-    1: {
-      text: "1: Click here to start drafting a path",
-      getTarget: () => targetRefs.mainHex,
-      // Specific offsets for step 1
-      xOffset: 0, // Example: shift 0 pixels horizontally
-      yOffset: -75, // Example: shift 50 pixels upwards
-      useTopLeft: false, // Center position
-    },
-    2: {
-      text: "2: Click any hex in the grid to establish path",
-      getTarget: () => targetRefs.firstHex,
-      // No additional offsets; uses default
-      xOffset: 0,
-      yOffset: -75,
-      useTopLeft: false, // Center position
-    },
-    3: {
-      text: "3: Select a sample",
-      getTarget: () => targetRefs.samplePanel,
-      // Offsets and top-left position for samplePanel
-      xOffset: -200,
-      yOffset: -75,
-      useTopLeft: true, // Top-left position
-    },
-    4: {
-      text: "4: Place sample anywhere on your path",
-      getTarget: () => targetRefs.pathHex,
-      // No additional offsets; uses default
-      xOffset: 0,
-      yOffset: -75,
-      useTopLeft: false, // Center position
-    },
-    5: {
-      text: "5: Press play to hear your sequence",
-      getTarget: () => targetRefs.playButton,
-      // Offsets and top-left position for playButton
-      xOffset: -200,
-      yOffset: -75,
-      useTopLeft: true, // Top-left position
-    },
-    6: {
-      text: "6: Click an effect to add",
-      getTarget: () => targetRefs.effectPanel,
-      // Offsets and top-left position for effectPanel
-      xOffset: -200,
-      yOffset: 75,
-      useTopLeft: true, // Top-left position
-    },
-    7: {
-      text: "7: Place effect on path end",
-      getTarget: () => targetRefs.effectDraft,
-      // No additional offsets; uses default
-      xOffset: 0,
-      yOffset: -75,
-      useTopLeft: false, // Center position
-    },
-    8: {
-      text: "8: That's the basics. Create more paths and have fun.",
-      getTarget: () => targetRefs.mainHex,
-      // No additional offsets; uses default
-      xOffset: 0,
-      yOffset: 75,
-      useTopLeft: false, // Center position
-    },
-  };
-
   useEffect(() => {
     const handleResize = () => {
       const currentGuide = guides[currentStep];
       if (!currentGuide) return;
 
-      const targetRef = currentGuide.getTarget();
+      const targetRef = currentGuide.getTarget(targetRefs);
       const coords = getElementCoords(targetRef, currentGuide.useTopLeft);
       if (coords) {
         setTargetCoords({
@@ -140,7 +141,7 @@ const Guide = () => {
 
     // Add ResizeObserver for element position changes
     const currentGuide = guides[currentStep];
-    const targetRef = currentGuide?.getTarget();
+    const targetRef = currentGuide?.getTarget(targetRefs);
     let observer;
     if (targetRef?.current) {
       observer = new ResizeObserver(handleResize);
@@ -153,7 +154,7 @@ const Guide = () => {
       }
       window.removeEventListener("resize", handleResize);
     };
-  }, [currentStep, targetRefs, guides]);
+  }, [currentStep, targetRefs]); // Removed 'guides' from dependencies
 
   if (!isVisible) return null;
 
