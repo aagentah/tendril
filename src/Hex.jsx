@@ -18,7 +18,7 @@ import {
   canCreateMorePaths,
 } from "./hexUtils";
 
-import { guideStepAtom, guideTargetRefsAtom } from "./Guide";
+import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
 
 const Hex = memo(
   forwardRef(
@@ -62,7 +62,8 @@ const Hex = memo(
       const [selectedSample] = useAtom(selectedSampleAtom);
       const [selectedEffect] = useAtom(selectedEffectAtom);
       const [isPathCreationMode] = useAtom(isPathCreationModeAtom);
-      const [guideStep, setGuideStep] = useAtom(guideStepAtom);
+      const [guideStep] = useAtom(guideStepAtom);
+      const [guideVisible] = useAtom(guideVisibleAtom);
 
       const [isHovered, setIsHovered] = useState(false);
 
@@ -262,7 +263,7 @@ const Hex = memo(
       }
 
       // Guide step visualization
-      if (guideStep === 2) {
+      if (guideVisible && guideStep === 2) {
         const validHexes = [
           { q: 2, r: -2 },
           { q: 3, r: -3 },

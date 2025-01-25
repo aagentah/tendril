@@ -192,8 +192,8 @@ const Guide = () => {
             left: x1,
             top: y1 - DEFAULT_GUIDE_VERTICAL_OFFSET,
             transform: "translate(-50%, -25%)",
-            borderColor: "#ff8080",
-            color: "#ff8080",
+            borderColor: "#ffffff",
+            color: "#ffffff",
           }}
         >
           {currentGuide.text}
@@ -209,7 +209,7 @@ const Guide = () => {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="#ff8080"
+            stroke="#ffffff"
             strokeWidth="1"
             opacity="0.5"
           />
