@@ -395,9 +395,9 @@ export async function addUserSample(sample) {
   // Always ensure we have a valid note
   if (!sample.note || !sample.note.match(/^[A-G]#?\d$/)) {
     console.warn(
-      `Invalid or missing note for sample ${sample.name}, generating fallback`
+      `Invalid or missing note for sample ${sample.name}, assigning default note "C4"`
     );
-    // sample.note = getFallbackNote(sample.name, userSamples);
+    sample.note = "C4"; // Assign a default note directly
   }
 
   const db = await initDB();
@@ -418,6 +418,13 @@ export async function addUserSample(sample) {
     console.error(`Error adding user sample ${sample.name}:`, error);
     throw error;
   }
+}
+
+// Optional: Define getFallbackNote if not already defined
+function getFallbackNote(sampleName, userSamples) {
+  // Implement logic to determine a fallback note based on sampleName or other criteria
+  // For simplicity, returning a default note
+  return "C4";
 }
 
 export async function removeUserSample(id) {
@@ -1005,19 +1012,6 @@ const App = () => {
         // Ensure Tone.js is ready
         await Tone.start();
 
-        // -- PRE-WARM LOGIC (commented out in your code, so we leave it commented) --
-        // const players = samplerRef.current;
-        // for (const player of Object.values(players)) {
-        //   if (player.loaded) {
-        //     const silentGain = new Tone.Gain(0).toDestination();
-        //     player.connect(silentGain);
-        //     await player.start();
-        //     await player.stop();
-        //     player.disconnect(silentGain);
-        //     silentGain.dispose();
-        //   }
-        // }
-
         for (const sample of allSamples) {
           console.log(`Creating player for sample: ${sample.name}`);
 
@@ -1049,6 +1043,9 @@ const App = () => {
 
           players[sample.name] = player;
         }
+
+        // Assign the newly created players to the samplerRef after initialization
+        samplerRef.current = players;
       } catch (error) {
         console.error("Error initializing audio players:", error);
       }
@@ -1057,15 +1054,12 @@ const App = () => {
     // Kick off the loading process
     initializePlayers();
 
-    // Assign the newly created players to the samplerRef
-    samplerRef.current = players;
-
     // Cleanup: stop and dispose players
     return () => {
       // Prevent the “cannot convert undefined or null to object” error
-      if (!players) return;
+      if (!samplerRef.current) return;
 
-      Object.values(players).forEach((player) => {
+      Object.values(samplerRef.current).forEach((player) => {
         try {
           player.stop();
           player.disconnect();
@@ -1074,6 +1068,9 @@ const App = () => {
           console.error("Error cleaning up player:", error);
         }
       });
+
+      // Optionally, reset the samplerRef
+      samplerRef.current = null;
     };
   }, [sampleStore, userSamples]);
 
