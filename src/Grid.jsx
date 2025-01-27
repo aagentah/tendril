@@ -148,6 +148,9 @@ const Grid = () => {
   const [effectDraftPath, setEffectDraftPath] = useAtom(effectDraftPathAtom);
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
+  const [isPathCreationMode, setIsPathCreationMode] = useAtom(
+    isPathCreationModeAtom
+  );
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
@@ -184,6 +187,7 @@ const Grid = () => {
       if (e.key === "Escape") {
         setSelectedSample({ name: null });
         setSelectedEffect({ type: null, name: null });
+        setIsPathCreationMode(false);
         setHexes((prevHexes) =>
           updateHexProperties(prevHexes, () => true, {
             isPathSelected: false,
