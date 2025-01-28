@@ -519,6 +519,52 @@ const App = () => {
   }, [paths, setCurrentIndices]);
 
   useEffect(() => {
+    const players = {};
+    const allSamples = [...sampleStore, ...userSamples];
+    let loadedCount = 0;
+    const totalCount = allSamples.length;
+
+    const initializePlayers = async () => {
+      try {
+        await Tone.start();
+
+        for (const sample of allSamples) {
+          const player = new Tone.Player({
+            url: sample.url,
+            fadeOut: 0.01,
+            retrigger: true,
+            curve: "linear",
+            onload: () => {
+              loadedCount += 1;
+              if (loadedCount === totalCount) {
+                setIsLoadingSamples(false);
+              }
+            },
+          }).toDestination();
+
+          const silentGain = new Tone.Gain(0).toDestination();
+          player.connect(silentGain);
+
+          players[sample.name] = player;
+        }
+      } catch (error) {
+        console.error("Error initializing audio players:", error);
+      }
+    };
+
+    initializePlayers();
+    samplerRef.current = players;
+
+    return () => {
+      Object.values(players).forEach((player) => {
+        player.stop();
+        player.disconnect();
+        player.dispose();
+      });
+    };
+  }, [sampleStore, userSamples]);
+
+  useEffect(() => {
     Tone.Transport.bpm.value = bpm;
   }, [bpm]);
 
@@ -942,14 +988,12 @@ const App = () => {
       Tone.Transport.stop();
 
       // Clean up audio nodes
-      if (samplerRef.current) {
-        Object.values(samplerRef.current).forEach((player) => {
-          if (player?.stop) {
-            player.stop(now);
-            player.mute = true;
-          }
-        });
-      }
+      Object.values(samplerRef.current).forEach((player) => {
+        if (player?.stop) {
+          player.stop(now);
+          player.mute = true;
+        }
+      });
 
       Object.values(branchEffectNodesRef.current).forEach((branch) => {
         if (branch?.players) {
@@ -997,6 +1041,7 @@ const App = () => {
 
   const closeControlsRef = useRef(null);
 
+  // // In App.jsx, replace the sample loading useEffect
   useEffect(() => {
     console.log("Starting sample initialization");
     const players = {};
@@ -1007,59 +1052,40 @@ const App = () => {
     // Set initial loading state
     setLoadingProgress({ loaded: 0, total: totalCount });
 
-    const initializePlayers = async () => {
-      try {
-        // Ensure Tone.js is ready
-        await Tone.start();
+    // Load each sample synchronously like in the original version
+    allSamples.forEach((sample) => {
+      console.log(`Creating player for sample: ${sample.name}`);
 
-        for (const sample of allSamples) {
-          console.log(`Creating player for sample: ${sample.name}`);
+      const player = new Tone.Player({
+        url: sample.url,
+        fadeOut: 0.01,
+        retrigger: true,
+        curve: "linear",
+        onload: () => {
+          loadedCount += 1;
+          console.log(
+            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
+          );
+          setLoadingProgress({ loaded: loadedCount, total: totalCount });
 
-          const player = new Tone.Player({
-            url: sample.url,
-            fadeOut: 0.01,
-            retrigger: true,
-            curve: "linear",
-            onload: () => {
-              loadedCount += 1;
-              console.log(
-                `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-              );
-              setLoadingProgress({ loaded: loadedCount, total: totalCount });
+          if (loadedCount === totalCount) {
+            console.log("All samples loaded successfully");
+            setIsLoadingSamples(false);
+          }
+        },
+        onerror: (error) => {
+          console.error(`Error loading sample ${sample.name}:`, error);
+        },
+      }).toDestination();
 
-              if (loadedCount === totalCount) {
-                console.log("All samples loaded successfully");
-                setIsLoadingSamples(false);
-              }
-            },
-            onerror: (error) => {
-              console.error(`Error loading sample ${sample.name}:`, error);
-            },
-          }).toDestination();
+      players[sample.name] = player;
+    });
 
-          // Silent gain trick for better initialization
-          const silentGain = new Tone.Gain(0).toDestination();
-          player.connect(silentGain);
+    // Set the ref immediately like in the original version
+    samplerRef.current = players;
 
-          players[sample.name] = player;
-        }
-
-        // Assign the newly created players to the samplerRef after initialization
-        samplerRef.current = players;
-      } catch (error) {
-        console.error("Error initializing audio players:", error);
-      }
-    };
-
-    // Kick off the loading process
-    initializePlayers();
-
-    // Cleanup: stop and dispose players
     return () => {
-      // Prevent the “cannot convert undefined or null to object” error
-      if (!samplerRef.current) return;
-
-      Object.values(samplerRef.current).forEach((player) => {
+      Object.values(players).forEach((player) => {
         try {
           player.stop();
           player.disconnect();
