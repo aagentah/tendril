@@ -162,10 +162,10 @@ const Hex = memo(
       } else if (isMainHex) {
         text =
           isPathCreationMode && draftPath.length > 0
-            ? `${draftPath.length.toString()}-bar`
+            ? `${draftPath.length.toString()}-step`
             : "+";
 
-        fontSize = isPathCreationMode && draftPath.length > 0 ? 12 : 26;
+        fontSize = isPathCreationMode && draftPath.length > 0 ? 10 : 26;
       }
 
       // Default cursor states

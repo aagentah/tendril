@@ -893,6 +893,17 @@ const App = () => {
 
                     const pathVolume = pathObj.volume ?? 1;
 
+                    // Pan functionality: retrieve the pan value from the current path and normalize (-12 dB to +12 dB => -1 to +1)
+                    const currentPath = currentPaths.find(
+                      (p) => p.id === pathId
+                    );
+                    const panValue =
+                      currentPath?.pan !== undefined ? currentPath.pan : 0;
+                    const normalizedPan = panValue / 12;
+
+                    console.log("currentPath.pan", currentPath.pan);
+                    console.log("normalizedPan", normalizedPan);
+
                     // Handle audio playback through effects or direct
                     if (audioEffectBranches.length > 0) {
                       audioEffectBranches.forEach((branch) => {
@@ -902,6 +913,16 @@ const App = () => {
                           const player =
                             branchNode.players[hexToUpdate.sampleName];
                           if (player && player.loaded) {
+                            // Insert panner into the branch chain without breaking the existing effect chain
+                            if (!player._panner) {
+                              player.disconnect();
+                              const panner = new Tone.Panner(normalizedPan);
+                              player.connect(panner);
+                              panner.connect(branchNode.effectNode);
+                              player._panner = panner;
+                            } else {
+                              player._panner.pan.value = normalizedPan;
+                            }
                             player.volume.value = Tone.gainToDb(pathVolume);
                             player.mute = false;
                             triggerSampleWithValidation(
@@ -916,6 +937,16 @@ const App = () => {
                     } else {
                       const player = samplerRef.current[hexToUpdate.sampleName];
                       if (player && player.loaded) {
+                        if (!player._panner) {
+                          player.disconnect();
+                          const panner = new Tone.Panner(
+                            normalizedPan
+                          ).toDestination();
+                          player.connect(panner);
+                          player._panner = panner;
+                        } else {
+                          player._panner.pan.value = normalizedPan;
+                        }
                         player.volume.value = Tone.gainToDb(pathVolume);
                         player.mute = false;
                         triggerSampleWithValidation(

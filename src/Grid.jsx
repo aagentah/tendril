@@ -402,7 +402,7 @@ const Grid = () => {
       set(draftPathAtom, []);
       set(effectDraftPathAtom, []);
       setSelectedEffect({ type: null, name: null });
-      setSelectedSample({ name: null });
+      // setSelectedSample({ name: null });
 
       set(hexesAtom, (prevHexes) =>
         updateHexProperties(prevHexes, () => true, {

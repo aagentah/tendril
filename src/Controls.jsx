@@ -969,6 +969,8 @@ const ControlsContent = ({
                   const currentPath = paths.find((p) => p.id === pathId);
                   const volume =
                     currentPath?.volume !== undefined ? currentPath.volume : 1;
+                  const pan =
+                    currentPath?.pan !== undefined ? currentPath.pan : 0;
                   return (
                     <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
                       <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200 flex justify-between">
@@ -1023,6 +1025,60 @@ const ControlsContent = ({
                           </span>
                         </div>
 
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium mb-1 text-white">
+                            Pan (Left/Right)
+                          </label>
+                          <input
+                            type="range"
+                            min="-12"
+                            max="12"
+                            step="0.1"
+                            value={pan}
+                            onChange={(e) => {
+                              const newPan = parseFloat(e.target.value);
+                              setPaths((prevPaths) => {
+                                const newPaths = [...prevPaths];
+                                const pathIndex = newPaths.findIndex(
+                                  (p) => p.id === pathId
+                                );
+                                if (pathIndex !== -1) {
+                                  newPaths[pathIndex] = {
+                                    ...newPaths[pathIndex],
+                                    pan: newPan,
+                                  };
+                                }
+                                return newPaths;
+                              });
+                              const normalizedPan = newPan / 12;
+                              // Immediately update direct playback players’ panner values.
+                              Object.values(samplerRef.current).forEach(
+                                (player) => {
+                                  if (player._panner) {
+                                    player._panner.pan.value = normalizedPan;
+                                  }
+                                }
+                              );
+                              // Immediately update branch effect players’ panner values.
+                              Object.values(
+                                branchEffectNodesRef.current
+                              ).forEach((branchNode) => {
+                                Object.values(branchNode.players).forEach(
+                                  (player) => {
+                                    if (player._panner) {
+                                      player._panner.pan.value = normalizedPan;
+                                    }
+                                  }
+                                );
+                              });
+                            }}
+                            className="w-full"
+                          />
+                          <span className="text-white">
+                            {pan.toFixed(1)} dB
+                          </span>
+                        </div>
+
                         <div className="border-b border-neutral-800 my-4" />
 
                         <div className="flex justify-between items-center text-xs">
@@ -1059,6 +1115,7 @@ const ControlsContent = ({
                     </div>
                   );
                 })()}
+
               {anyBranchSelected &&
                 selectedBranch &&
                 selectedEffectDefinition && (
