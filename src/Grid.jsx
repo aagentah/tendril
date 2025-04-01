@@ -19,7 +19,9 @@ import {
 // Import utilities and helper functions
 import {
   updateHexProperties,
-  findShortestPath,
+  findShortestPath, // Keep this for backward compatibility
+  memoizedFindShortestPath, // Add the new memoized function
+  clearPathCache, // Add the cache clearing function
   getPathEdges,
   areCoordinatesEqual,
   hexDistance,
@@ -69,6 +71,12 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
       y: transformed.y + scrollY,
     };
   };
+
+  // Add this useEffect in your Grid component to clear the path cache when needed
+  useEffect(() => {
+    // Clear the cache when a new path is added or path states change
+    clearPathCache();
+  }, [paths.length]);
 
   useEffect(() => {
     if (
@@ -210,6 +218,7 @@ const Grid = () => {
   // --------------------
   // Debounced Handlers
   // --------------------
+  // Replace this in your handleHexMouseEnter function
   const handleHexMouseEnter = useAtomCallback(async (get, set, hex) => {
     const selectedEffect = get(selectedEffectAtom);
     const selectedSample = get(selectedSampleAtom);
@@ -253,8 +262,8 @@ const Grid = () => {
           const neighbor = hexes.find((h) => areCoordinatesEqual(h, outerHex));
           if (!neighbor) return null;
 
-          // Modified path finding to consider reserved hexes as blocked
-          const path = findShortestPath(
+          // Use memoized path finding to consider reserved hexes as blocked
+          const path = memoizedFindShortestPath(
             neighbor,
             hex,
             hexes.map((h) => ({
@@ -487,32 +496,42 @@ const Grid = () => {
         return;
       }
 
-      // If no adjacency issues, proceed with path creation
+      // If validation passes, batch updates
+      // If validation passes, do a SINGLE batched update instead of multiple updates
       const { v4: uuidv4 } = await import("uuid");
       const newPathId = uuidv4();
 
-      // Establish the path using the locked draft path
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(
-          prevHexes,
-          (h) => lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
-          { lastHexInPath: true }
-        )
-      );
-
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(
-          prevHexes,
-          (h) => lockedDraftPath.some((p) => areCoordinatesEqual(p, h)),
-          {
-            isPathDraft: false,
-            isPath: true,
-            isPathSelected: false,
-            isBranch: false,
-            pathId: newPathId,
+      // BATCHED UPDATE: Single hex state update that handles both the lastHexInPath
+      // and the other path properties in one go
+      set(hexesAtom, (prevHexes) => {
+        // Create a new hexes array that includes all updates at once
+        return prevHexes.map((h) => {
+          // Handle the lastHexInPath flag
+          if (lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft)) {
+            return {
+              ...h,
+              isPathDraft: false,
+              isPath: true,
+              lastHexInPath: true, // This property was set separately before
+              pathId: newPathId,
+            };
           }
-        )
-      );
+
+          // Handle other hexes in the path
+          if (lockedDraftPath.some((p) => areCoordinatesEqual(p, h))) {
+            return {
+              ...h,
+              isPathDraft: false,
+              isPath: true,
+              isPathSelected: false,
+              isBranch: false,
+              pathId: newPathId,
+            };
+          }
+
+          return h;
+        });
+      });
 
       set(pathsAtom, (prevPaths) => [
         ...prevPaths,
@@ -524,6 +543,9 @@ const Grid = () => {
           bypass: false,
         },
       ]);
+
+      // Clear the path cache since we've added a new path
+      clearPathCache();
 
       // Reset path creation mode
       set(isPathCreationModeAtom, false);
@@ -712,11 +734,11 @@ const Grid = () => {
   // Debounced for performance
   const debouncedHandleHexMouseEnter = _.debounce(
     (hex) => handleHexMouseEnter(hex),
-    10
+    15
   );
   const debouncedHandleHexMouseLeave = _.debounce(
     (hex) => handleHexMouseLeave(hex),
-    10
+    15
   );
 
   const isAdjacentToPathEnd = (hex) => {

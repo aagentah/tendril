@@ -330,7 +330,8 @@ const Hex = memo(
           data-coors={`${hex.q}, ${hex.r}`}
         >
           <polygon
-            className={`transition-all duration-300 ${opacityClass}`}
+            // className={`transition-all duration-300 ${opacityClass}`}
+            className={`${opacityClass}`}
             points={points}
             fill={finalFillColor}
             fillOpacity={finalFillOpacity}
@@ -341,7 +342,10 @@ const Hex = memo(
 
           {text && (
             <text
-              className={`transition-opacity duration-500 ${
+              // className={`transition-opacity duration-500 ${
+              //   canCreateMorePaths(hexes, paths) ? "opacity-100" : "opacity-30"
+              // }`}
+              className={`${
                 canCreateMorePaths(hexes, paths) ? "opacity-100" : "opacity-30"
               }`}
               style={{ pointerEvents: "none" }}

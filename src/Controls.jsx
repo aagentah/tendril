@@ -93,7 +93,7 @@ const MobileControlsPanel = ({
                 ref={playButtonRef}
                 onClick={togglePlay}
                 disabled={!paths.length}
-                className={`px-4 py-2 border border-white text-white rounded flex items-center gap-2 ${
+                className={`px-4 py-2 border border-neutral-400 text-white rounded flex items-center gap-2 ${
                   !paths.length ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -104,7 +104,7 @@ const MobileControlsPanel = ({
               <button
                 ref={guideStep === 3 ? samplePanelRef : effectPanelRef}
                 onClick={() => setIsOpen(true)}
-                className={`px-6 py-2 border border-white text-white rounded shadow-lg ${
+                className={`px-6 py-2 border border-neutral-400 text-white rounded shadow-lg ${
                   !paths.length ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -114,7 +114,7 @@ const MobileControlsPanel = ({
               <div className="relative">
                 <div className="flex items-center justify-center gap-x-4 relative h-[34px]">
                   <input
-                    className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="bg-transparent border border-neutral-400 text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     type="number"
                     value={bpm}
                     onChange={(e) =>
@@ -838,7 +838,7 @@ const ControlsContent = ({
                 </div>
                 {activeSamplesTab === "default" && (
                   <div
-                    className="px-4 pb-4"
+                    className="px-4 pb-4 overflow-scroll h-[200px]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex flex-wrap gap-3">
@@ -849,7 +849,7 @@ const ControlsContent = ({
                           onClick={() => handleSampleClick(sample)}
                           type="button"
                           disabled={!paths.length}
-                          className={`px-2 py-1 text-xs border ${
+                          className={`px-2 py-1 text-xs border border-neutral-400 ${
                             selectedSample?.name === sample.name
                               ? "bg-red-800 text-white"
                               : "text-red-400"
@@ -878,7 +878,7 @@ const ControlsContent = ({
                             onClick={() => handleSampleClick(sample)}
                             type="button"
                             disabled={!paths.length}
-                            className={`px-2 py-1 text-xs border ${
+                            className={`px-2 py-1 text-xs border border-neutral-400 ${
                               selectedSample?.name === sample.name
                                 ? "bg-red-800 text-white"
                                 : "text-red-400"
@@ -920,7 +920,7 @@ const ControlsContent = ({
                           onClick={() => handleEffectClick(effect)}
                           type="button"
                           disabled={!paths.length}
-                          className={`px-2 py-1 text-xs border ${
+                          className={`px-2 py-1 text-xs border border-neutral-400 ${
                             selectedEffect?.name === effect.name
                               ? "bg-neutral-300 text-black"
                               : "text-neutral-300"
@@ -939,7 +939,7 @@ const ControlsContent = ({
                           onClick={() => handleEffectClick(effect)}
                           type="button"
                           disabled={!paths.length}
-                          className={`px-2 py-1 text-xs border ${
+                          className={`px-2 py-1 text-xs border border-neutral-400 ${
                             selectedEffect?.name === effect.name
                               ? "bg-blue-800 text-white"
                               : "text-blue-400"
@@ -1292,7 +1292,7 @@ const ControlsContent = ({
                   <button
                     onClick={togglePlay}
                     disabled={!paths.length}
-                    className={`hidden lg:flex px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none items-center gap-2 ${
+                    className={`hidden lg:flex px-4 py-2 bg-transparent border border-neutral-400 text-white rounded focus:outline-none items-center gap-2 ${
                       !paths.length ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     ref={playButtonRef}
@@ -1317,7 +1317,7 @@ const ControlsContent = ({
                           ? "border-red-500 text-red-500"
                           : isRecordingArmed
                           ? "border-orange-500 text-orange-500"
-                          : "border-white text-white"
+                          : "border-neutral-400 text-white"
                       }
                       ${
                         isAudioPlaying && !isRecordingArmed && !isRecording
@@ -1338,7 +1338,7 @@ const ControlsContent = ({
                   <button
                     disabled={!paths.length}
                     onClick={handleSave}
-                    className={`px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none  ${
+                    className={`px-4 py-2 bg-transparent border border-neutral-400 text-white rounded focus:outline-none  ${
                       !paths.length ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   >
@@ -1347,7 +1347,7 @@ const ControlsContent = ({
 
                   <label
                     htmlFor="loadState"
-                    className="cursor-pointer px-4 py-2 bg-transparent border border-white text-white rounded focus:outline-none"
+                    className="cursor-pointer px-4 py-2 bg-transparent border border-neutral-400 text-white rounded focus:outline-none"
                   >
                     Load
                     <input
@@ -1361,7 +1361,7 @@ const ControlsContent = ({
 
                   <div className="hidden lg:flex items-center justify-center gap-x-4 relative h-[38px]">
                     <input
-                      className="bg-transparent border border-white text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="bg-transparent border border-neutral-400 text-white px-4 rounded h-full w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       type="number"
                       value={bpm}
                       onChange={(e) =>

@@ -48,45 +48,245 @@ import HexGrid from "./Grid";
 //  Sample Assets, Mappings, and Effect Store
 // -------------------------------------------
 
-import cymbal1 from "./assets/samples/Cymbal-1.wav";
-import cymbal2 from "./assets/samples/Cymbal-2.wav";
-import hat1 from "./assets/samples/Hat-1.wav";
-import hat2 from "./assets/samples/Hat-2.wav";
-import kick1 from "./assets/samples/Kick-1.wav";
-import kick2 from "./assets/samples/Kick-2.wav";
-import pad1 from "./assets/samples/Pad-1.wav";
-import pad2 from "./assets/samples/Pad-2.wav";
-import pad3 from "./assets/samples/Pad-3.wav";
-import pad4 from "./assets/samples/Pad-4.wav";
-import rim1 from "./assets/samples/Rim-1.wav";
-import rim2 from "./assets/samples/Rim-2.wav";
-import snare1 from "./assets/samples/Snare-1.wav";
-import snare2 from "./assets/samples/Snare-2.wav";
-import snare3 from "./assets/samples/Snare-3.wav";
-import sweep1 from "./assets/samples/Sweep-1.wav";
-import sweep2 from "./assets/samples/Sweep-2.wav";
-import sweep3 from "./assets/samples/Sweep-3.wav";
+// Basic wav samples
+import cymbal1 from "./assets/samples/cymbal1.wav";
+import cymbal2 from "./assets/samples/cymbal2.wav";
+import hat1 from "./assets/samples/hat1.wav";
+import hat2 from "./assets/samples/hat2.wav";
+import kick1 from "./assets/samples/kick1.wav";
+import kick2 from "./assets/samples/kick2.wav";
+import pad1 from "./assets/samples/pad1.wav";
+import pad2 from "./assets/samples/pad2.wav";
+import pad3 from "./assets/samples/pad3.wav";
+import pad4 from "./assets/samples/pad4.wav";
+import rim1 from "./assets/samples/rim1.wav";
+import rim2 from "./assets/samples/rim2.wav";
+import snare1 from "./assets/samples/snare1.wav";
+import snare2 from "./assets/samples/snare2.wav";
+import snare3 from "./assets/samples/snare3.wav";
+import sweep1 from "./assets/samples/sweep1.wav";
+import sweep2 from "./assets/samples/sweep2.wav";
+import sweep3 from "./assets/samples/sweep3.wav";
+
+// BomKlakkYukuS samples
+import vocalWhatToBelieve from "./assets/samples/aFruitBomKlakkYukuSSupersickSamplePackFree01VocalWhatToBelieve.mp3";
+import aaa from "./assets/samples/aaa.mp3";
+import acidLoop from "./assets/samples/aagentahBomKlakkYukuSSupersickSamplePackFree02AcidLoop.mp3";
+import mangledChords from "./assets/samples/alanJohnsonBomKlakkYukuSSupersickSamplePackFree03MangledChords.mp3";
+import bassCybershot from "./assets/samples/anmonBomKlakkYukuSSupersickSamplePackFree04BassCybershot.mp3";
+import moanPad2 from "./assets/samples/aromaNiceBomKlakkYukuSSupersickSamplePackFree05MoanPad2.mp3";
+import basslineUnstable from "./assets/samples/audekaBomKlakkYukuSSupersickSamplePackFree06BasslineUnstable.mp3";
+import bassJustAScratch from "./assets/samples/balatronBomKlakkYukuSSupersickSamplePackFree07BassJustAScratch.mp3";
+import creakPercie from "./assets/samples/chewlieBomKlakkYukuSSupersickSamplePackFree08CreakPercie.mp3";
+import pongPercie from "./assets/samples/chewlieBomKlakkYukuSSupersickSamplePackFree09PongPercie.mp3";
+import harmonicBeauty from "./assets/samples/chrizpyChrizBomKlakkYukuSSupersickSamplePackFree10808CHarmonicBeauty.mp3";
+import fmBassAlienRace from "./assets/samples/cocktailPartyEffectBomKlakkYukuSSupersickSamplePackFree11FmBassAlienRace.mp3";
+import drumloopSplak from "./assets/samples/coidoBomKlakkYukuSSupersickSamplePackFree12DrumloopSplak.mp3";
+import yukuDrumLoop from "./assets/samples/debbaBomKlakkYukuSSupersickSamplePackFree13YukuDrumLoop.mp3";
+import movedByYouFx from "./assets/samples/dimFumesBomKlakkYukuSSupersickSamplePackFree14MovedByYouFx.mp3";
+import istanbulTrafigIKick from "./assets/samples/djStrawberryBomKlakkYukuSSupersickSamplePackFree15IStanbulTrafigIKick.mp3";
+import playgroundRidePerc from "./assets/samples/djStrawberryBomKlakkYukuSSupersickSamplePackFree16PlaygroundRidePerc.mp3";
+import ritimAtoLyesiResonance from "./assets/samples/djStrawberryBomKlakkYukuSSupersickSamplePackFree17RitimAtoLyesiResonance.mp3";
+import bassLoop from "./assets/samples/domizakoBomKlakkYukuSSupersickSamplePackFree18BassLoop.mp3";
+import percussionRimLoop from "./assets/samples/domizakoBomKlakkYukuSSupersickSamplePackFree19PercussionRimLoop.mp3";
+import breakPalmGrease from "./assets/samples/earlGreyBomKlakkYukuSSupersickSamplePackFree20BreakPalmGrease.mp3";
+import padWaterDamage from "./assets/samples/earlGreyBomKlakkYukuSSupersickSamplePackFree21PadWaterDamageEpDronePad.mp3";
+import stabWeatherReport from "./assets/samples/earlGreyBomKlakkYukuSSupersickSamplePackFree22StabWeatherReportStab.mp3";
+import chordRemixMe from "./assets/samples/endmodellBomKlakkYukuSSupersickSamplePackFree23ChordRemixMe.mp3";
+import fxSoundTheLossOfHearing from "./assets/samples/endmodellBomKlakkYukuSSupersickSamplePackFree24FxSoundTheLossOfHearing.mp3";
+import padBeyond from "./assets/samples/esTereoBomKlakkYukuSSupersickSamplePackFree25PadBeyond.mp3";
+import bassBram01 from "./assets/samples/fearfulBomKlakkYukuSSupersickSamplePackFree26BassBram01.mp3";
+import bassBram02 from "./assets/samples/fearfulBomKlakkYukuSSupersickSamplePackFree27BassBram02.mp3";
+import synthDarker from "./assets/samples/fearfulBomKlakkYukuSSupersickSamplePackFree28SynthDarker.mp3";
+import glasskik from "./assets/samples/flywheelBomKlakkYukuSSupersickSamplePackFree29Glasskik.mp3";
+import bassline89BpmD from "./assets/samples/granulBomKlakkYukuSSupersickSamplePackFree30Bassline89BpmD.mp3";
+import bassline160BpmD from "./assets/samples/granulBomKlakkYukuSSupersickSamplePackFree31Bassline160BpmD.mp3";
+import bleeps160BpmAm from "./assets/samples/granulBomKlakkYukuSSupersickSamplePackFree32Bleeps160BpmAm.mp3";
+import pad89BpmAm from "./assets/samples/granulBomKlakkYukuSSupersickSamplePackFree33Pad89BpmAm.mp3";
+import vocalCount140Bpm from "./assets/samples/granulBomKlakkYukuSSupersickSamplePackFree34VocalCount140Bpm.mp3";
+import broomSound from "./assets/samples/griffitVigoBomKlakkYukuSSupersickSamplePackFree35BroomSoundSample.mp3";
+import gqomOriginatorKick from "./assets/samples/griffitVigoBomKlakkYukuSSupersickSamplePackFree36GqomOriginatorKickSample.mp3";
+import hardHitHat from "./assets/samples/griffitVigoBomKlakkYukuSSupersickSamplePackFree37HardHitHatSound.mp3";
+import reaktorNoise from "./assets/samples/hassanAbouAlamBomKlakkYukuSSupersickSamplePackFree38ReaktorNoise.mp3";
+import bassLoopHeavyHitter from "./assets/samples/hedchefBomKlakkYukuSSupersickSamplePackFree39BassLoopHeavyHitter136Bpm.mp3";
+import kickSubPunch from "./assets/samples/hedchefBomKlakkYukuSSupersickSamplePackFree40KickSubPunch.mp3";
+import percLoopBoxedSynco from "./assets/samples/hedchefBomKlakkYukuSSupersickSamplePackFree41PercLoopBoxedSynco136Bpm.mp3";
+import bassloopSoundOf141 from "./assets/samples/hiddenElementBomKlakkYukuSSupersickSamplePackFree42BassloopSoundOf141.mp3";
+import drumloopDifferences137 from "./assets/samples/hiddenElementBomKlakkYukuSSupersickSamplePackFree43DrumloopDifferences137.mp3";
+import drumLoopSheSAlways135 from "./assets/samples/hiddenElementBomKlakkYukuSSupersickSamplePackFree44DrumLoopSheSAlways135.mp3";
+import drumLoopRigorousBreaks from "./assets/samples/i7hvnBomKlakkYukuSSupersickSamplePackFree45DrumLoopRigorousBreaks.mp3";
+import glitchHellCockroach from "./assets/samples/janaBomKlakkYukuSSupersickSamplePackFree46GlitchHellCockroach.mp3";
+import drumLoopBentGroove from "./assets/samples/joaquinCornejoBomKlakkYukuSSupersickSamplePackFree47DrumLoopBentGroove.mp3";
+import impactSpringCrash from "./assets/samples/joaquinCornejoBomKlakkYukuSSupersickSamplePackFree48ImpactSpringCrash.mp3";
+import retroverbedKick from "./assets/samples/joaquinCornejoBomKlakkYukuSSupersickSamplePackFree49RetroverbedKick.mp3";
+import klahrkKick from "./assets/samples/klahrkBomKlakkYukuSSupersickSamplePackFree50KlahrkKick.mp3";
+import kickLongGabber from "./assets/samples/lakkerBomKlakkYukuSSupersickSamplePackFree51KickLongGabber.mp3";
+import modkick from "./assets/samples/lazarusBomKlakkYukuSSupersickSamplePackFree52Modkick.mp3";
+import dolphinPerc from "./assets/samples/leMotelBomKlakkYukuSSupersickSamplePackFree53DolphinPerc.mp3";
+import helixDoor from "./assets/samples/leMotelBomKlakkYukuSSupersickSamplePackFree54HelixDoor.mp3";
+import helixSnare from "./assets/samples/leMotelBomKlakkYukuSSupersickSamplePackFree55HelixSnare.mp3";
+import bass from "./assets/samples/leeseBomKlakkYukuSSupersickSamplePackFree56Bass.mp3";
+import pad2Extended from "./assets/samples/leeseBomKlakkYukuSSupersickSamplePackFree57Pad2.mp3";
+import pad from "./assets/samples/leeseBomKlakkYukuSSupersickSamplePackFree58Pad.mp3";
+import percu1 from "./assets/samples/leeseBomKlakkYukuSSupersickSamplePackFree59Percu1.mp3";
+import sfxBuilder from "./assets/samples/lucikaBomKlakkYukuSSupersickSamplePackFree60SfxBuilder.mp3";
+import dirtyPad from "./assets/samples/machineCodeBomKlakkYukuSSupersickSamplePackFree61DirtyPad.mp3";
+import texturalMudPie from "./assets/samples/maudeVoSBomKlakkYukuSSupersickSamplePackFree62TexturalMudPie.mp3";
+import blauwSample1 from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree63BlauwSample132Bpm1.mp3";
+import blauwSample2 from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree64BlauwSample132Bpm2.mp3";
+import changingHorses from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree65ChangingHorses116Bpm.mp3";
+import magnopause from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree66Magnopause.mp3";
+import victoriaEdgeAtmos from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree67VictoriaEdgeAtmos97Bpm.mp3";
+import victoriaEdgeBassline from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree68VictoriaEdgeBassline97Bpm.mp3";
+import victoriaEdgeVoices from "./assets/samples/michelleSambaPhilMillsBomKlakkYukuSSupersickSamplePackFree69VictoriaEdgeVoices97Bpm.mp3";
+import wubBass from "./assets/samples/monibiBomKlakkYukuSSupersickSamplePackFree70MamieEllePortaitDesFringuesKitschWubBass.mp3";
+import clapChat from "./assets/samples/monibiBomKlakkYukuSSupersickSamplePackFree71VroomVroomTikalPyramidClapChat.mp3";
+import vroomVroomFire from "./assets/samples/monibiBomKlakkYukuSSupersickSamplePackFree72VroomVroomFire.mp3";
+import percussionGongs from "./assets/samples/moxinaBomKlakkYukuSSupersickSamplePackFree73PercussionGongs.mp3";
+import oCoastBassline from "./assets/samples/muadeepBomKlakkYukuSSupersickSamplePackFree74OCoastBasslineA138Bpm.mp3";
+import usulPercussion from "./assets/samples/muadeepBomKlakkYukuSSupersickSamplePackFree75UsulPercussion138Bpm.mp3";
+import fluteArgoul from "./assets/samples/muskilaBomKlakkYukuSSupersickSamplePackFree76FluteArgoul.mp3";
+import polydrums from "./assets/samples/obekaBomKlakkYukuSSupersickSamplePackFree77PolydrumsSample135bpm.mp3";
+import ghostInThePorridge from "./assets/samples/panicmanBomKlakkYukuSSupersickSamplePackFree78FxGhostInThePorridge.mp3";
+import reesiestRiser from "./assets/samples/pePeBomKlakkYukuSSupersickSamplePackFree79FxReesiestRiserEverRisen.mp3";
+import extract from "./assets/samples/pol100BomKlakkYukuSSupersickSamplePackFree80Extract.mp3";
+import yukuSample1 from "./assets/samples/pruvanBomKlakkYukuSSupersickSamplePackFree81YukuSample1.mp3";
+import textureVowelLoop from "./assets/samples/revBomKlakkYukuSSupersickSamplePackFree82149_textureVowelLoop.mp3";
+import liNoiseTexture from "./assets/samples/revBomKlakkYukuSSupersickSamplePackFree83LiNoiseTexture.mp3";
+import modPhrase01 from "./assets/samples/revBomKlakkYukuSSupersickSamplePackFree84ModPhrase01.mp3";
+import modPhrase01Am from "./assets/samples/revBomKlakkYukuSSupersickSamplePackFree85ModPhrase01Am.mp3";
+import chordWoolyNebula from "./assets/samples/samALaBamalotBomKlakkYukuSSupersickSamplePackFree86ChordWoolyNebula.mp3";
+import flappy125 from "./assets/samples/samLinkBomKlakkYukuSSupersickSamplePackFree87Flappy125.mp3";
+import textureSteamLocomotive from "./assets/samples/soreabBomKlakkYukuSSupersickSamplePackFree88TextureSteamLocomotive.mp3";
+import mashedRutabagas from "./assets/samples/sprocketmossBomKlakkYukuSSupersickSamplePackFree89FxMashedRutabagas.mp3";
+import bassNeurality from "./assets/samples/tenebreBomKlakkYukuSSupersickSamplePackFree90BassNeurality.mp3";
+import padInterferance from "./assets/samples/theScienceBomKlakkYukuSSupersickSamplePackFree91PadInterferance.mp3";
+import textureRealityunfold from "./assets/samples/theScienceBomKlakkYukuSSupersickSamplePackFree92TextureRealityunfold.mp3";
+import fmHorn from "./assets/samples/trakaBomKlakkYukuSSupersickSamplePackFree93FmHorn.mp3";
+import garageLoop from "./assets/samples/trakaBomKlakkYukuSSupersickSamplePackFree94GarageLoop.mp3";
+import neuro from "./assets/samples/trakaBomKlakkYukuSSupersickSamplePackFree95Neuro.mp3";
+import swing from "./assets/samples/trakaBomKlakkYukuSSupersickSamplePackFree96Swing.mp3";
 
 // Sample store
 export const sampleStore = [
-  { name: "Kick-1", url: kick1 },
-  { name: "Kick-2", url: kick2 },
-  { name: "Hat-1", url: hat1 },
-  { name: "Hat-2", url: hat2 },
-  { name: "Snare-1", url: snare1 },
-  { name: "Snare-2", url: snare2 },
-  { name: "Snare-3", url: snare3 },
-  { name: "Rim-1", url: rim1 },
-  { name: "Rim-2", url: rim2 },
-  { name: "Cymbal-1", url: cymbal1 },
-  { name: "Cymbal-2", url: cymbal2 },
-  { name: "Pad-1", url: pad1 },
-  { name: "Pad-2", url: pad2 },
-  { name: "Pad-3", url: pad3 },
-  { name: "Pad-4", url: pad4 },
-  { name: "Sweep-1", url: sweep1 },
-  { name: "Sweep-2", url: sweep2 },
-  { name: "Sweep-3", url: sweep3 },
+  // Basic wav samples
+  { name: "Kick 1", url: kick1 },
+  { name: "Kick 2", url: kick2 },
+  { name: "Hat 1", url: hat1 },
+  { name: "Hat 2", url: hat2 },
+  { name: "Snare 1", url: snare1 },
+  { name: "Snare 2", url: snare2 },
+  { name: "Snare 3", url: snare3 },
+  { name: "Rim 1", url: rim1 },
+  { name: "Rim 2", url: rim2 },
+  { name: "Cymbal 1", url: cymbal1 },
+  { name: "Cymbal 2", url: cymbal2 },
+  { name: "Pad 1", url: pad1 },
+  { name: "Pad 2", url: pad2 },
+  { name: "Pad 3", url: pad3 },
+  { name: "Pad 4", url: pad4 },
+  { name: "Sweep 1", url: sweep1 },
+  { name: "Sweep 2", url: sweep2 },
+  { name: "Sweep 3", url: sweep3 },
+
+  // BomKlakkYukuS samples
+  // { name: "Vocal What To Believe", url: vocalWhatToBelieve },
+  // { name: "AAA", url: aaa },
+  // { name: "Acid Loop", url: acidLoop },
+  { name: "Mangled Chords", url: mangledChords },
+  // { name: "Bass Cybershot", url: bassCybershot },
+  // { name: "Moan Pad 2", url: moanPad2 },
+  // { name: "Bassline Unstable", url: basslineUnstable },
+  // { name: "Bass Just A Scratch", url: bassJustAScratch },
+  { name: "Creak Percie", url: creakPercie },
+  { name: "Pong Percie", url: pongPercie },
+  { name: "808C Harmonic Beauty", url: harmonicBeauty },
+  // { name: "FM Bass Alien Race", url: fmBassAlienRace },
+  // { name: "Drumloop Splak", url: drumloopSplak },
+  // { name: "Yuku Drum Loop", url: yukuDrumLoop },
+  { name: "Moved By You FX", url: movedByYouFx },
+  { name: "Istanbul Trafigi Kick", url: istanbulTrafigIKick },
+  // { name: "Playground Ride Perc", url: playgroundRidePerc },
+  { name: "Ritim Atolyesi Resonance", url: ritimAtoLyesiResonance },
+  // { name: "Bass Loop", url: bassLoop },
+  // { name: "Percussion Rim Loop", url: percussionRimLoop },
+  // { name: "Break Palm Grease", url: breakPalmGrease },
+  { name: "Pad Water Damage", url: padWaterDamage },
+  { name: "Stab Weather Report", url: stabWeatherReport },
+  { name: "Chord Remix Me", url: chordRemixMe },
+  // { name: "FX Sound The Loss Of Hearing", url: fxSoundTheLossOfHearing },
+  { name: "Pad Beyond", url: padBeyond },
+  // { name: "Bass Bram 01", url: bassBram01 },
+  // { name: "Bass Bram 02", url: bassBram02 },
+  { name: "Synth Darker", url: synthDarker },
+  { name: "Glasskik", url: glasskik },
+  // { name: "Bassline 89BPM D", url: bassline89BpmD },
+  // { name: "Bassline 160BPM D", url: bassline160BpmD },
+  // { name: "Bleeps 160BPM Am", url: bleeps160BpmAm },
+  // { name: "Pad 89BPM Am", url: pad89BpmAm },
+  // { name: "Vocal Count 140BPM", url: vocalCount140Bpm },
+  { name: "Broom Sound", url: broomSound },
+  { name: "Gqom Originator Kick", url: gqomOriginatorKick },
+  { name: "Hard HitHat", url: hardHitHat },
+  { name: "Reaktor Noise", url: reaktorNoise },
+  // { name: "Bass Loop Heavy Hitter 136BPM", url: bassLoopHeavyHitter },
+  // { name: "Kick Sub Punch", url: kickSubPunch },
+  // { name: "Perc Loop Boxed Synco 136BPM", url: percLoopBoxedSynco },
+  // { name: "Bassloop Sound Of 141", url: bassloopSoundOf141 },
+  // { name: "Drumloop Differences 137", url: drumloopDifferences137 },
+  // { name: "Drum Loop SheSAlways 135", url: drumLoopSheSAlways135 },
+  // { name: "Drum Loop Rigorous Breaks", url: drumLoopRigorousBreaks },
+  { name: "Glitch Hell Cockroach", url: glitchHellCockroach },
+  // { name: "Drum Loop Bent Groove", url: drumLoopBentGroove },
+  { name: "Impact Spring Crash", url: impactSpringCrash },
+  { name: "Retroverbed Kick", url: retroverbedKick },
+  { name: "Klahrk Kick", url: klahrkKick },
+  { name: "Kick Long Gabber", url: kickLongGabber },
+  { name: "Modkick", url: modkick },
+  { name: "Dolphin Perc", url: dolphinPerc },
+  { name: "Helix Door", url: helixDoor },
+  { name: "Helix Snare", url: helixSnare },
+  { name: "Bass", url: bass },
+  { name: "Pad 2 Extended", url: pad2Extended },
+  { name: "Pad", url: pad },
+  { name: "Percu 1", url: percu1 },
+  { name: "SFX Builder", url: sfxBuilder },
+  { name: "Dirty Pad", url: dirtyPad },
+  { name: "Textural Mud Pie", url: texturalMudPie },
+  // { name: "Blauw Sample 1 132BPM", url: blauwSample1 },
+  // { name: "Blauw Sample 2 132BPM", url: blauwSample2 },
+  // { name: "Changing Horses 116BPM", url: changingHorses },
+  { name: "Magnopause", url: magnopause },
+  // { name: "Victoria Edge Atmos 97BPM", url: victoriaEdgeAtmos },
+  // { name: "Victoria Edge Bassline 97BPM", url: victoriaEdgeBassline },
+  // { name: "Victoria Edge Voices 97BPM", url: victoriaEdgeVoices },
+  { name: "Wub Bass", url: wubBass },
+  { name: "Clap Chat", url: clapChat },
+  { name: "Vroom Vroom Fire", url: vroomVroomFire },
+  { name: "Percussion Gongs", url: percussionGongs },
+  // { name: "OCoast Bassline A 138BPM", url: oCoastBassline },
+  // { name: "Usul Percussion 138BPM", url: usulPercussion },
+  // { name: "Flute Argoul", url: fluteArgoul },
+  // { name: "Polydrums 135BPM", url: polydrums },
+  { name: "Ghost In The Porridge", url: ghostInThePorridge },
+  { name: "Reesiest Riser Ever Risen", url: reesiestRiser },
+  { name: "Extract", url: extract },
+  // { name: "Yuku Sample 1", url: yukuSample1 },
+  // { name: "Texture Vowel Loop", url: textureVowelLoop },
+  { name: "Li Noise Texture", url: liNoiseTexture },
+  { name: "Mod Phrase 01", url: modPhrase01 },
+  { name: "Mod Phrase 01 Am", url: modPhrase01Am },
+  { name: "Chord Wooly Nebula", url: chordWoolyNebula },
+  { name: "Flappy 125", url: flappy125 },
+  // { name: "Texture Steam Locomotive", url: textureSteamLocomotive },
+  // { name: "Mashed Rutabagas", url: mashedRutabagas },
+  // { name: "Bass Neurality", url: bassNeurality },
+  { name: "Pad Interferance", url: padInterferance },
+  { name: "Texture Reality Unfold", url: textureRealityunfold },
+  { name: "FM Horn", url: fmHorn },
+  // { name: "Garage Loop", url: garageLoop },
+  { name: "Neuro", url: neuro },
+  // { name: "Swing", url: swing },
 ];
 
 // Effect store
@@ -234,7 +434,7 @@ export const HEX_RADIUS = 18;
 
 export const hexesAtom = atom([]);
 export const isAudioPlayingAtom = atom(false);
-export const hexGridSizeAtom = atom(12);
+export const hexGridSizeAtom = atom(11);
 export const bpmAtom = atom(130);
 export const draftPathAtom = atom([]);
 export const pathsAtom = atom([]); // [{ id, path: [{ q, r }, ...] }]

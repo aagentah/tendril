@@ -4,7 +4,7 @@
  * Utility functions for hexagon grid calculations and coordinate transformations.
  */
 
-import { map, find, range, filter, compact } from "lodash";
+import _, { map, find, range, filter, compact } from "lodash";
 
 /**
  * Utility Function: areCoordinatesEqual
@@ -361,4 +361,104 @@ export const canCreateMorePaths = (hexes, existingPaths) => {
 
   // If we get here, no valid paths were found
   return false;
+};
+
+// Create a memoized version of findShortestPath
+export const memoizedFindShortestPath = _.memoize(
+  // Original function remains unchanged but is wrapped in memoize
+  (start, end, hexes) => {
+    // Create a map of all hexes for quick lookup
+    const hexMap = new Map();
+    hexes.forEach((hex) => {
+      const key = `${hex.q},${hex.r}`;
+      hexMap.set(key, hex);
+    });
+
+    // Skip if start or end hex doesn't exist
+    if (!start || !end) return [];
+
+    // Queue for BFS
+    const queue = [{ hex: start, path: [start] }];
+    // Set to track visited hexes
+    const visited = new Set([`${start.q},${start.r}`]);
+
+    while (queue.length > 0) {
+      const { hex, path } = queue.shift();
+
+      // If we've reached the end, return the path
+      if (hex.q === end.q && hex.r === end.r) {
+        return path;
+      }
+
+      // Get all valid neighbors (adjacent and not blocked)
+      const neighbors = getValidNeighbors(hex, hexMap, visited);
+
+      for (const neighbor of neighbors) {
+        const neighborKey = `${neighbor.q},${neighbor.r}`;
+        visited.add(neighborKey);
+        queue.push({
+          hex: neighbor,
+          path: [...path, neighbor],
+        });
+      }
+    }
+
+    // If no path is found, return an empty array
+    return [];
+  },
+  // Custom resolver function to create a unique cache key
+  (start, end, hexes) => {
+    // Create a key that combines start and end positions
+    const startKey = `${start.q},${start.r}`;
+    const endKey = `${end.q},${end.r}`;
+
+    // Create a key for the state of the grid
+    // We need to consider which hexes are blocked (isPath === true)
+    const gridKey = hexes
+      .filter((hex) => hex.isPath)
+      .map((hex) => `${hex.q},${hex.r}`)
+      .sort()
+      .join("|");
+
+    return `${startKey}>${endKey}>${gridKey}`;
+  }
+);
+
+// Helper function to get valid neighbors for a hex
+function getValidNeighbors(hex, hexMap, visited) {
+  // The six directions for a hex grid
+  const directions = [
+    { q: 1, r: 0 },
+    { q: 1, r: -1 },
+    { q: 0, r: -1 },
+    { q: -1, r: 0 },
+    { q: -1, r: 1 },
+    { q: 0, r: 1 },
+  ];
+
+  const neighbors = [];
+
+  for (const dir of directions) {
+    const neighborQ = hex.q + dir.q;
+    const neighborR = hex.r + dir.r;
+    const neighborKey = `${neighborQ},${neighborR}`;
+
+    // Check if the neighbor exists in our hex map and hasn't been visited
+    if (hexMap.has(neighborKey) && !visited.has(neighborKey)) {
+      const neighbor = hexMap.get(neighborKey);
+
+      // Skip if the hex is already part of a path (blocked)
+      if (neighbor.isPath) continue;
+
+      neighbors.push(neighbor);
+    }
+  }
+
+  return neighbors;
+}
+
+// Function to clear the memoization cache when needed
+// This should be called when the grid state changes significantly
+export const clearPathCache = () => {
+  memoizedFindShortestPath.cache.clear();
 };
