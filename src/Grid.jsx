@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { atom, useAtom } from "jotai";
+import { useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import _ from "lodash";
-import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
+import PropTypes from "prop-types";
 
-// Import atoms from App.jsx
+// Import all atoms from centralized store
 import {
   hexesAtom,
   selectedEffectAtom,
@@ -14,9 +14,16 @@ import {
   effectDraftPathAtom,
   isPathCreationModeAtom,
   mobilePanelOpenAtom,
-} from "./App";
+  guideStepAtom,
+  guideTargetRefsAtom,
+  guideVisibleAtom,
+  predefinedOuterRing,
+  SVG_WIDTH,
+  SVG_HEIGHT,
+  branchesAtom,
+} from "./atomStore";
 
-// Import utilities and helper functions
+// Import utility functions
 import {
   updateHexProperties,
   findShortestPath, // Keep this for backward compatibility
@@ -33,11 +40,8 @@ import {
 // Import the Hex component
 import Hex from "./Hex";
 
-// SVG dimensions
-import { SVG_WIDTH, SVG_HEIGHT } from "./App";
-
-// Additional references from App.jsx
-import { predefinedOuterRing } from "./App";
+// Import the effectStore from sampleStore instead of App.jsx
+import { effectStore } from "./sampleStore";
 
 /* ----------------------------------------
    NEW COMPONENT for showing your tooltip 
@@ -144,6 +148,14 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
     </div>
   );
 };
+
+PlacementTooltip.propTypes = {
+  svgRef: PropTypes.object.isRequired,
+  paths: PropTypes.array.isRequired,
+  selectedSample: PropTypes.object,
+  hexes: PropTypes.array.isRequired,
+};
+
 /* ------------------------------------------------
    The main Grid component with drag-and-drop support
    ------------------------------------------------ */
@@ -610,16 +622,13 @@ const Grid = () => {
 
       const parentPathId = parentPath.id;
       const effectConfig = _.cloneDeep(
-        _.find(
-          (await import("./App")).effectStore,
-          (e) => e.name === selectedEffect.name
-        )?.config || {}
+        _.find(effectStore, (e) => e.name === selectedEffect.name)?.config || {}
       );
 
       const { v4: uuidv4 } = await import("uuid");
       const newBranchId = uuidv4();
 
-      set((await import("./App")).branchesAtom, (prevBranches) => [
+      set(branchesAtom, (prevBranches) => [
         ...prevBranches,
         {
           id: newBranchId,

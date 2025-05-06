@@ -1,7 +1,8 @@
-import React, { useState, memo, forwardRef, useEffect } from "react";
+import { useState, memo, forwardRef } from "react";
 import { useAtom } from "jotai";
-import _ from "lodash";
+import PropTypes from "prop-types";
 
+// Import atoms from centralized store instead of App.jsx
 import {
   pathsAtom,
   draftPathAtom,
@@ -9,7 +10,9 @@ import {
   selectedEffectAtom,
   isPathCreationModeAtom,
   hexesAtom,
-} from "./App";
+  guideStepAtom,
+  guideVisibleAtom,
+} from "./atomStore";
 
 import {
   getPathEdges,
@@ -17,8 +20,6 @@ import {
   areCoordinatesEqual,
   canCreateMorePaths,
 } from "./hexUtils";
-
-import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
 
 const Hex = memo(
   forwardRef(
@@ -365,5 +366,39 @@ const Hex = memo(
     }
   )
 );
+
+Hex.propTypes = {
+  hex: PropTypes.shape({
+    q: PropTypes.number.isRequired,
+    r: PropTypes.number.isRequired,
+    x: PropTypes.number.isRequired,
+    y: PropTypes.number.isRequired,
+    points: PropTypes.array.isRequired,
+    isMainHex: PropTypes.bool,
+    isCenterRing: PropTypes.bool,
+    isOuterRing: PropTypes.bool,
+    isPathDraft: PropTypes.bool,
+    isPath: PropTypes.bool,
+    isBranch: PropTypes.bool,
+    isPlaying: PropTypes.bool,
+    sampleName: PropTypes.string,
+    effect: PropTypes.shape({
+      type: PropTypes.string,
+      name: PropTypes.string,
+    }),
+    isHidden: PropTypes.bool,
+    isPathSelected: PropTypes.bool,
+    isBranchSelected: PropTypes.bool,
+    isEffectDraft: PropTypes.bool,
+    isHexSelected: PropTypes.bool,
+    lastHexInPath: PropTypes.bool,
+  }).isRequired,
+  onClick: PropTypes.func,
+  onMouseEnter: PropTypes.func,
+  onMouseLeave: PropTypes.func,
+  anyBranchSelected: PropTypes.bool,
+  anyPathSelected: PropTypes.bool,
+  anyHexSelected: PropTypes.bool,
+};
 
 export default Hex;

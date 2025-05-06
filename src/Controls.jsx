@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
-import { atom, useAtom } from "jotai";
+import React, { useEffect, useRef } from "react";
+import { useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
+import PropTypes from "prop-types";
 
 import * as Tone from "tone";
 import _ from "lodash";
@@ -12,11 +13,7 @@ import {
   FaStop,
 } from "react-icons/fa";
 
-// -----------------------------------------------------------------------------
-// Exported Atom for Mobile Control Panel Visibility
-// -----------------------------------------------------------------------------
-
-// Import atoms and utility functions from your split files
+// Import atoms from centralized store
 import {
   isAudioPlayingAtom,
   selectedSampleAtom,
@@ -27,19 +24,35 @@ import {
   selectedEffectAtom,
   currentIndicesAtom,
   userSamplesAtom,
-  getAllUserSamples,
-  addUserSample,
-  removeUserSample,
-  sampleStore,
-  effectStore,
   effectDraftPathAtom,
   draftPathAtom,
   dragPreviewAtom,
   mobilePanelOpenAtom,
-} from "./App";
+  libraryLoadingAtom,
+  activeSamplesTabAtom,
+  showLibraryAtom,
+  isRecordingAtom,
+  isRecordingArmedAtom,
+} from "./atomStore";
 
+// Import guide atoms
+import {
+  guideStepAtom,
+  guideTargetRefsAtom,
+  guideVisibleAtom,
+} from "./atomStore";
+
+// Import utils
 import { updateHexProperties } from "./hexUtils";
-import { guideStepAtom, guideTargetRefsAtom, guideVisibleAtom } from "./Guide";
+
+// Import sample and effect stores
+import {
+  sampleStore,
+  effectStore,
+  getAllUserSamples,
+  addUserSample,
+  removeUserSample,
+} from "./sampleStore";
 
 const MobileControlsPanel = ({
   children,
@@ -54,7 +67,7 @@ const MobileControlsPanel = ({
   // Replace local useState with the shared atom
   const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
 
-  // Atoms for mobile “Play” / “Stop” and BPM in the bottom bar
+  // Atoms for mobile "Play" / "Stop" and BPM in the bottom bar
   const [isAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [bpm, setBpm] = useAtom(bpmAtom);
   const [paths] = useAtom(pathsAtom);
@@ -86,7 +99,7 @@ const MobileControlsPanel = ({
       <>
         {/* Mobile */}
         <div className="block lg:hidden">
-          {/* Mobile “Play” + BPM + “Controls” row */}
+          {/* Mobile "Play" + BPM + "Controls" row */}
           <div className="fixed bottom-0 left-0 right-0">
             <div className="flex justify-center items-center p-4 space-x-4 mb-2 text-xs">
               <button
@@ -130,7 +143,7 @@ const MobileControlsPanel = ({
               </div>
             </div>
 
-            {/* Link to “Pre-load sequences made by others.” */}
+            {/* Link to "Pre-load sequences made by others." */}
             <div className="w-full mb-6 flex justify-center items-center">
               <div
                 className="text-neutral-500 underline text-sm cursor-pointer"
@@ -187,6 +200,17 @@ const MobileControlsPanel = ({
   }
 };
 
+MobileControlsPanel.propTypes = {
+  children: PropTypes.node,
+  onCloseRef: PropTypes.object,
+  togglePlay: PropTypes.func,
+  showLibrary: PropTypes.bool,
+  setShowLibrary: PropTypes.func,
+  samplePanelRef: PropTypes.object,
+  playButtonRef: PropTypes.object,
+  effectPanelRef: PropTypes.object,
+};
+
 const ControlsContent = ({
   samplerRef,
   onControlPress,
@@ -218,10 +242,10 @@ const ControlsContent = ({
 
   // userSamples & tab state
   const [userSamples, setUserSamples] = useAtom(userSamplesAtom);
-  const [activeSamplesTab, setActiveSamplesTab] = useState("default");
+  const [activeSamplesTab, setActiveSamplesTab] = useAtom(activeSamplesTabAtom);
 
   // Loading indicator for library
-  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryLoading, setLibraryLoading] = useAtom(libraryLoadingAtom);
 
   // ------------------------------------------------
   // Lifecycle / Setup
@@ -1051,7 +1075,7 @@ const ControlsContent = ({
                                 return newPaths;
                               });
                               const normalizedPan = newPan / 12;
-                              // Immediately update direct playback players’ panner values.
+                              // Immediately update direct playback players' panner values.
                               Object.values(samplerRef.current).forEach(
                                 (player) => {
                                   if (player._panner) {
@@ -1059,18 +1083,24 @@ const ControlsContent = ({
                                   }
                                 }
                               );
-                              // Immediately update branch effect players’ panner values.
-                              Object.values(
-                                branchEffectNodesRef.current
-                              ).forEach((branchNode) => {
-                                Object.values(branchNode.players).forEach(
-                                  (player) => {
-                                    if (player._panner) {
-                                      player._panner.pan.value = normalizedPan;
+                              // Immediately update branch effect players' panner values.
+                              if (
+                                samplerRef.current &&
+                                samplerRef.current.branchEffectNodes
+                              ) {
+                                Object.values(
+                                  samplerRef.current.branchEffectNodes
+                                ).forEach((branchNode) => {
+                                  Object.values(branchNode.players).forEach(
+                                    (player) => {
+                                      if (player._panner) {
+                                        player._panner.pan.value =
+                                          normalizedPan;
+                                      }
                                     }
-                                  }
-                                );
-                              });
+                                  );
+                                });
+                              }
                             }}
                             className="w-full"
                           />
@@ -1458,17 +1488,32 @@ const ControlsContent = ({
   );
 };
 
+ControlsContent.propTypes = {
+  samplerRef: PropTypes.object,
+  onControlPress: PropTypes.func,
+  togglePlay: PropTypes.func,
+  toggleRecording: PropTypes.func,
+  onCloseRef: PropTypes.object,
+  showLibrary: PropTypes.bool,
+  setShowLibrary: PropTypes.func,
+  isRecording: PropTypes.bool,
+  isRecordingArmed: PropTypes.bool,
+  samplePanelRef: PropTypes.object,
+  playButtonRef: PropTypes.object,
+  effectPanelRef: PropTypes.object,
+};
+
 const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
   console.trace("ControlsWrapper rendering");
 
   const isMobile = window.innerWidth <= 768;
 
   const closeControlsRef = useRef(null);
-  const [showLibrary, setShowLibrary] = useState(false);
+  const [showLibrary, setShowLibrary] = useAtom(showLibraryAtom);
 
   const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isRecordingArmed, setIsRecordingArmed] = useState(false);
+  const [isRecording, setIsRecording] = useAtom(isRecordingAtom);
+  const [isRecordingArmed, setIsRecordingArmed] = useAtom(isRecordingArmedAtom);
   const recorderRef = useRef(null);
   const [paths] = useAtom(pathsAtom);
   const [, setCurrentIndices] = useAtom(currentIndicesAtom);

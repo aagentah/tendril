@@ -1,23 +1,14 @@
 // Guide.jsx
-import React, { useEffect, useState } from "react";
-import { atom, useAtom } from "jotai";
+import { useEffect, useState } from "react";
+import { useAtom } from "jotai";
 import Cookies from "js-cookie";
 
-// Atoms specific to Guide
-export const guideStepAtom = atom(1);
-export const guideVisibleAtom = atom(true);
-
-// Atom for storing element refs
-export const guideTargetRefsAtom = atom({
-  firstHexRef: null,
-  mainHex: null,
-  effectDraft: null,
-  pathHex: null,
-  samplePanel: null,
-  playButton: null,
-  effectPanel: null,
-  pathEnd: null,
-});
+// Import atoms from centralized store instead of defining them locally
+import {
+  guideStepAtom,
+  guideVisibleAtom,
+  guideTargetRefsAtom,
+} from "./atomStore";
 
 /**
  * Retrieves the coordinates of an element.

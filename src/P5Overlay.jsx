@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from "react";
 import p5 from "p5";
 import { useAtom } from "jotai";
 import _ from "lodash";
+
+// Import atoms from centralized store
 import {
   pathsAtom,
   branchesAtom,
@@ -9,7 +11,7 @@ import {
   SVG_WIDTH,
   SVG_HEIGHT,
   HEX_RADIUS,
-} from "./App";
+} from "./atomStore";
 import { axialToPixel, generateHexPoints } from "./hexUtils";
 
 // Constants for SVG dimensions and hexagon size
