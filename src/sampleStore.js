@@ -57,32 +57,8 @@ export const sampleStore = [
   { name: "808C Harmonic Beauty", url: harmonicBeauty },
 ];
 
-// Effect store
+// Effect store - Now focused on utility effects only
 export const effectStore = [
-  {
-    type: "fx",
-    name: "Reverb",
-    config: {
-      wet: { value: 0.5, default: 0.5, min: 0, max: 1, step: 0.01 },
-    },
-  },
-  {
-    type: "fx",
-    name: "AutoFilter",
-    config: {
-      frequency: { value: 1, default: 1, min: 0.1, max: 10, step: 0.1 },
-      depth: { value: 1, default: 1, min: 0, max: 1, step: 0.01 },
-      baseFrequency: { value: 200, default: 200, min: 20, max: 2000, step: 1 },
-      octaves: { value: 2.6, default: 2.6, min: 0, max: 8, step: 0.1 },
-    },
-  },
-  {
-    type: "fx",
-    name: "Distortion",
-    config: {
-      distortion: { value: 0.4, default: 0.4, min: 0, max: 1, step: 0.01 },
-    },
-  },
   {
     type: "utility",
     name: "Offset",

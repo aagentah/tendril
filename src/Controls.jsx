@@ -995,6 +995,9 @@ const ControlsContent = ({
                     currentPath?.volume !== undefined ? currentPath.volume : 1;
                   const pan =
                     currentPath?.pan !== undefined ? currentPath.pan : 0;
+                  const chaos =
+                    currentPath?.chaos !== undefined ? currentPath.chaos : 1;
+
                   return (
                     <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
                       <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200 flex justify-between">
@@ -1106,6 +1109,44 @@ const ControlsContent = ({
                           />
                           <span className="text-white">
                             {pan.toFixed(1)} dB
+                          </span>
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium mb-1 text-white">
+                            Chaos (Wet/Dry Mix)
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={chaos}
+                            onChange={(e) => {
+                              const newChaos = parseFloat(e.target.value);
+                              setPaths((prevPaths) => {
+                                const newPaths = [...prevPaths];
+                                const pathIndex = newPaths.findIndex(
+                                  (p) => p.id === pathId
+                                );
+                                if (pathIndex !== -1) {
+                                  newPaths[pathIndex] = {
+                                    ...newPaths[pathIndex],
+                                    chaos: newChaos,
+                                  };
+                                }
+                                return newPaths;
+                              });
+                            }}
+                            className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 slider-purple"
+                            style={{
+                              background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${
+                                chaos * 100
+                              }%, #404040 ${chaos * 100}%, #404040 100%)`,
+                            }}
+                          />
+                          <span className="text-white">
+                            {(chaos * 100).toFixed(0)}%
                           </span>
                         </div>
 

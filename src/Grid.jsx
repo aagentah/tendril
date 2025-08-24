@@ -484,6 +484,8 @@ const Grid = () => {
             id: newPathId,
             path: lockedDraftPath,
             volume: 1,
+            pan: 0,
+            chaos: 1,
             solo: false,
             bypass: false,
           },

@@ -137,6 +137,7 @@ const App = () => {
 
   const samplerRef = useRef(null);
   const branchEffectNodesRef = useRef({});
+  const pathEffectNodesRef = useRef({}); // For path-level effects like Chaos and Impala
   const noteTime = "8n";
 
   const pathsRef = useRef(paths);
@@ -342,6 +343,44 @@ const App = () => {
     });
   }, [branches, sampleStore, userSamples]);
 
+  // Path-level effects management (Chaos)
+  useEffect(() => {
+    paths.forEach((path) => {
+      if (!pathEffectNodesRef.current[path.id]) {
+        // Create Chaos (FeedbackDelay) effect with initial zero values
+        const chaosDelay = new Tone.FeedbackDelay({
+          delayTime: 0,
+          feedback: 0,
+          wet: 0.5, // Mix between dry (original) and wet (delayed) signal
+        });
+
+        // Create a gain node as the final output
+        const pathGain = new Tone.Gain(1).toDestination();
+
+        // Chain the effects: input (chaosDelay) -> pathGain -> destination
+        chaosDelay.connect(pathGain);
+
+        pathEffectNodesRef.current[path.id] = {
+          input: chaosDelay,
+          chaosDelay,
+          output: pathGain,
+        };
+      }
+    });
+
+    // Clean up removed paths
+    Object.keys(pathEffectNodesRef.current).forEach((pathId) => {
+      if (!paths.find((p) => p.id === pathId)) {
+        const pathEffects = pathEffectNodesRef.current[pathId];
+        if (pathEffects) {
+          pathEffects.output.dispose();
+          pathEffects.chaosDelay.dispose();
+          delete pathEffectNodesRef.current[pathId];
+        }
+      }
+    });
+  }, [paths]);
+
   const triggerSampleWithValidation = (players, sampleName, duration, time) => {
     if (!players || !players[sampleName]) {
       console.error("Error: Player not initialized for sample:", sampleName);
@@ -500,6 +539,7 @@ const App = () => {
 
                 if (hexToUpdate?.sampleName) {
                   try {
+                    // ...existing code...
                     const stepsRemaining = path.length - currentIndex;
                     const scheduledTime = Math.max(
                       time + 0.05, // Add small offset for first trigger
@@ -579,6 +619,42 @@ const App = () => {
                     console.log("currentPath.pan", currentPath.pan);
                     console.log("normalizedPan", normalizedPan);
 
+                    // Get path effects node for this path
+                    const pathEffects = pathEffectNodesRef.current[pathId];
+
+                    // Apply random Chaos values if path effects exist
+                    if (pathEffects && currentPath) {
+                      const chaosValue =
+                        currentPath?.chaos !== undefined
+                          ? currentPath.chaos
+                          : 1;
+
+                      // Always randomize delay time between 35ms and 75ms
+                      const minDelayMs = 35;
+                      const maxDelayMs = 75;
+                      const randomDelayMs =
+                        minDelayMs + Math.random() * (maxDelayMs - minDelayMs);
+                      const randomDelayTime = randomDelayMs / 1000;
+
+                      // Feedback is random between 0 and 1
+                      const randomFeedback = Math.random();
+
+                      // Apply values to the delay effect
+                      pathEffects.chaosDelay.delayTime.value = randomDelayTime;
+                      pathEffects.chaosDelay.feedback.value = randomFeedback;
+                      pathEffects.chaosDelay.wet.value = chaosValue; // Use slider value for wet/dry mix
+
+                      // Debug log
+                      console.log(
+                        `Chaos applied: delay=${randomDelayMs.toFixed(
+                          1
+                        )}ms, feedback=${(randomFeedback * 100).toFixed(
+                          1
+                        )}%, wet=${(chaosValue * 100).toFixed(0)}%`
+                      );
+                    }
+                    // ...existing code for audio routing, etc...
+
                     // Handle audio playback through effects or direct
                     if (audioEffectBranches.length > 0) {
                       audioEffectBranches.forEach((branch) => {
@@ -588,13 +664,26 @@ const App = () => {
                           const player =
                             branchNode.players[hexToUpdate.sampleName];
                           if (player && player.loaded) {
-                            // Insert panner into the branch chain without breaking the existing effect chain
-                            if (!player._panner) {
+                            // Set up audio routing: player -> panner -> path effects -> branch effects -> destination
+                            if (!player._panner || !player._pathConnected) {
                               player.disconnect();
                               const panner = new Tone.Panner(normalizedPan);
                               player.connect(panner);
-                              panner.connect(branchNode.effectNode);
+
+                              // Route through path effects if available
+                              if (pathEffects) {
+                                panner.connect(pathEffects.input);
+                                // Connect path effects output to branch effect
+                                pathEffects.output.disconnect();
+                                pathEffects.output.connect(
+                                  branchNode.effectNode
+                                );
+                              } else {
+                                panner.connect(branchNode.effectNode);
+                              }
+
                               player._panner = panner;
+                              player._pathConnected = true;
                             } else {
                               player._panner.pan.value = normalizedPan;
                             }
@@ -612,13 +701,21 @@ const App = () => {
                     } else {
                       const player = samplerRef.current[hexToUpdate.sampleName];
                       if (player && player.loaded) {
-                        if (!player._panner) {
+                        // Set up audio routing: player -> panner -> path effects -> destination
+                        if (!player._panner || !player._pathConnected) {
                           player.disconnect();
-                          const panner = new Tone.Panner(
-                            normalizedPan
-                          ).toDestination();
+                          const panner = new Tone.Panner(normalizedPan);
                           player.connect(panner);
+
+                          // Route through path effects if available
+                          if (pathEffects) {
+                            panner.connect(pathEffects.input);
+                          } else {
+                            panner.toDestination();
+                          }
+
                           player._panner = panner;
+                          player._pathConnected = true;
                         } else {
                           player._panner.pan.value = normalizedPan;
                         }
