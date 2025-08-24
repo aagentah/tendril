@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import p5 from "p5";
 import { useAtom } from "jotai";
 import _ from "lodash";
@@ -12,11 +12,18 @@ import {
   SVG_HEIGHT,
   HEX_RADIUS,
 } from "./atomStore";
-import { axialToPixel, generateHexPoints } from "./hexUtils";
+import { axialToPixel, getPathEdges } from "./hexUtils";
+
+// Import animation utilities
+import {
+  createNoiseData,
+  syncNoiseData,
+  drawAnimatedPath,
+} from "./animationUtils";
 
 // Constants for SVG dimensions and hexagon size
 const NUM_LAYERS_PATH = 5; // Number of lines per path
-const NUM_LAYERS_BRANCH = 3; // Number of lines per bracn
+const NUM_LAYERS_BRANCH = 3; // Number of lines per branch
 const NOISE_INCREMENT = 0.01; // Controls the speed of the noise animation
 const NOISE_FACTOR_PATH = 5.5; // Base distortion factor path
 const NOISE_FACTOR_BRANCH = 8; // Base distortion factor branch
@@ -33,20 +40,6 @@ const P5Overlay = () => {
   const hexesRef = useRef(hexes);
 
   const CENTER_HEX_RADIUS = 1.1; // Radius of the hex circle
-
-  const generateHexCircle = (radius) => {
-    const hexes = [];
-    for (let q = -radius; q <= radius; q++) {
-      for (
-        let r = Math.max(-radius, -q - radius);
-        r <= Math.min(radius, -q + radius);
-        r++
-      ) {
-        hexes.push({ q, r });
-      }
-    }
-    return hexes;
-  };
 
   useEffect(() => {
     pathsRef.current = paths;
@@ -72,37 +65,22 @@ const P5Overlay = () => {
         p.noFill();
         p.strokeWeight(0.75);
 
-        // Initialize noise data based on the initial paths
-        noiseData = {};
+        // Use utility functions to initialize noise data
+        const createLayerNoise = (numLayers) =>
+          createNoiseData(p, numLayers, NOISE_INCREMENT);
+
+        // Initialize paths noise data
         pathsRef.current.forEach((pathObj) => {
-          const { id: pathId } = pathObj;
-          noiseData[pathId] = _.times(NUM_LAYERS_PATH, () => ({
-            x: p.random(1000),
-            y: p.random(1000),
-            dx: p.random(0.001, NOISE_INCREMENT),
-            dy: p.random(0.001, NOISE_INCREMENT),
-          }));
+          noiseData[pathObj.id] = createLayerNoise(NUM_LAYERS_PATH);
         });
 
-        // Initialize noise data for branches
-        branchesNoiseData = {};
+        // Initialize branches noise data
         branchesRef.current.forEach((branchObj) => {
-          const { id: branchId } = branchObj;
-          branchesNoiseData[branchId] = _.times(NUM_LAYERS_BRANCH, () => ({
-            x: p.random(1000),
-            y: p.random(1000),
-            dx: p.random(0.001, NOISE_INCREMENT),
-            dy: p.random(0.001, NOISE_INCREMENT),
-          }));
+          branchesNoiseData[branchObj.id] = createLayerNoise(NUM_LAYERS_BRANCH);
         });
 
-        // Initialize noise data for the animated circles
-        circleNoiseData = _.times(5, () => ({
-          x: p.random(1000),
-          y: p.random(1000),
-          dx: p.random(0.001, NOISE_INCREMENT),
-          dy: p.random(0.001, NOISE_INCREMENT),
-        }));
+        // Initialize circle animations
+        circleNoiseData = createLayerNoise(5);
       };
 
       p.draw = () => {
@@ -114,57 +92,28 @@ const P5Overlay = () => {
         const currentBranches = branchesRef.current;
         const currentHexes = hexesRef.current;
 
-        // Synchronize noiseData with currentPaths
-        currentPaths.forEach((pathObj) => {
-          const { id: pathId } = pathObj;
-          if (!noiseData[pathId]) {
-            noiseData[pathId] = _.times(NUM_LAYERS_PATH, () => ({
-              x: p.random(1000),
-              y: p.random(1000),
-              dx: p.random(0.001, NOISE_INCREMENT),
-              dy: p.random(0.001, NOISE_INCREMENT),
-            }));
-          }
-        });
+        // Use utility function to sync noise data
+        noiseData = syncNoiseData(
+          currentPaths,
+          noiseData,
+          () => createNoiseData(p, NUM_LAYERS_PATH, NOISE_INCREMENT),
+          NUM_LAYERS_PATH
+        );
 
-        // Remove noiseData entries for paths that no longer exist
-        Object.keys(noiseData).forEach((pathId) => {
-          if (!currentPaths.find((pathObj) => pathObj.id === pathId)) {
-            delete noiseData[pathId];
-          }
-        });
-
-        // Synchronize branchesNoiseData with currentBranches
-        currentBranches.forEach((branchObj) => {
-          const { id: branchId } = branchObj;
-          if (!branchesNoiseData[branchId]) {
-            branchesNoiseData[branchId] = _.times(NUM_LAYERS_BRANCH, () => ({
-              x: p.random(1000),
-              y: p.random(1000),
-              dx: p.random(0.001, NOISE_INCREMENT),
-              dy: p.random(0.001, NOISE_INCREMENT),
-            }));
-          }
-        });
-
-        // Remove branchesNoiseData entries for branches that no longer exist
-        Object.keys(branchesNoiseData).forEach((branchId) => {
-          if (!currentBranches.find((branchObj) => branchObj.id === branchId)) {
-            delete branchesNoiseData[branchId];
-          }
-        });
+        branchesNoiseData = syncNoiseData(
+          currentBranches,
+          branchesNoiseData,
+          () => createNoiseData(p, NUM_LAYERS_BRANCH, NOISE_INCREMENT),
+          NUM_LAYERS_BRANCH
+        );
 
         /**
-         * Function to draw animated paths and branches.
-         * @param {Array} items - The array of paths or branches.
-         * @param {Object} noiseDataObj - The corresponding noise data object.
-         * @param {Function} getColor - Function to get the stroke color.
-         * @param {boolean} isBranch - Flag to indicate if drawing branches.
+         * Enhanced wrapper around the utility function to draw animated paths or branches
          */
-        const drawAnimatedPath = (
+        const drawLayeredPaths = (
           items,
           noiseDataObj,
-          getColor,
+          colorFn,
           isBranch = false,
           noiseFactor,
           numLayers
@@ -178,18 +127,22 @@ const P5Overlay = () => {
                 (path) => path.id === itemObj.parentPathId
               );
               if (parentPath && parentPath.path.length > 0) {
-                const parentLastHex =
-                  parentPath.path[parentPath.path.length - 1];
+                // Use getPathEdges to get the last hex of the parent path
+                const parentLastHexes = getPathEdges([parentPath], "last");
+                const parentLastHex = parentLastHexes[0];
 
                 if (
+                  parentLastHex &&
                   itemObj.branch.length > 0 &&
                   itemObj.branch[0].q === parentLastHex.q &&
                   itemObj.branch[0].r === parentLastHex.r
                 ) {
                   // The branch already starts with the parentLastHex
                   pathData = itemObj.branch;
-                } else {
+                } else if (parentLastHex) {
                   pathData = [parentLastHex, ...itemObj.branch];
+                } else {
+                  pathData = itemObj.branch;
                 }
               } else {
                 pathData = itemObj.branch;
@@ -198,60 +151,37 @@ const P5Overlay = () => {
               pathData = itemObj.path;
             }
 
-            const noiseArray = noiseDataObj[itemId];
+            // Convert path to pixel coordinates
+            const pixelPath = pathData.map((hex) => ({
+              ...axialToPixel(hex.q, hex.r, HEX_RADIUS),
+              q: hex.q,
+              r: hex.r,
+            }));
 
-            if (pathData.length > 1) {
+            if (pixelPath.length > 1) {
+              const layerNoiseArray = noiseDataObj[itemId];
+
+              // Draw each layer
               for (let layer = 0; layer < numLayers; layer++) {
-                noiseArray[layer].x += noiseArray[layer].dx;
-                noiseArray[layer].y += noiseArray[layer].dy;
+                const color = colorFn(layer);
+                const adjustedNoiseFactor = noiseFactor * (1 + layer * 0.2);
 
-                p.beginShape();
-
-                _.forEach(pathData, (hex, index) => {
-                  let { x, y } = axialToPixel(hex.q, hex.r, HEX_RADIUS);
-
-                  const noise = noiseFactor * (1 + layer * 0.2);
-                  const angle =
-                    p.noise(
-                      noiseArray[layer].x + x * 0.01,
-                      noiseArray[layer].y + y * 0.01
-                    ) *
-                    Math.PI *
-                    2;
-                  const distortion =
-                    p.noise(noiseArray[layer].x, noiseArray[layer].y) * noise;
-
-                  x += Math.cos(angle) * distortion;
-                  y += Math.sin(angle) * distortion;
-
-                  x += SVG_WIDTH / 2;
-                  y += SVG_HEIGHT / 2;
-
-                  if (index === pathData.length - 1) {
-                    const controlX = x - HEX_RADIUS * 0.2;
-                    const controlY = y - HEX_RADIUS * 0.3;
-                    p.curveVertex(controlX, controlY);
-                    p.curveVertex(x, y + HEX_RADIUS * 0.2);
-                    p.curveVertex(x, y + HEX_RADIUS * 0.2);
-                  } else if (index === 0) {
-                    p.curveVertex(x, y);
-                    p.curveVertex(x, y);
-                  } else {
-                    p.curveVertex(x, y);
-                  }
-                });
-
-                p.endShape();
-
-                const color = getColor(layer);
-                p.stroke(color[0], color[1], color[2], color[3]);
+                drawAnimatedPath(
+                  p,
+                  pixelPath,
+                  layerNoiseArray[layer],
+                  color,
+                  adjustedNoiseFactor,
+                  HEX_RADIUS,
+                  { width: SVG_WIDTH, height: SVG_HEIGHT }
+                );
               }
             }
           });
         };
 
         // Draw the main paths in red
-        drawAnimatedPath(
+        drawLayeredPaths(
           currentPaths,
           noiseData,
           (layer) => [255, 0, 0, 200 - layer * 50], // Red color for paths
@@ -261,7 +191,7 @@ const P5Overlay = () => {
         );
 
         // Draw the branches in white
-        drawAnimatedPath(
+        drawLayeredPaths(
           currentBranches,
           branchesNoiseData,
           () => [255, 255, 255, 200], // White color for branches

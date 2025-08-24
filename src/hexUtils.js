@@ -4,7 +4,7 @@
  * Utility functions for hexagon grid calculations and coordinate transformations.
  */
 
-import _, { map, find, range, filter, compact } from "lodash";
+import _, { map, find, range, compact } from "lodash";
 
 /**
  * Utility Function: areCoordinatesEqual
@@ -461,4 +461,116 @@ function getValidNeighbors(hex, hexMap, visited) {
 // This should be called when the grid state changes significantly
 export const clearPathCache = () => {
   memoizedFindShortestPath.cache.clear();
+};
+
+/**
+ * Returns all reserved hexes based on existing paths and their endpoints
+ * @param {Array} hexes - The entire hex grid
+ * @param {Array} paths - All existing paths
+ * @returns {Array} - Array of hexes that are considered reserved
+ */
+export const getReservedHexes = (hexes, paths) => {
+  // Get all path end hexes
+  const existingPathEnds = paths
+    .map((path) => path.path[path.path.length - 1])
+    .filter(Boolean);
+
+  // Find all hexes adjacent to path ends - these should be treated as reserved
+  return _.flatMap(existingPathEnds, (endHex) =>
+    hexes.filter((h) => hexDistance(h, endHex) === 1)
+  );
+};
+
+/**
+ * Checks if a hex is part of any existing path
+ * @param {Object} hex - The hex to check
+ * @param {Array} paths - All existing paths
+ * @returns {boolean} - True if hex is in any path
+ */
+export const isHexInExistingPath = (hex, paths) => {
+  return paths.some((existingPath) =>
+    existingPath.path.some((pathHex) => areCoordinatesEqual(pathHex, hex))
+  );
+};
+
+/**
+ * Checks if a hex is adjacent to any path endpoint
+ * @param {Object} hex - The hex to check
+ * @param {Array} paths - All existing paths
+ * @returns {boolean} - True if hex is adjacent to any path endpoint
+ */
+export const isAdjacentToPathEnd = (hex, paths) => {
+  const pathEnds = getPathEdges(paths, "last").filter(Boolean);
+  return pathEnds.some((end) => hexDistance(hex, end) === 1);
+};
+
+/**
+ * Validates if a path can be created from a given draft path
+ * @param {Array} draftPath - The draft path to validate
+ * @param {Array} paths - Existing paths
+ * @returns {Object} - { valid: boolean, reason: string }
+ */
+export const validatePathCreation = (draftPath, paths) => {
+  if (!draftPath || draftPath.length === 0) {
+    return { valid: false, reason: "Draft path is empty" };
+  }
+
+  // Get the last hex of the locked draft path
+  const lastHexInDraft = draftPath[draftPath.length - 1];
+
+  // Get all existing path hexes and their end points
+  const existingPathHexes = paths.flatMap((path) => path.path);
+  const existingEndPoints = getPathEdges(paths, "last");
+
+  // Get adjacent positions for the draft path's end hex
+  const draftEndAdjacents = getAdjacentPositions(lastHexInDraft);
+
+  // Check for overlapping adjacents with existing path endpoints
+  const hasOverlappingAdjacents = existingEndPoints.some((endPoint) => {
+    if (!endPoint) return false;
+    const endPointAdjacents = getAdjacentPositions(endPoint);
+
+    return draftEndAdjacents.some((draftAdj) =>
+      endPointAdjacents.some(
+        (existingAdj) =>
+          existingAdj.q === draftAdj.q && existingAdj.r === draftAdj.r
+      )
+    );
+  });
+
+  // Check if the last hex would be adjacent to existing path hexes
+  const wouldBeAdjacentToPath = existingPathHexes.some(
+    (pathHex) => hexDistance(lastHexInDraft, pathHex) === 1
+  );
+
+  if (wouldBeAdjacentToPath || hasOverlappingAdjacents) {
+    return {
+      valid: false,
+      reason: "Invalid end hex position - too close to existing paths",
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Get the adjacent positions for a given hex
+ * @param {Object} hex - The hex to get adjacents for
+ * @returns {Array} - Array of adjacent coordinate positions
+ */
+export const getAdjacentPositions = (hex) => {
+  // Define the 6 possible directions for adjacent hexes
+  const directions = [
+    { q: 1, r: 0 },
+    { q: 1, r: -1 },
+    { q: 0, r: -1 },
+    { q: -1, r: 0 },
+    { q: -1, r: 1 },
+    { q: 0, r: 1 },
+  ];
+
+  return directions.map((dir) => ({
+    q: hex.q + dir.q,
+    r: hex.r + dir.r,
+  }));
 };

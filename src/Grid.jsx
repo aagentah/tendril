@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import _ from "lodash";
@@ -26,15 +26,17 @@ import {
 // Import utility functions
 import {
   updateHexProperties,
-  findShortestPath, // Keep this for backward compatibility
-  memoizedFindShortestPath, // Add the new memoized function
-  clearPathCache, // Add the cache clearing function
+  memoizedFindShortestPath,
+  clearPathCache,
   getPathEdges,
   areCoordinatesEqual,
   hexDistance,
-  pathEdgeFromPath,
   branchEdgeFromBranch,
   canCreateMorePaths,
+  getReservedHexes,
+  isHexInExistingPath,
+  isAdjacentToPathEnd,
+  validatePathCreation,
 } from "./hexUtils";
 
 // Import the Hex component
@@ -163,14 +165,14 @@ const Grid = () => {
   const [hexes, setHexes] = useAtom(hexesAtom);
   const [selectedEffect, setSelectedEffect] = useAtom(selectedEffectAtom);
   const [selectedSample, setSelectedSample] = useAtom(selectedSampleAtom);
-  const [paths, setPaths] = useAtom(pathsAtom);
+  const [paths] = useAtom(pathsAtom);
   const [draftPath, setDraftPath] = useAtom(draftPathAtom);
   const [effectDraftPath, setEffectDraftPath] = useAtom(effectDraftPathAtom);
-  const [isOpen, setIsOpen] = useAtom(mobilePanelOpenAtom);
+  const [, setIsOpen] = useAtom(mobilePanelOpenAtom);
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
-  const [isPathCreationMode, setIsPathCreationMode] = useAtom(
-    isPathCreationModeAtom
-  );
+  const [, setIsPathCreationMode] = useAtom(isPathCreationModeAtom);
+  const [, setGuideVisibleAtom] = useAtom(guideVisibleAtom);
+  const [, setBranches] = useAtom(branchesAtom);
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
@@ -185,22 +187,15 @@ const Grid = () => {
   const [, setGuideTargetRefs] = useAtom(guideTargetRefsAtom);
 
   useEffect(() => {
-    console.log("Setting guide target refs...");
-
-    setGuideTargetRefs((prev) => {
-      console.log("Before update:", prev);
-      const updatedRefs = {
-        ...prev,
-        firstHex: firstHexRef,
-        effectDraft: effectDraftRef,
-        mainHex: mainHexRef,
-        pathHex: pathHexRef,
-        pathEnd: pathEndRef,
-      };
-      console.log("After update:", updatedRefs);
-      return updatedRefs;
-    });
-  }, []);
+    setGuideTargetRefs((prev) => ({
+      ...prev,
+      firstHex: firstHexRef,
+      effectDraft: effectDraftRef,
+      mainHex: mainHexRef,
+      pathHex: pathHexRef,
+      pathEnd: pathEndRef,
+    }));
+  }, [setGuideTargetRefs]);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -224,8 +219,18 @@ const Grid = () => {
     };
 
     window.addEventListener("keydown", handleEscape);
-    return;
-  }, []);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [
+    setDraftPath,
+    setEffectDraftPath,
+    setHexes,
+    setIsOpen,
+    setIsPathCreationMode,
+    setSelectedEffect,
+    setSelectedSample,
+  ]);
 
   // --------------------
   // Debounced Handlers
@@ -233,39 +238,21 @@ const Grid = () => {
   // Replace this in your handleHexMouseEnter function
   const handleHexMouseEnter = useAtomCallback(async (get, set, hex) => {
     const selectedEffect = get(selectedEffectAtom);
-    const selectedSample = get(selectedSampleAtom);
     const isPathCreationMode = get(isPathCreationModeAtom);
     const hexes = get(hexesAtom);
     const paths = get(pathsAtom);
 
-    // Get all path end hexes
-    const existingPathEnds = paths
-      .map((path) => path.path[path.path.length - 1])
-      .filter(Boolean);
-
-    // Find all hexes adjacent to path ends - these should be treated as reserved
-    const reservedHexes = _.flatMap(existingPathEnds, (endHex) =>
-      hexes.filter((h) => hexDistance(h, endHex) === 1)
-    );
-
-    // Check if this hex is already part of any existing path or is reserved
-    const isHexInExistingPath = paths.some((existingPath) =>
-      existingPath.path.some((pathHex) => areCoordinatesEqual(pathHex, hex))
-    );
-
-    const isHexReserved = reservedHexes.some((reservedHex) =>
+    // Using centralized utility functions for path management
+    const reservedHexes = getReservedHexes(hexes, paths);
+    const hexInPath = isHexInExistingPath(hex, paths);
+    const hexReserved = reservedHexes.some((reservedHex) =>
       areCoordinatesEqual(reservedHex, hex)
     );
-
-    // Check if this hex is adjacent to any existing path endpoints
-    const isAdjacentToPathEnd = existingPathEnds.some((endHex) => {
-      const distance = hexDistance(hex, endHex);
-      return distance <= 1;
-    });
+    const adjacentToEnd = isAdjacentToPathEnd(hex, paths);
 
     if (isPathCreationMode && !hex.isPath) {
       // Skip path drafting if hex is already in a path, reserved, or too close to an endpoint
-      if (isHexInExistingPath || isHexReserved || isAdjacentToPathEnd) {
+      if (hexInPath || hexReserved || adjacentToEnd) {
         return;
       }
 
@@ -292,11 +279,7 @@ const Grid = () => {
           if (
             path.some(
               (pathHex) =>
-                paths.some((existingPath) =>
-                  existingPath.path.some((existing) =>
-                    areCoordinatesEqual(existing, pathHex)
-                  )
-                ) ||
+                isHexInExistingPath(pathHex, paths) ||
                 reservedHexes.some((reserved) =>
                   areCoordinatesEqual(reserved, pathHex)
                 )
@@ -322,11 +305,7 @@ const Grid = () => {
         // Final validation check including reserved hexes
         const hasCollision = sp.some(
           (pathHex) =>
-            paths.some((existingPath) =>
-              existingPath.path.some((existing) =>
-                areCoordinatesEqual(existing, pathHex)
-              )
-            ) ||
+            isHexInExistingPath(pathHex, paths) ||
             reservedHexes.some((reserved) =>
               areCoordinatesEqual(reserved, pathHex)
             )
@@ -340,7 +319,7 @@ const Grid = () => {
               { isPathDraft: true }
             )
           );
-          set(draftPathAtom, sp);
+          set(draftPathAtom, [...sp]);
         }
       }
       return;
@@ -366,7 +345,7 @@ const Grid = () => {
     }
   }, []);
 
-  const handleHexMouseLeave = useAtomCallback(async (get, set, hex) => {
+  const handleHexMouseLeave = useAtomCallback(async (get, set) => {
     const selectedEffect = get(selectedEffectAtom);
     const selectedSample = get(selectedSampleAtom);
     const isPathCreationMode = get(isPathCreationModeAtom);
@@ -379,9 +358,13 @@ const Grid = () => {
     }
 
     if (selectedSample?.name || isPathCreationMode) {
+      // Explicitly clear all isPathDraft flags to ensure visualization is reset
       set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, () => true, { isPathDraft: false })
+        updateHexProperties(prevHexes, (h) => h.isPathDraft, {
+          isPathDraft: false,
+        })
       );
+      // Clear draft path state
       set(draftPathAtom, []);
     }
   }, []);
@@ -410,306 +393,21 @@ const Grid = () => {
 
   // In Grid.jsx - Simplified hex click handling
 
-  const handleHexClick = useAtomCallback(async (get, set, hex) => {
-    const selectedSample = get(selectedSampleAtom);
-    const selectedEffect = get(selectedEffectAtom);
-    const hexes = get(hexesAtom);
-    const isPathCreationMode = get(isPathCreationModeAtom);
-    const currentStep = get(guideStepAtom);
+  const handleHexClick = useAtomCallback(
+    async (get, set, hex) => {
+      const selectedSample = get(selectedSampleAtom);
+      const selectedEffect = get(selectedEffectAtom);
+      const hexes = get(hexesAtom);
+      const isPathCreationMode = get(isPathCreationModeAtom);
+      const currentStep = get(guideStepAtom);
 
-    // Handle path creation mode
-    if (hex.isMainHex && canCreateMorePaths(hexes, paths)) {
-      set(isPathCreationModeAtom, !isPathCreationMode);
-      set(draftPathAtom, []);
-      set(effectDraftPathAtom, []);
-      setSelectedEffect({ type: null, name: null });
-      // setSelectedSample({ name: null });
-
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, () => true, {
-          isPathSelected: false,
-          isBranchSelected: false,
-          isHexSelected: false,
-        })
-      );
-
-      setIsOpen(false);
-
-      if (currentStep === 1) {
-        set(guideStepAtom, 2);
-      } else {
-        set(guideVisibleAtom, false);
-      }
-
-      return;
-    }
-
-    // Handle path creation mode
-    // In handleHexClick function within Grid.jsx, replace the path creation mode block with this:
-
-    // Handle path creation mode
-    // In handleHexClick function within Grid.jsx, update the path creation mode block:
-
-    // Handle path creation mode
-    if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
-      // Lock the current draft path immediately
-      const lockedDraftPath = [...draftPath];
-
-      // Get the last hex of the locked draft path
-      const lastHexInDraft = lockedDraftPath[lockedDraftPath.length - 1];
-
-      // Get all existing path hexes and their end points
-      const existingPathHexes = paths.flatMap((path) => path.path);
-      const existingEndPoints = paths.map(
-        (path) => path.path[path.path.length - 1]
-      );
-
-      // Function to get adjacent hex positions for a given hex
-      const getAdjacentPositions = (hex) => {
-        // Define the 6 possible directions for adjacent hexes
-        const directions = [
-          { q: 1, r: 0 },
-          { q: 1, r: -1 },
-          { q: 0, r: -1 },
-          { q: -1, r: 0 },
-          { q: -1, r: 1 },
-          { q: 0, r: 1 },
-        ];
-
-        return directions.map((dir) => ({
-          q: hex.q + dir.q,
-          r: hex.r + dir.r,
-        }));
-      };
-
-      // Get adjacent positions for the draft path's end hex
-      const draftEndAdjacents = getAdjacentPositions(lastHexInDraft);
-
-      // Check for overlapping adjacents with existing path endpoints
-      const hasOverlappingAdjacents = existingEndPoints.some((endPoint) => {
-        const endPointAdjacents = getAdjacentPositions(endPoint);
-
-        return draftEndAdjacents.some((draftAdj) =>
-          endPointAdjacents.some(
-            (existingAdj) =>
-              existingAdj.q === draftAdj.q && existingAdj.r === draftAdj.r
-          )
-        );
-      });
-
-      // Check if the last hex would be adjacent to existing path hexes
-      const wouldBeAdjacentToPath = existingPathHexes.some(
-        (pathHex) => hexDistance(lastHexInDraft, pathHex) === 1
-      );
-
-      if (wouldBeAdjacentToPath || hasOverlappingAdjacents) {
-        // If there would be adjacency or overlapping adjacents, don't create the path
-        console.warn("Cannot create path: invalid end hex position");
-        return;
-      }
-
-      // If validation passes, batch updates
-      // If validation passes, do a SINGLE batched update instead of multiple updates
-      const { v4: uuidv4 } = await import("uuid");
-      const newPathId = uuidv4();
-
-      // BATCHED UPDATE: Single hex state update that handles both the lastHexInPath
-      // and the other path properties in one go
-      set(hexesAtom, (prevHexes) => {
-        // Create a new hexes array that includes all updates at once
-        return prevHexes.map((h) => {
-          // Handle the lastHexInPath flag
-          if (lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft)) {
-            return {
-              ...h,
-              isPathDraft: false,
-              isPath: true,
-              lastHexInPath: true, // This property was set separately before
-              pathId: newPathId,
-            };
-          }
-
-          // Handle other hexes in the path
-          if (lockedDraftPath.some((p) => areCoordinatesEqual(p, h))) {
-            return {
-              ...h,
-              isPathDraft: false,
-              isPath: true,
-              isPathSelected: false,
-              isBranch: false,
-              pathId: newPathId,
-            };
-          }
-
-          return h;
-        });
-      });
-
-      set(pathsAtom, (prevPaths) => [
-        ...prevPaths,
-        {
-          id: newPathId,
-          path: lockedDraftPath,
-          volume: 1,
-          solo: false,
-          bypass: false,
-        },
-      ]);
-
-      // Clear the path cache since we've added a new path
-      clearPathCache();
-
-      // Reset path creation mode
-      set(isPathCreationModeAtom, false);
-      setDraftPath([]);
-      set(guideStepAtom, 3);
-
-      return;
-    }
-
-    // Handle sample placement, removal, or replacement on existing path
-    if (selectedSample?.name && hex.isPath) {
-      if (guideStep === 4) {
-        set(guideStepAtom, 5);
-      }
-
-      // If hex already has the same sample, remove it
-      if (hex.sampleName === selectedSample.name) {
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-            sampleName: null,
-          })
-        );
-        return;
-      }
-
-      // Place the new sample (whether hex is empty or has a different sample)
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
-          sampleName: selectedSample.name,
-        })
-      );
-      // Don't deselect the sample to allow multiple placements
-      return;
-    }
-
-    // Handle effect branch creation (unchanged)
-    if (selectedEffect.name && hex.isEffectDraft) {
-      if (guideStep === 7) {
-        setGuideStep(8);
-      }
-
-      const effectDraftHexes = effectDraftPath;
-      const lastHexes = getPathEdges(paths, "last").filter(Boolean);
-      if (!lastHexes.length) return;
-
-      let minDistance = Infinity;
-      let nearestLastHex = null;
-      for (const lastHex of lastHexes) {
-        const distance = hexDistance(hex, lastHex);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestLastHex = lastHex;
-        }
-      }
-      const parentPath = paths.find((p) =>
-        areCoordinatesEqual(
-          p.path[p.path.length - 1],
-          nearestLastHex || { q: null, r: null }
-        )
-      );
-      if (!parentPath) return;
-
-      const parentPathId = parentPath.id;
-      const effectConfig = _.cloneDeep(
-        _.find(effectStore, (e) => e.name === selectedEffect.name)?.config || {}
-      );
-
-      const { v4: uuidv4 } = await import("uuid");
-      const newBranchId = uuidv4();
-
-      set(branchesAtom, (prevBranches) => [
-        ...prevBranches,
-        {
-          id: newBranchId,
-          parentPathId,
-          effect: { type: selectedEffect.type, name: selectedEffect.name },
-          effectConfig,
-          branch: effectDraftHexes,
-        },
-      ]);
-
-      const lastHexInDraft = branchEdgeFromBranch(effectDraftHexes, "last");
-      set(hexesAtom, (prevHexes) =>
-        prevHexes.map((h) => {
-          const isMatch = effectDraftHexes.some(
-            (p) => areCoordinatesEqual(p, h) && !h.isPath
-          );
-          if (isMatch) {
-            return {
-              ...h,
-              isEffectDraft: false,
-              isBranch: true,
-              branchId: newBranchId,
-              effect:
-                areCoordinatesEqual(hex, h) && selectedEffect.name
-                  ? { type: selectedEffect.type, name: selectedEffect.name }
-                  : { type: h.effect.type, name: h.effect.name },
-              lastHexInPath:
-                lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
-            };
-          }
-          return h;
-        })
-      );
-
-      setSelectedEffect({ type: null, name: null });
-      setEffectDraftPath([]);
-      return;
-    }
-
-    // Handle path/branch selection (unchanged)
-    if (!selectedSample?.name && !selectedEffect?.name && !isPathCreationMode) {
-      if (hex.isPath) {
-        // Select entire path
-        const selectedPathId = hex.pathId;
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(prevHexes, () => true, {
-            isPathSelected: false,
-            isBranchSelected: false,
-            isHexSelected: false,
-          })
-        );
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
-            isPathSelected: true,
-          })
-        );
-
-        setIsOpen(true);
-      } else if (hex.isBranch && !hex.isPath) {
-        // Select the branch
-        const selectedBranchId = hex.branchId;
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(prevHexes, () => true, {
-            isBranchSelected: false,
-            isPathSelected: false,
-            isHexSelected: false,
-          })
-        );
-        set(hexesAtom, (prevHexes) =>
-          updateHexProperties(
-            prevHexes,
-            (h) => h.branchId === selectedBranchId,
-            {
-              isBranchSelected: true,
-            }
-          )
-        );
-
-        setIsOpen(true);
-      } else {
-        // Deselect everything
+      // Handle path creation mode
+      if (hex.isMainHex && canCreateMorePaths(hexes, paths)) {
+        set(isPathCreationModeAtom, !isPathCreationMode);
+        set(draftPathAtom, []);
+        set(effectDraftPathAtom, []);
+        setSelectedEffect({ type: null, name: null });
+        // setSelectedSample({ name: null });
 
         set(hexesAtom, (prevHexes) =>
           updateHexProperties(prevHexes, () => true, {
@@ -720,25 +418,275 @@ const Grid = () => {
         );
 
         setIsOpen(false);
-      }
-    } else {
-      set(hexesAtom, (prevHexes) =>
-        updateHexProperties(prevHexes, () => true, {
-          isPathSelected: false,
-          isBranchSelected: false,
-          isHexSelected: false,
-        })
-      );
 
-      setSelectedSample({ name: null });
-      setSelectedEffect({ type: null, name: null });
-    }
-  }, []);
+        if (currentStep === 1) {
+          set(guideStepAtom, 2);
+        } else {
+          setGuideVisibleAtom(false);
+        }
+
+        return;
+      }
+
+      // Handle path creation mode
+      if (isPathCreationMode && hex.isPathDraft && draftPath.length > 0) {
+        // Lock the current draft path immediately
+        const lockedDraftPath = [...draftPath];
+
+        // Use centralized validation
+        const validationResult = validatePathCreation(lockedDraftPath, paths);
+
+        if (!validationResult.valid) {
+          console.warn(`Cannot create path: ${validationResult.reason}`);
+          return;
+        }
+
+        // If validation passes, batch updates
+        const { v4: uuidv4 } = await import("uuid");
+        const newPathId = uuidv4();
+        const lastHexInDraft = lockedDraftPath[lockedDraftPath.length - 1];
+
+        // BATCHED UPDATE: Single hex state update that handles both the lastHexInPath
+        // and the other path properties in one go
+        set(hexesAtom, (prevHexes) => {
+          // Create a new hexes array that includes all updates at once
+          return prevHexes.map((h) => {
+            // Handle the lastHexInPath flag
+            if (lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft)) {
+              return {
+                ...h,
+                isPathDraft: false,
+                isPath: true,
+                lastHexInPath: true, // This property was set separately before
+                pathId: newPathId,
+              };
+            }
+
+            // Handle other hexes in the path
+            if (lockedDraftPath.some((p) => areCoordinatesEqual(p, h))) {
+              return {
+                ...h,
+                isPathDraft: false,
+                isPath: true,
+                isPathSelected: false,
+                isBranch: false,
+                pathId: newPathId,
+              };
+            }
+
+            return h;
+          });
+        });
+
+        set(pathsAtom, (prevPaths) => [
+          ...prevPaths,
+          {
+            id: newPathId,
+            path: lockedDraftPath,
+            volume: 1,
+            solo: false,
+            bypass: false,
+          },
+        ]);
+
+        // Clear the path cache since we've added a new path
+        clearPathCache();
+
+        // Reset path creation mode
+        set(isPathCreationModeAtom, false);
+        setDraftPath([]);
+        set(guideStepAtom, 3);
+
+        return;
+      }
+
+      // Handle sample placement, removal, or replacement on existing path
+      if (selectedSample?.name && hex.isPath) {
+        if (guideStep === 4) {
+          set(guideStepAtom, 5);
+        }
+
+        // If hex already has the same sample, remove it
+        if (hex.sampleName === selectedSample.name) {
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+              sampleName: null,
+            })
+          );
+          return;
+        }
+
+        // Place the new sample (whether hex is empty or has a different sample)
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, (h) => areCoordinatesEqual(h, hex), {
+            sampleName: selectedSample.name,
+          })
+        );
+        // Don't deselect the sample to allow multiple placements
+        return;
+      }
+
+      // Handle effect branch creation (unchanged)
+      if (selectedEffect.name && hex.isEffectDraft) {
+        if (guideStep === 7) {
+          setGuideStep(8);
+        }
+
+        const effectDraftHexes = effectDraftPath;
+        const lastHexes = getPathEdges(paths, "last").filter(Boolean);
+        if (!lastHexes.length) return;
+
+        let minDistance = Infinity;
+        let nearestLastHex = null;
+        for (const lastHex of lastHexes) {
+          const distance = hexDistance(hex, lastHex);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestLastHex = lastHex;
+          }
+        }
+        const parentPath = paths.find((p) =>
+          areCoordinatesEqual(
+            p.path[p.path.length - 1],
+            nearestLastHex || { q: null, r: null }
+          )
+        );
+        if (!parentPath) return;
+
+        const parentPathId = parentPath.id;
+        const effectConfig = _.cloneDeep(
+          _.find(effectStore, (e) => e.name === selectedEffect.name)?.config ||
+            {}
+        );
+
+        const { v4: uuidv4 } = await import("uuid");
+        const newBranchId = uuidv4();
+
+        setBranches((prevBranches) => [
+          ...prevBranches,
+          {
+            id: newBranchId,
+            parentPathId,
+            effect: { type: selectedEffect.type, name: selectedEffect.name },
+            effectConfig,
+            branch: effectDraftHexes,
+          },
+        ]);
+
+        const lastHexInDraft = branchEdgeFromBranch(effectDraftHexes, "last");
+        set(hexesAtom, (prevHexes) =>
+          prevHexes.map((h) => {
+            const isMatch = effectDraftHexes.some(
+              (p) => areCoordinatesEqual(p, h) && !h.isPath
+            );
+            if (isMatch) {
+              return {
+                ...h,
+                isEffectDraft: false,
+                isBranch: true,
+                branchId: newBranchId,
+                effect:
+                  areCoordinatesEqual(hex, h) && selectedEffect.name
+                    ? { type: selectedEffect.type, name: selectedEffect.name }
+                    : { type: h.effect.type, name: h.effect.name },
+                lastHexInPath:
+                  lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
+              };
+            }
+            return h;
+          })
+        );
+
+        setSelectedEffect({ type: null, name: null });
+        setEffectDraftPath([]);
+        return;
+      }
+
+      // Handle path/branch selection (unchanged)
+      if (
+        !selectedSample?.name &&
+        !selectedEffect?.name &&
+        !isPathCreationMode
+      ) {
+        if (hex.isPath) {
+          // Select entire path
+          const selectedPathId = hex.pathId;
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, () => true, {
+              isPathSelected: false,
+              isBranchSelected: false,
+              isHexSelected: false,
+            })
+          );
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, (h) => h.pathId === selectedPathId, {
+              isPathSelected: true,
+            })
+          );
+
+          setIsOpen(true);
+        } else if (hex.isBranch && !hex.isPath) {
+          // Select the branch
+          const selectedBranchId = hex.branchId;
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, () => true, {
+              isBranchSelected: false,
+              isPathSelected: false,
+              isHexSelected: false,
+            })
+          );
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(
+              prevHexes,
+              (h) => h.branchId === selectedBranchId,
+              {
+                isBranchSelected: true,
+              }
+            )
+          );
+
+          setIsOpen(true);
+        } else {
+          // Deselect everything
+
+          set(hexesAtom, (prevHexes) =>
+            updateHexProperties(prevHexes, () => true, {
+              isPathSelected: false,
+              isBranchSelected: false,
+              isHexSelected: false,
+            })
+          );
+
+          setIsOpen(false);
+        }
+      } else {
+        set(hexesAtom, (prevHexes) =>
+          updateHexProperties(prevHexes, () => true, {
+            isPathSelected: false,
+            isBranchSelected: false,
+            isHexSelected: false,
+          })
+        );
+
+        setSelectedSample({ name: null });
+        setSelectedEffect({ type: null, name: null });
+      }
+    },
+    [
+      setBranches,
+      setDraftPath,
+      setEffectDraftPath,
+      setGuideStep,
+      setGuideVisibleAtom,
+      setIsOpen,
+      setSelectedEffect,
+      setSelectedSample,
+    ]
+  );
 
   // For UI states
   const anyBranchSelected = _.some(hexes, (h) => h.isBranchSelected);
   const anyPathSelected = _.some(hexes, (h) => h.isPathSelected);
-  const anyHexSelected = _.some(hexes, (h) => h.isHexSelected);
 
   // Debounced for performance
   const debouncedHandleHexMouseEnter = _.debounce(
@@ -746,14 +694,9 @@ const Grid = () => {
     15
   );
   const debouncedHandleHexMouseLeave = _.debounce(
-    (hex) => handleHexMouseLeave(hex),
+    () => handleHexMouseLeave(),
     15
   );
-
-  const isAdjacentToPathEnd = (hex) => {
-    const pathEnds = getPathEdges(paths, "last").filter(Boolean);
-    return pathEnds.some((end) => hexDistance(hex, end) === 1);
-  };
 
   // Determine the correct ref for each hex
   const getHexRef = (hex) => {
@@ -763,7 +706,7 @@ const Grid = () => {
       !hex.isPath &&
       !hex.isBranch &&
       selectedEffect?.type &&
-      isAdjacentToPathEnd(hex)
+      isAdjacentToPathEnd(hex, paths)
     ) {
       return effectDraftRef;
     }
@@ -786,21 +729,22 @@ const Grid = () => {
         } ${SVG_WIDTH} ${SVG_HEIGHT}`}
       >
         <g transform="translate(0,0)">
-          {_.map(hexes, (hex) => (
-            <Hex
-              key={`${hex.q},${hex.r}`}
-              hex={hex}
-              onClick={() => handleHexClick(hex)}
-              onMouseDown={() => handleHexMouseDown(hex)}
-              onMouseEnter={() => debouncedHandleHexMouseEnter(hex)}
-              onMouseLeave={() => debouncedHandleHexMouseLeave(hex)}
-              anyPathSelected={anyPathSelected}
-              anyBranchSelected={anyBranchSelected}
-              anyHexSelected={anyHexSelected}
-              isDragging={!!draggingSampleHex.current}
-              ref={getHexRef(hex)}
-            />
-          ))}
+          {_.map(hexes, (hex) => {
+            return (
+              <Hex
+                key={`${hex.q},${hex.r}`}
+                hex={hex}
+                onClick={() => handleHexClick(hex)}
+                onMouseDown={() => handleHexMouseDown(hex)}
+                onMouseEnter={() => debouncedHandleHexMouseEnter(hex)}
+                onMouseLeave={() => debouncedHandleHexMouseLeave()}
+                anyPathSelected={anyPathSelected}
+                anyBranchSelected={anyBranchSelected}
+                isAdjacentToPathEnd={isAdjacentToPathEnd(hex, paths)}
+                ref={getHexRef(hex)}
+              />
+            );
+          })}
         </g>
       </svg>
 
