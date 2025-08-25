@@ -3,7 +3,7 @@ import { atom } from "jotai";
 
 // Grid and Hex state
 export const hexesAtom = atom([]);
-export const hexGridSizeAtom = atom(11);
+export const hexGridSizeAtom = atom(9);
 export const isPathCreationModeAtom = atom(false);
 
 // Audio state
@@ -57,7 +57,7 @@ export const guideTargetRefsAtom = atom({
 // Constants
 export const SVG_WIDTH = 800;
 export const SVG_HEIGHT = 800;
-export const HEX_RADIUS = 18;
+export const HEX_RADIUS = 24;
 
 // Predefined ring hexes
 export const predefinedCenterRingHexes = [
