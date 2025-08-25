@@ -33,6 +33,7 @@ import {
   showLibraryAtom,
   isRecordingAtom,
   isRecordingArmedAtom,
+  effectRandomizationAtom,
 } from "./atomStore";
 
 // Import guide atoms
@@ -250,6 +251,11 @@ const ControlsContent = ({
   // Loading indicator for library
   const [libraryLoading, setLibraryLoading] = useAtom(libraryLoadingAtom);
 
+  // Effect randomization state
+  const [effectRandomization, setEffectRandomization] = useAtom(
+    effectRandomizationAtom
+  );
+
   // ------------------------------------------------
   // Lifecycle / Setup
   // ------------------------------------------------
@@ -360,6 +366,18 @@ const ControlsContent = ({
     setBranches(loadedState.branches);
     setUserSamples(reconstructedSamples);
 
+    // Load effect randomization state if present, otherwise use defaults
+    if (loadedState.effectRandomization) {
+      setEffectRandomization(loadedState.effectRandomization);
+    } else {
+      // Reset to defaults for backwards compatibility
+      setEffectRandomization({
+        Chaos: { enabled: false, min: 0, max: 1 },
+        Distortion: { enabled: false, min: 0, max: 1 },
+        PitchShift: { enabled: false, min: -12, max: 12 },
+      });
+    }
+
     // Clear selectedEffect
     setSelectedEffect({ type: null, name: null });
 
@@ -442,6 +460,7 @@ const ControlsContent = ({
       paths,
       branches,
       userSamples: userSamplesData,
+      effectRandomization,
     };
 
     const jsonString = JSON.stringify(stateToSave, null, 2);
@@ -1477,8 +1496,6 @@ ControlsContent.propTypes = {
 };
 
 const ControlsWrapper = React.memo(({ samplerRef, ...props }) => {
-  console.trace("ControlsWrapper rendering");
-
   const isMobile = window.innerWidth <= 768;
 
   const closeControlsRef = useRef(null);

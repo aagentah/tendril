@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import PropTypes from "prop-types";
 import { useAtom } from "jotai";
-import { hexesAtom } from "./atomStore";
+import { hexesAtom, effectRandomizationAtom } from "./atomStore";
 import { effectStore } from "./sampleStore";
 import _ from "lodash";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
+import { FaDice } from "react-icons/fa";
 
 // Simple vertical slider component for utilities and effects
 const SliderComponent = ({
@@ -15,7 +16,80 @@ const SliderComponent = ({
   position,
   isEffect = false,
 }) => {
-  const getSliderConfig = useCallback(() => {
+  const [effectRandomization, setEffectRandomization] = useAtom(
+    effectRandomizationAtom
+  );
+
+  // Check if this item supports randomization (only effects: Chaos, Distortion, PitchShift)
+  const supportsRandomization =
+    isEffect && ["Chaos", "Distortion", "PitchShift"].includes(item.name);
+  const randomizationSettings = supportsRandomization
+    ? effectRandomization[item.name]
+    : null;
+  const isRandomMode = randomizationSettings?.enabled || false;
+
+  // Toggle randomization mode
+  const toggleRandomization = useCallback(() => {
+    if (!supportsRandomization) return;
+
+    console.log(
+      `🎲 Toggling randomization for ${item.name}, current state:`,
+      effectRandomization[item.name]
+    );
+
+    setEffectRandomization((prev) => {
+      const newState = {
+        ...prev,
+        [item.name]: {
+          ...prev[item.name],
+          enabled: !prev[item.name].enabled,
+          // If enabling, set sensible defaults based on current value
+          min: !prev[item.name].enabled
+            ? Math.max(
+                item.name === "PitchShift" ? -12 : 0,
+                (currentValue || 0) - 0.2
+              )
+            : prev[item.name].min,
+          max: !prev[item.name].enabled
+            ? Math.min(
+                item.name === "PitchShift" ? 12 : 1,
+                (currentValue || 0) + 0.2
+              )
+            : prev[item.name].max,
+        },
+      };
+      console.log(
+        `🎲 New randomization state for ${item.name}:`,
+        newState[item.name]
+      );
+      return newState;
+    });
+  }, [
+    supportsRandomization,
+    item.name,
+    currentValue,
+    setEffectRandomization,
+    effectRandomization,
+  ]);
+
+  // Update randomization range
+  const updateRandomizationRange = useCallback(
+    (newRange) => {
+      if (!supportsRandomization || !isRandomMode) return;
+
+      setEffectRandomization((prev) => ({
+        ...prev,
+        [item.name]: {
+          ...prev[item.name],
+          min: newRange[0],
+          max: newRange[1],
+        },
+      }));
+    },
+    [supportsRandomization, isRandomMode, item.name, setEffectRandomization]
+  );
+
+  const getBaseSliderConfig = useCallback(() => {
     switch (item.name) {
       case "Offset":
         return {
@@ -87,8 +161,48 @@ const SliderComponent = ({
     }
   }, [item, currentValue]);
 
+  const getSliderConfig = useCallback(() => {
+    // For randomizable effects in random mode, return range configuration
+    if (isRandomMode && supportsRandomization) {
+      const baseConfig = getBaseSliderConfig();
+      return {
+        ...baseConfig,
+        value: [randomizationSettings.min, randomizationSettings.max],
+        range: true,
+      };
+    }
+
+    // Normal single-handle slider configuration
+    return getBaseSliderConfig();
+  }, [
+    item,
+    currentValue,
+    isRandomMode,
+    supportsRandomization,
+    randomizationSettings,
+    getBaseSliderConfig,
+  ]);
+
   const formatDisplayValue = useCallback(
     (value) => {
+      // Handle range values in random mode
+      if (isRandomMode && Array.isArray(value)) {
+        const [min, max] = value;
+        const formatSingle = (val) => {
+          switch (item.name) {
+            case "Chaos":
+            case "Distortion":
+              return `${Math.round(val * 100)}%`;
+            case "PitchShift":
+              return `${val >= 0 ? "+" : ""}${val.toFixed(1)}`;
+            default:
+              return val.toFixed(2);
+          }
+        };
+        return `${formatSingle(min)} ~ ${formatSingle(max)}`;
+      }
+
+      // Handle single values
       switch (item.name) {
         case "Speed": {
           const speedOptions = item.config.rate.options;
@@ -113,7 +227,7 @@ const SliderComponent = ({
           return value.toFixed(2);
       }
     },
-    [item]
+    [item, isRandomMode]
   );
 
   const convertSliderValueToUtilityValue = useCallback(
@@ -134,9 +248,15 @@ const SliderComponent = ({
   );
 
   const handleSliderChange = (value) => {
-    const sliderValue = parseFloat(value);
-    const utilityValue = convertSliderValueToUtilityValue(sliderValue);
-    onValueChange(utilityValue);
+    if (isRandomMode && Array.isArray(value)) {
+      // Handle range slider change for randomization
+      updateRandomizationRange(value);
+    } else {
+      // Handle single value slider change
+      const sliderValue = parseFloat(value);
+      const utilityValue = convertSliderValueToUtilityValue(sliderValue);
+      onValueChange(utilityValue);
+    }
   };
 
   const config = getSliderConfig();
@@ -175,32 +295,73 @@ const SliderComponent = ({
         width: "80px",
       }}
     >
+      {/* Dice button for randomizable effects */}
+      {supportsRandomization && (
+        <button
+          onClick={toggleRandomization}
+          className={`mb-1 p-1 rounded transition-colors duration-150 ${
+            isRandomMode
+              ? "bg-amber-500 text-white"
+              : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+          }`}
+          title={`Toggle randomization for ${item.name}`}
+        >
+          <FaDice size={10} />
+        </button>
+      )}
+
       {/* Vertical slider container */}
       <div className="relative mb-2 flex flex-col items-center">
         <div style={{ height: "64px", width: "12px" }}>
           <Slider
             vertical
+            range={config.range}
             min={config.min}
             max={config.max}
             step={config.step}
             value={config.value}
             onChange={handleSliderChange}
-            trackStyle={{
-              backgroundColor: sliderColor,
-              width: "12px",
-            }}
+            trackStyle={
+              config.range
+                ? [{ backgroundColor: sliderColor, width: "12px" }]
+                : {
+                    backgroundColor: sliderColor,
+                    width: "12px",
+                  }
+            }
             railStyle={{
               backgroundColor: "#404040",
               width: "12px",
             }}
-            handleStyle={{
-              borderColor: sliderColor,
-              backgroundColor: sliderColor,
-              width: "16px",
-              height: "16px",
-              marginLeft: "-2px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-            }}
+            handleStyle={
+              config.range
+                ? [
+                    {
+                      borderColor: sliderColor,
+                      backgroundColor: sliderColor,
+                      width: "16px",
+                      height: "16px",
+                      marginLeft: "-2px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                    },
+                    {
+                      borderColor: sliderColor,
+                      backgroundColor: sliderColor,
+                      width: "16px",
+                      height: "16px",
+                      marginLeft: "-2px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                    },
+                  ]
+                : {
+                    borderColor: sliderColor,
+                    backgroundColor: sliderColor,
+                    width: "16px",
+                    height: "16px",
+                    marginLeft: "-2px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                  }
+            }
             style={{
               height: "64px",
             }}
@@ -213,7 +374,9 @@ const SliderComponent = ({
       </div>
 
       <div className="text-xs text-gray-500 text-center">
-        {item.name === "Speed"
+        {isRandomMode && config.range
+          ? formatDisplayValue(config.value)
+          : item.name === "Speed"
           ? formatDisplayValue(
               item.config.rate.options.findIndex(
                 (opt) => parseFloat(opt.value) === parseFloat(currentValue || 1)

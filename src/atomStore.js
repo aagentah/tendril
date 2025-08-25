@@ -13,6 +13,13 @@ export const samplesPendingLoadAtom = atom(0);
 export const samplesLoadedAtom = atom(0);
 export const isLoadingSamplesAtom = atom(true);
 
+// Effect randomization state
+export const effectRandomizationAtom = atom({
+  Chaos: { enabled: false, min: 0, max: 1 },
+  Distortion: { enabled: false, min: 0, max: 1 },
+  PitchShift: { enabled: false, min: -12, max: 12 },
+});
+
 // Path and pattern state
 export const pathsAtom = atom([]); // [{ id, path: [{ q, r }, ...] }]
 export const branchesAtom = atom([]); // [{ id, parentPathId, effect, effectConfig, branch }]

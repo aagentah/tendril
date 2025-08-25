@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useAtom } from "jotai";
 import * as Tone from "tone";
 import _ from "lodash";
@@ -21,6 +21,7 @@ import {
   isLoadingSamplesAtom,
   draftPathAtom,
   effectDraftPathAtom,
+  effectRandomizationAtom,
   HEX_RADIUS,
   predefinedCenterRingHexes,
   predefinedOuterRing,
@@ -135,6 +136,9 @@ const App = () => {
   // Access user samples
   const [userSamples] = useAtom(userSamplesAtom);
 
+  // Access effect randomization settings
+  const [effectRandomization] = useAtom(effectRandomizationAtom);
+
   const samplerRef = useRef(null);
   const branchEffectNodesRef = useRef({});
   const pathEffectNodesRef = useRef({}); // For path-level effects like Chaos and Impala
@@ -146,6 +150,32 @@ const App = () => {
   const pathSpeedRatesRef = useRef({});
   const lastStartTimeRef = useRef({});
   const transportScheduleRef = useRef(null);
+  const effectRandomizationRef = useRef(effectRandomization);
+
+  // Helper function to get effect value (randomized or fixed)
+  const getEffectValue = (effectName, pathValue) => {
+    // Use ref to get the latest state in Transport callbacks
+    const randomSettings = effectRandomizationRef.current[effectName];
+    console.log(
+      `🔍 ${effectName}: randomSettings=`,
+      randomSettings,
+      `pathValue=${pathValue}`
+    );
+    if (randomSettings?.enabled) {
+      // When randomization is enabled, use the random range directly (ignore base path value)
+      const { min, max } = randomSettings;
+      const randomValue = min + Math.random() * (max - min);
+      console.log(
+        `✅ ${effectName} randomized: ${randomValue.toFixed(
+          3
+        )} (range: ${min} to ${max})`
+      );
+      return randomValue;
+    }
+    // When randomization is disabled, use the base path value
+    console.log(`❌ ${effectName} not randomized, using base: ${pathValue}`);
+    return pathValue;
+  };
 
   useEffect(() => {
     pathsRef.current = paths;
@@ -158,6 +188,10 @@ const App = () => {
   useEffect(() => {
     currentIndicesRef.current = currentIndices;
   }, [currentIndices]);
+
+  useEffect(() => {
+    effectRandomizationRef.current = effectRandomization;
+  }, [effectRandomization]);
 
   useEffect(() => {
     const initialHexes = createHexGrid(size);
@@ -334,7 +368,7 @@ const App = () => {
         // Create Distortion effect with initial zero distortion
         const distortion = new Tone.Distortion({
           distortion: 0,
-          wet: 0, // Start with no distortion effect
+          wet: 1, // Always full wet - we control the effect with distortion amount
         });
 
         // Create PitchShift effect with initial zero pitch shift
@@ -638,72 +672,109 @@ const App = () => {
 
                     // Apply random Chaos values if path effects exist
                     if (pathEffects && currentPath) {
-                      const chaosValue =
+                      // Get effect values (randomized or fixed based on settings)
+                      const baseChaosValue =
                         currentPath?.chaos !== undefined
                           ? currentPath.chaos
-                          : 1;
-
-                      // Always randomize delay time between 35ms and 75ms
-                      const minDelayMs = 50;
-                      const maxDelayMs = 125;
-                      const randomDelayMs =
-                        minDelayMs + Math.random() * (maxDelayMs - minDelayMs);
-                      const randomDelayTime = randomDelayMs / 1000;
-
-                      // Feedback is random between 0 and 0.75, scaled by chaos amount
-                      const randomFeedback = Math.random() * 0.75 * chaosValue;
-
-                      // Apply values to the delay effect
-                      pathEffects.chaosDelay.delayTime.value = randomDelayTime;
-                      pathEffects.chaosDelay.feedback.value = randomFeedback;
-                      pathEffects.chaosDelay.wet.value = 0.8 * chaosValue; // Wet scaled from 0 to 80% by chaos amount
-
-                      // Debug log
-                      console.log(
-                        `Chaos applied: delay=${randomDelayMs.toFixed(
-                          1
-                        )}ms, feedback=${(randomFeedback * 100).toFixed(
-                          1
-                        )}%, wet=${(chaosValue * 100).toFixed(0)}%`
-                      );
-
-                      // Apply Distortion effect
-                      const distortionValue =
+                          : 0;
+                      const baseDistortionValue =
                         currentPath?.distortion !== undefined
                           ? currentPath.distortion
                           : 0;
-
-                      // Apply distortion amount (0 to 1) directly to the distortion effect
-                      pathEffects.distortion.distortion = distortionValue;
-                      pathEffects.distortion.wet.value = distortionValue; // Wet amount matches distortion intensity
-
-                      // Apply PitchShift effect
-                      const pitchShiftValue =
+                      const basePitchShiftValue =
                         currentPath?.pitchShift !== undefined
                           ? currentPath.pitchShift
                           : 0;
 
-                      // Apply pitch shift amount (-12 to +12 semitones) directly to the pitch shift effect
+                      // Apply randomization if enabled
+                      const chaosValue = getEffectValue(
+                        "Chaos",
+                        baseChaosValue
+                      );
+                      const distortionValue = getEffectValue(
+                        "Distortion",
+                        baseDistortionValue
+                      );
+                      const pitchShiftValue = getEffectValue(
+                        "PitchShift",
+                        basePitchShiftValue
+                      );
+
+                      // Always randomize delay time between 50ms and 125ms when chaos > 0
+                      if (chaosValue > 0) {
+                        const minDelayMs = 50;
+                        const maxDelayMs = 125;
+                        const randomDelayMs =
+                          minDelayMs +
+                          Math.random() * (maxDelayMs - minDelayMs);
+                        const randomDelayTime = randomDelayMs / 1000;
+
+                        // Feedback is random between 0 and 0.75, scaled by chaos amount
+                        const randomFeedback =
+                          Math.random() * 0.75 * chaosValue;
+
+                        // Apply values to the delay effect
+                        pathEffects.chaosDelay.delayTime.value =
+                          randomDelayTime;
+                        pathEffects.chaosDelay.feedback.value = randomFeedback;
+                        pathEffects.chaosDelay.wet.value = 0.8 * chaosValue; // Wet scaled from 0 to 80% by chaos amount
+
+                        // Debug log
+                        const chaosRandomized =
+                          effectRandomization.Chaos?.enabled;
+                        console.log(
+                          `Chaos applied: delay=${randomDelayMs.toFixed(
+                            1
+                          )}ms, feedback=${(randomFeedback * 100).toFixed(
+                            1
+                          )}%, wet=${(chaosValue * 100).toFixed(0)}%${
+                            chaosRandomized ? " (chaos value randomized)" : ""
+                          }`
+                        );
+                      } else {
+                        // Disable chaos when value is 0
+                        pathEffects.chaosDelay.wet.value = 0;
+                      }
+
+                      // Apply Distortion effect
+                      if (distortionValue > 0.01) {
+                        pathEffects.distortion.distortion = distortionValue;
+                        pathEffects.distortion.wet.value = 1; // Full wet when active
+                      } else {
+                        pathEffects.distortion.distortion = 0;
+                        pathEffects.distortion.wet.value = 0; // Bypass when zero
+                      }
+
+                      // Apply PitchShift effect
                       pathEffects.pitchShift.pitch = pitchShiftValue;
                       pathEffects.pitchShift.wet.value =
-                        pitchShiftValue !== 0 ? 1 : 0; // Wet is 1 when pitch shift is active, 0 when disabled
+                        Math.abs(pitchShiftValue) > 0.01 ? 1 : 0; // Wet is 1 when pitch shift is active (> 0.01), 0 when disabled
 
                       // Apply post-effects volume and pan utilities
                       pathEffects.postVolume.gain.value = pathVolume;
                       pathEffects.postPanner.pan.value = normalizedPan;
 
-                      // Debug log
+                      // Debug log with randomization info
+                      const chaosRandomized =
+                        effectRandomization.Chaos?.enabled;
+                      const distortionRandomized =
+                        effectRandomization.Distortion?.enabled;
+                      const pitchShiftRandomized =
+                        effectRandomization.PitchShift?.enabled;
+
                       console.log(
                         `Distortion applied: amount=${(
                           distortionValue * 100
-                        ).toFixed(0)}%, wet=${(distortionValue * 100).toFixed(
-                          0
-                        )}%`
+                        ).toFixed(0)}%${
+                          distortionRandomized ? " (randomized)" : ""
+                        }, wet=${(distortionValue * 100).toFixed(0)}%`
                       );
                       console.log(
                         `PitchShift applied: pitch=${pitchShiftValue.toFixed(
                           1
-                        )} semitones, wet=${pitchShiftValue !== 0 ? 100 : 0}%`
+                        )} semitones${
+                          pitchShiftRandomized ? " (randomized)" : ""
+                        }, wet=${pitchShiftValue !== 0 ? 100 : 0}%`
                       );
                       console.log(
                         `Post-effects utilities: volume=${pathVolume.toFixed(
@@ -722,23 +793,17 @@ const App = () => {
                           const player =
                             branchNode.players[hexToUpdate.sampleName];
                           if (player && player.loaded) {
-                            // Set up audio routing: player -> path effects -> branch effects -> destination
-                            if (!player._pathConnected) {
-                              player.disconnect();
+                            // Always reconnect to ensure fresh routing with current effect values
+                            player.disconnect();
 
-                              // Route through path effects if available
-                              if (pathEffects) {
-                                player.connect(pathEffects.input);
-                                // Connect path effects output to branch effect
-                                pathEffects.output.disconnect();
-                                pathEffects.output.connect(
-                                  branchNode.effectNode
-                                );
-                              } else {
-                                player.connect(branchNode.effectNode);
-                              }
-
-                              player._pathConnected = true;
+                            // Route through path effects if available
+                            if (pathEffects) {
+                              player.connect(pathEffects.input);
+                              // Connect path effects output to branch effect
+                              pathEffects.output.disconnect();
+                              pathEffects.output.connect(branchNode.effectNode);
+                            } else {
+                              player.connect(branchNode.effectNode);
                             }
                             // Volume and pan now handled by post-effects nodes
                             player.mute = false;
@@ -754,18 +819,14 @@ const App = () => {
                     } else {
                       const player = samplerRef.current[hexToUpdate.sampleName];
                       if (player && player.loaded) {
-                        // Set up audio routing: player -> path effects -> destination
-                        if (!player._pathConnected) {
-                          player.disconnect();
+                        // Always reconnect to ensure fresh routing with current effect values
+                        player.disconnect();
 
-                          // Route through path effects if available
-                          if (pathEffects) {
-                            player.connect(pathEffects.input);
-                          } else {
-                            player.toDestination();
-                          }
-
-                          player._pathConnected = true;
+                        // Route through path effects if available
+                        if (pathEffects) {
+                          player.connect(pathEffects.input);
+                        } else {
+                          player.toDestination();
                         }
                         // Volume and pan now handled by post-effects nodes
                         player.mute = false;
