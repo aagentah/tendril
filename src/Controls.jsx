@@ -54,6 +54,9 @@ import {
   removeUserSample,
 } from "./sampleStore";
 
+// Import DialUtilities component
+import DialUtilities from "./DialUtilities";
+
 const MobileControlsPanel = ({
   children,
   onCloseRef,
@@ -537,32 +540,32 @@ const ControlsContent = ({
     );
   };
 
-  const deleteSelectedBranch = () => {
-    const selectedHex = hexes.find((hex) => hex.isBranchSelected);
-    if (!selectedHex) return;
+  // const deleteSelectedBranch = () => {
+  //   const selectedHex = hexes.find((hex) => hex.isBranchSelected);
+  //   if (!selectedHex) return;
 
-    const branchIdToRemove = selectedHex.branchId;
-    setBranches((prevBranches) =>
-      prevBranches.filter((branchObj) => branchObj.id !== branchIdToRemove)
-    );
+  //   const branchIdToRemove = selectedHex.branchId;
+  //   setBranches((prevBranches) =>
+  //     prevBranches.filter((branchObj) => branchObj.id !== branchIdToRemove)
+  //   );
 
-    setHexes((prevHexes) =>
-      updateHexProperties(
-        prevHexes,
-        (hex) => hex.branchId === branchIdToRemove,
-        {
-          isPathDraft: false,
-          isPath: false,
-          isValid: false,
-          effect: { type: null, name: null },
-          isHidden: false,
-          isBranchSelected: false,
-          isBranch: false,
-          branchId: null,
-        }
-      )
-    );
-  };
+  //   setHexes((prevHexes) =>
+  //     updateHexProperties(
+  //       prevHexes,
+  //       (hex) => hex.branchId === branchIdToRemove,
+  //       {
+  //         isPathDraft: false,
+  //         isPath: false,
+  //         isValid: false,
+  //         effect: { type: null, name: null },
+  //         isHidden: false,
+  //         isBranchSelected: false,
+  //         isBranch: false,
+  //         branchId: null,
+  //       }
+  //     )
+  //   );
+  // };
 
   const selectedBranchHex = hexes.find((hex) => hex.isBranchSelected);
   let selectedBranch = null;
@@ -927,54 +930,7 @@ const ControlsContent = ({
                   </div>
                 )}
               </div>
-              <div
-                className={`w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden transition-all" ${
-                  fadedEffects && "opacity-20"
-                }`}
-              >
-                <div className="bg-neutral-800 px-4 py-2">Effects</div>
-                <div className="p-4 space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {effectStore
-                      .filter((effect) => effect.type === "fx")
-                      .map((effect, i) => (
-                        <button
-                          key={effect.name}
-                          ref={i === 0 ? effectPanelRef : null}
-                          onClick={() => handleEffectClick(effect)}
-                          type="button"
-                          disabled={!paths.length}
-                          className={`px-2 py-1 text-xs border border-neutral-400 ${
-                            selectedEffect?.name === effect.name
-                              ? "bg-neutral-300 text-black"
-                              : "text-neutral-300"
-                          } ${!paths.length ? "opacity-50" : ""}`}
-                        >
-                          {effect.name}
-                        </button>
-                      ))}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {effectStore
-                      .filter((effect) => effect.type === "utility")
-                      .map((effect) => (
-                        <button
-                          key={effect.name}
-                          onClick={() => handleEffectClick(effect)}
-                          type="button"
-                          disabled={!paths.length}
-                          className={`px-2 py-1 text-xs border border-neutral-400 ${
-                            selectedEffect?.name === effect.name
-                              ? "bg-blue-800 text-white"
-                              : "text-blue-400"
-                          } ${!paths.length ? "opacity-50" : ""}`}
-                        >
-                          {effect.name}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </div>
+              {/* Effects section removed - utilities now managed via path config, FX effects no longer needed */}
             </div>
           ) : null}
           {(anyPathSelected ||
@@ -995,8 +951,6 @@ const ControlsContent = ({
                     currentPath?.volume !== undefined ? currentPath.volume : 1;
                   const pan =
                     currentPath?.pan !== undefined ? currentPath.pan : 0;
-                  const chaos =
-                    currentPath?.chaos !== undefined ? currentPath.chaos : 1;
 
                   return (
                     <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
@@ -1112,43 +1066,14 @@ const ControlsContent = ({
                           </span>
                         </div>
 
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            Chaos (Wet/Dry Mix)
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={chaos}
-                            onChange={(e) => {
-                              const newChaos = parseFloat(e.target.value);
-                              setPaths((prevPaths) => {
-                                const newPaths = [...prevPaths];
-                                const pathIndex = newPaths.findIndex(
-                                  (p) => p.id === pathId
-                                );
-                                if (pathIndex !== -1) {
-                                  newPaths[pathIndex] = {
-                                    ...newPaths[pathIndex],
-                                    chaos: newChaos,
-                                  };
-                                }
-                                return newPaths;
-                              });
-                            }}
-                            className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 slider-purple"
-                            style={{
-                              background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${
-                                chaos * 100
-                              }%, #404040 ${chaos * 100}%, #404040 100%)`,
-                            }}
-                          />
-                          <span className="text-white">
-                            {(chaos * 100).toFixed(0)}%
-                          </span>
-                        </div>
+                        {/* Utilities Section */}
+                        <DialUtilities
+                          pathId={pathId}
+                          paths={paths}
+                          setPaths={setPaths}
+                          branches={branches}
+                          setBranches={setBranches}
+                        />
 
                         <div className="border-b border-neutral-800 my-4" />
 
@@ -1193,21 +1118,52 @@ const ControlsContent = ({
                   <div className="w-full mt-4 border border-neutral-800 rounded-lg overflow-hidden">
                     <div className="bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-200 flex justify-between">
                       <span>Branch Config</span>
-                      <button
-                        onClick={() => {
-                          setHexes((prevHexes) =>
-                            updateHexProperties(prevHexes, () => true, {
-                              isPathSelected: false,
-                              isBranchSelected: false,
-                              isHexSelected: false,
-                            })
-                          );
-                          setIsOpen(false);
-                        }}
-                        className="text-neutral-400 hover:text-neutral-200"
-                      >
-                        Back
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => {
+                            // Go back to path config by selecting the parent path
+                            const parentPath = paths.find(
+                              (p) => p.id === selectedBranch.parentPathId
+                            );
+                            if (parentPath) {
+                              setHexes((prevHexes) =>
+                                updateHexProperties(prevHexes, () => true, {
+                                  isPathSelected: false,
+                                  isBranchSelected: false,
+                                  isHexSelected: false,
+                                })
+                              );
+                              // Select the parent path
+                              setHexes((prevHexes) =>
+                                updateHexProperties(
+                                  prevHexes,
+                                  (h) =>
+                                    h.pathId === selectedBranch.parentPathId,
+                                  { isPathSelected: true }
+                                )
+                              );
+                            }
+                          }}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          ← Path Config
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHexes((prevHexes) =>
+                              updateHexProperties(prevHexes, () => true, {
+                                isPathSelected: false,
+                                isBranchSelected: false,
+                                isHexSelected: false,
+                              })
+                            );
+                            setIsOpen(false);
+                          }}
+                          className="text-neutral-400 hover:text-neutral-200"
+                        >
+                          Close
+                        </button>
+                      </div>
                     </div>
                     <div className="p-4">
                       <p className="text-sm mb-4 text-white">
@@ -1275,6 +1231,10 @@ const ControlsContent = ({
                                     step={effectParam.step || 0.01}
                                     value={param.value}
                                     onChange={(e) => {
+                                      const newValue = parseFloat(
+                                        e.target.value
+                                      );
+
                                       setBranches((prevBranches) =>
                                         prevBranches.map((branch) => {
                                           if (branch.id === selectedBranch.id) {
@@ -1284,9 +1244,7 @@ const ControlsContent = ({
                                                 ...branch.effectConfig,
                                                 [paramName]: {
                                                   ...param,
-                                                  value: parseFloat(
-                                                    e.target.value
-                                                  ),
+                                                  value: newValue,
                                                 },
                                               },
                                             };
@@ -1294,6 +1252,69 @@ const ControlsContent = ({
                                           return branch;
                                         })
                                       );
+
+                                      // Special handling for core path features
+                                      if (
+                                        selectedBranch.effect.name ===
+                                          "Chaos" &&
+                                        paramName === "amount"
+                                      ) {
+                                        // Sync with path chaos property
+                                        setPaths((prevPaths) => {
+                                          const newPaths = [...prevPaths];
+                                          const pathIndex = newPaths.findIndex(
+                                            (p) =>
+                                              p.id ===
+                                              selectedBranch.parentPathId
+                                          );
+                                          if (pathIndex !== -1) {
+                                            newPaths[pathIndex] = {
+                                              ...newPaths[pathIndex],
+                                              chaos: newValue,
+                                            };
+                                          }
+                                          return newPaths;
+                                        });
+
+                                        // If chaos is set to 0, keep the utility branch for configuration but mark chaos as disabled
+                                        if (newValue === 0) {
+                                          // Keep utility branch so user can stay in configuration view
+                                          // The chaos hex will show as disabled because path.chaos = 0
+                                          // But the configuration interface remains accessible
+                                          // No navigation changes - stay exactly where we are
+                                          // This allows the user to continue adjusting the slider or see it at 0
+                                        }
+                                      } else if (
+                                        selectedBranch.effect.name ===
+                                          "Probability" &&
+                                        paramName === "chance"
+                                      ) {
+                                        // Sync with path probability property
+                                        setPaths((prevPaths) => {
+                                          const newPaths = [...prevPaths];
+                                          const pathIndex = newPaths.findIndex(
+                                            (p) =>
+                                              p.id ===
+                                              selectedBranch.parentPathId
+                                          );
+                                          if (pathIndex !== -1) {
+                                            newPaths[pathIndex] = {
+                                              ...newPaths[pathIndex],
+                                              probability: newValue,
+                                            };
+                                          }
+                                          return newPaths;
+                                        });
+
+                                        // If probability is set to 0, keep the utility branch for configuration but mark probability as disabled
+                                        if (newValue === 0) {
+                                          // Keep utility branch so user can stay in configuration view
+                                          // The probability hex will show as disabled because path.probability = 0
+                                          // But the configuration interface remains accessible
+                                          // No navigation changes - stay exactly where we are
+                                          // This allows the user to continue adjusting the slider or see it at 0
+                                        }
+                                      }
                                     }}
                                   />
                                   <span className="ml-2 text-sm text-white">
@@ -1338,12 +1359,12 @@ const ControlsContent = ({
                           }
                         )}
                       </div>
-                      <span
+                      {/* <span
                         onClick={deleteSelectedBranch}
                         className="text-red-600 mt-4 cursor-pointer"
                       >
                         Delete Branch
-                      </span>
+                      </span> */}
                     </div>
                   </div>
                 )}

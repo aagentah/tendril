@@ -26,7 +26,7 @@ const NUM_LAYERS_PATH = 5; // Number of lines per path
 const NUM_LAYERS_BRANCH = 3; // Number of lines per branch
 const NOISE_INCREMENT = 0.01; // Controls the speed of the noise animation
 const NOISE_FACTOR_PATH = 5.5; // Base distortion factor path
-const NOISE_FACTOR_BRANCH = 8; // Base distortion factor branch
+// NOISE_FACTOR_BRANCH removed since branch rendering is disabled
 
 const P5Overlay = () => {
   const containerRef = useRef(null);
@@ -190,15 +190,8 @@ const P5Overlay = () => {
           NUM_LAYERS_PATH
         );
 
-        // Draw the branches in white
-        drawLayeredPaths(
-          currentBranches,
-          branchesNoiseData,
-          () => [255, 255, 255, 200], // White color for branches
-          true,
-          NOISE_FACTOR_BRANCH,
-          NUM_LAYERS_BRANCH
-        );
+        // Branch visual rendering disabled - utilities managed via path config
+        // (keeping branch data intact for functionality)
 
         // Handle White Ball Animation
         const playingHexes = _.filter(currentHexes, (hex) => hex.isPlaying);

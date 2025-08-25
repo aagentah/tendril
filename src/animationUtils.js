@@ -58,19 +58,21 @@ export const getHexStyling = (hex, state) => {
     styling.fillColor = "#171717";
   }
 
-  if (isPath || isBranch) {
+  if (isPath) {
     styling.strokeOpacity = 1;
+  }
+
+  // Make branch hexes invisible but keep them functional
+  if (isBranch && !isPath) {
+    styling.fillColor = "transparent";
+    styling.strokeOpacity = 0;
+    styling.finalFillOpacity = 0;
   }
 
   // Effect placement visualization
   if (!isPath && !isBranch && selectedEffect?.type && isAdjacentToPathEnd) {
     if (selectedEffect.type === "fx") {
       styling.fillColor = "grey";
-      styling.strokeWidth = 2;
-      styling.strokeOpacity = 1;
-      styling.cursor = "cursor-pointer";
-    } else if (selectedEffect.type === "utility") {
-      styling.fillColor = "#172AA0";
       styling.strokeWidth = 2;
       styling.strokeOpacity = 1;
       styling.cursor = "cursor-pointer";
@@ -88,9 +90,6 @@ export const getHexStyling = (hex, state) => {
     styling.strokeWidth = 4;
     styling.strokeColor = "#666666";
   }
-  if (isBranchSelected) {
-    styling.fillColor = "#172AA0";
-  }
 
   // Endpoint styling
   if (!isPathSelected && isPath && lastHexInPath) {
@@ -99,10 +98,6 @@ export const getHexStyling = (hex, state) => {
   }
   if (effect.type === "fx" && isBranch && lastHexInPath) {
     styling.strokeColor = "grey";
-    styling.strokeWidth = 1;
-  }
-  if (effect.type === "utility" && isBranch && lastHexInPath) {
-    styling.strokeColor = "#172AA0";
     styling.strokeWidth = 1;
   }
 
@@ -121,15 +116,6 @@ export const getHexStyling = (hex, state) => {
     isAdjacentToPathEnd
   ) {
     finalFillColor = "grey"; // Static grey for FX
-  }
-  // If a utility can be placed here
-  else if (
-    selectedEffect?.type === "utility" &&
-    !isPath &&
-    !isBranch &&
-    isAdjacentToPathEnd
-  ) {
-    finalFillColor = "#172AA0"; // Static blue for utility
   }
 
   // Path Creation Mode Visualization

@@ -1,7 +1,7 @@
 // audioService.js - Centralized audio functionality
 import * as Tone from "tone";
 
-// Utility handlers for audio manipulation
+// Audio manipulation handlers for utilities and effects
 export const utilityHandlers = {
   Offset: (context, config) => {
     const { amount } = config;
@@ -14,6 +14,30 @@ export const utilityHandlers = {
     const speedRate = parseFloat(rate.value);
     context.duration = context.duration ? context.duration / speedRate : null;
     context.speedRate = speedRate;
+    return context;
+  },
+  Probability: (context, config) => {
+    const { chance } = config;
+    const probabilityChance = parseFloat(chance.value);
+    // Probability affects whether the sample triggers at all
+    // Generate random number and compare against probability threshold
+    const randomValue = Math.random();
+    if (randomValue > probabilityChance) {
+      // Skip this trigger - mark context as cancelled
+      context.cancelled = true;
+    }
+    return context;
+  },
+};
+
+// Audio effect handlers for path-level effects
+export const effectHandlers = {
+  Chaos: (context, config) => {
+    const { amount } = config;
+    const chaosAmount = parseFloat(amount.value);
+    // Chaos affects timing randomization - this is handled at path level
+    // We store the chaos amount for use in timing calculations
+    context.chaosAmount = chaosAmount;
     return context;
   },
 };

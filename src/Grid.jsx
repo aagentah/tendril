@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import _ from "lodash";
@@ -20,6 +20,7 @@ import {
   predefinedOuterRing,
   SVG_WIDTH,
   SVG_HEIGHT,
+  HEX_RADIUS,
   branchesAtom,
 } from "./atomStore";
 
@@ -37,6 +38,7 @@ import {
   isHexInExistingPath,
   isAdjacentToPathEnd,
   validatePathCreation,
+  axialToPixel,
 } from "./hexUtils";
 
 // Import the Hex component
@@ -54,29 +56,32 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
   const [hasShownOnce, setHasShownOnce] = useState(false);
 
   // Convert SVG coordinates to screen coordinates
-  const convertToScreenCoords = (x, y) => {
-    if (!svgRef.current) return { x: 0, y: 0 };
+  const convertToScreenCoords = useCallback(
+    (x, y) => {
+      if (!svgRef.current) return { x: 0, y: 0 };
 
-    // Create SVG point
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = x;
-    pt.y = y;
+      // Create SVG point
+      const pt = svgRef.current.createSVGPoint();
+      pt.x = x;
+      pt.y = y;
 
-    // Get current transformation matrix and include viewport scale
-    const ctm = svgRef.current.getScreenCTM();
-    if (!ctm) return { x: 0, y: 0 };
+      // Get current transformation matrix and include viewport scale
+      const ctm = svgRef.current.getScreenCTM();
+      if (!ctm) return { x: 0, y: 0 };
 
-    // Get current scroll position
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
+      // Get current scroll position
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
 
-    // Transform point and adjust for scroll
-    const transformed = pt.matrixTransform(ctm);
-    return {
-      x: transformed.x + scrollX,
-      y: transformed.y + scrollY,
-    };
-  };
+      // Transform point and adjust for scroll
+      const transformed = pt.matrixTransform(ctm);
+      return {
+        x: transformed.x + scrollX,
+        y: transformed.y + scrollY,
+      };
+    },
+    [svgRef]
+  );
 
   // Add this useEffect in your Grid component to clear the path cache when needed
   useEffect(() => {
@@ -131,7 +136,7 @@ const PlacementTooltip = ({ svgRef, paths, selectedSample, hexes }) => {
         setVisible(false);
       }
     }
-  }, [paths, selectedSample, hasShownOnce, hexes]);
+  }, [paths, selectedSample, hasShownOnce, hexes, convertToScreenCoords]);
 
   if (!visible) return null;
 
@@ -172,7 +177,7 @@ const Grid = () => {
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
   const [, setIsPathCreationMode] = useAtom(isPathCreationModeAtom);
   const [, setGuideVisibleAtom] = useAtom(guideVisibleAtom);
-  const [, setBranches] = useAtom(branchesAtom);
+  const [branches, setBranches] = useAtom(branchesAtom);
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
@@ -486,6 +491,7 @@ const Grid = () => {
             volume: 1,
             pan: 0,
             chaos: 1,
+            probability: 1,
             solo: false,
             bypass: false,
           },
@@ -585,12 +591,9 @@ const Grid = () => {
               return {
                 ...h,
                 isEffectDraft: false,
-                isBranch: true,
+                // Don't set isBranch to avoid visual rendering
                 branchId: newBranchId,
-                effect:
-                  areCoordinatesEqual(hex, h) && selectedEffect.name
-                    ? { type: selectedEffect.type, name: selectedEffect.name }
-                    : { type: h.effect.type, name: h.effect.name },
+                // Don't set effect to avoid showing effect letters on hex
                 lastHexInPath:
                   lastHexInDraft && areCoordinatesEqual(h, lastHexInDraft),
               };
@@ -627,7 +630,7 @@ const Grid = () => {
           );
 
           setIsOpen(true);
-        } else if (hex.isBranch && !hex.isPath) {
+        } else if (hex.branchId && !hex.isPath) {
           // Select the branch
           const selectedBranchId = hex.branchId;
           set(hexesAtom, (prevHexes) =>
@@ -687,7 +690,6 @@ const Grid = () => {
   );
 
   // For UI states
-  const anyBranchSelected = _.some(hexes, (h) => h.isBranchSelected);
   const anyPathSelected = _.some(hexes, (h) => h.isPathSelected);
 
   // Debounced for performance
@@ -741,7 +743,7 @@ const Grid = () => {
                 onMouseEnter={() => debouncedHandleHexMouseEnter(hex)}
                 onMouseLeave={() => debouncedHandleHexMouseLeave()}
                 anyPathSelected={anyPathSelected}
-                anyBranchSelected={anyBranchSelected}
+                anyBranchSelected={false}
                 isAdjacentToPathEnd={isAdjacentToPathEnd(hex, paths)}
                 ref={getHexRef(hex)}
               />

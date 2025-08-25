@@ -258,7 +258,18 @@ const App = () => {
 
         if (branch.effect.type === "utility") {
           effectNode = new Tone.Gain().toDestination();
+        } else if (branch.effect.type === "effect") {
+          switch (branch.effect.name) {
+            case "Chaos":
+              // Chaos is handled at path level, so just use a gain node for the branch
+              effectNode = new Tone.Gain().toDestination();
+              break;
+            default:
+              effectNode = new Tone.Gain().toDestination();
+              break;
+          }
         } else {
+          // Traditional FX effects (for legacy support)
           switch (branch.effect.name) {
             case "Reverb":
               effectNode = new Tone.Reverb(effectConfig).toDestination();
@@ -539,6 +550,18 @@ const App = () => {
 
                 if (hexToUpdate?.sampleName) {
                   try {
+                    // Check probability gate at path level
+                    const pathProbability =
+                      pathObj?.probability !== undefined
+                        ? pathObj.probability
+                        : 1;
+                    const randomValue = Math.random();
+
+                    // Skip this trigger if probability check fails
+                    if (randomValue > pathProbability) {
+                      return; // Exit this path iteration, don't trigger this sample
+                    }
+
                     // ...existing code...
                     const stepsRemaining = path.length - currentIndex;
                     const scheduledTime = Math.max(

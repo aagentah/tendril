@@ -57,8 +57,9 @@ export const sampleStore = [
   { name: "808C Harmonic Beauty", url: harmonicBeauty },
 ];
 
-// Effect store - Now focused on utility effects only
+// Effect store - Contains both utilities and effects
 export const effectStore = [
+  // Utilities - timing and playback manipulation
   {
     type: "utility",
     name: "Offset",
@@ -79,6 +80,21 @@ export const effectStore = [
           { value: "1", label: "Normal" },
         ],
       },
+    },
+  },
+  {
+    type: "utility",
+    name: "Probability",
+    config: {
+      chance: { value: 1, default: 1, min: 0, max: 1, step: 0.01 },
+    },
+  },
+  // Effects - audio processing and manipulation
+  {
+    type: "effect",
+    name: "Chaos",
+    config: {
+      amount: { value: 0, default: 0, min: 0, max: 1, step: 0.01 },
     },
   },
 ];
