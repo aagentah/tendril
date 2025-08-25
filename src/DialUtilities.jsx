@@ -104,7 +104,7 @@ const SliderComponent = ({
         return {
           min: item.config.amount.min,
           max: item.config.amount.max,
-          step: 0.01,
+          step: item.config.amount.step,
           value: currentValue || 0,
         };
       case "Speed":
@@ -222,6 +222,13 @@ const SliderComponent = ({
           return "Normal";
         }
         case "Offset":
+          // Display step fractions with meaningful labels
+          if (value === 0) return "No Delay";
+          if (value === 0.25) return "¼ Step";
+          if (value === 0.5) return "½ Step";
+          if (value === 0.75) return "¾ Step";
+          if (value === 1) return "1 Step";
+          return `${value} Step`;
         case "Chaos":
         case "Distortion":
         case "Probability":

@@ -5,8 +5,24 @@ import * as Tone from "tone";
 export const utilityHandlers = {
   Offset: (context, config) => {
     const { amount } = config;
-    const delay = Tone.Time(`${amount.value} * 8n`).toSeconds();
+    // Direct mapping: higher slider values = longer delays
+    // 0 = no delay, 0.25 = ¼ step delay, 0.5 = ½ step delay, 0.75 = ¾ step delay, 1 = full step delay
+    const stepFraction = amount.value;
+    if (stepFraction === 0) {
+      return context; // No delay
+    }
+
+    // Calculate delay as a fraction of one step (8n)
+    const oneStepDuration = Tone.Time("8n").toSeconds();
+    const delay = stepFraction * oneStepDuration;
+    const originalTime = context.triggerTime;
     context.triggerTime += delay;
+
+    // Debug logging
+    console.log(
+      `Offset Debug: BPM=${Tone.Transport.bpm.value}, oneStep=${oneStepDuration}s, slider=${stepFraction}, delay=${delay}s, originalTime=${originalTime}, newTime=${context.triggerTime}`
+    );
+
     return context;
   },
   Speed: (context, config) => {
