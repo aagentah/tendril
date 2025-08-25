@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import * as Tone from "tone";
 import _ from "lodash";
@@ -19,8 +19,6 @@ import {
   loadingProgressAtom,
   isPathCreationModeAtom,
   isLoadingSamplesAtom,
-  draftPathAtom,
-  effectDraftPathAtom,
   HEX_RADIUS,
   predefinedCenterRingHexes,
   predefinedOuterRing,
@@ -35,10 +33,10 @@ import {
 } from "./hexUtils";
 
 // Import audio service functions
-import { triggerSampleWithValidation, utilityHandlers } from "./audioService";
+import { utilityHandlers } from "./audioService";
 
 // Import sample store
-import { sampleStore, effectStore } from "./sampleStore";
+import { sampleStore } from "./sampleStore";
 
 // Components
 import P5Overlay from "./P5Overlay";
@@ -120,9 +118,9 @@ const createHexGrid = (size) => {
 //    App
 // --------------
 const App = () => {
-  const [hexes, setHexes] = useAtom(hexesAtom);
+  const [, setHexes] = useAtom(hexesAtom);
   const [size] = useAtom(hexGridSizeAtom);
-  const [isAudioPlaying, setIsAudioPlaying] = useAtom(isAudioPlayingAtom);
+  const [isAudioPlaying] = useAtom(isAudioPlayingAtom);
   const [paths] = useAtom(pathsAtom);
   const [branches] = useAtom(branchesAtom);
   const [currentIndices, setCurrentIndices] = useAtom(currentIndicesAtom);
@@ -167,25 +165,15 @@ const App = () => {
     const propertyName = propertyNameMap[effectName];
     const baseValue = path?.[propertyName] || 0;
 
-    console.log(
-      `🔍 ${effectName}: randomSettings=`,
-      randomSettings,
-      `baseValue=${baseValue}`
-    );
-
     if (randomSettings?.enabled) {
       // When randomization is enabled, use the random range
       const { min, max } = randomSettings;
       const randomValue = min + Math.random() * (max - min);
-      console.log(
-        `✅ ${effectName} randomized: ${randomValue.toFixed(
-          3
-        )} (range: ${min} to ${max})`
-      );
+
       return randomValue;
     }
     // When randomization is disabled, use the base path value
-    console.log(`❌ ${effectName} not randomized, using base: ${baseValue}`);
+
     return baseValue;
   };
 
@@ -296,8 +284,6 @@ const App = () => {
           (param) => param.value
         );
 
-        console.log("effectConfig", effectConfig);
-
         if (branch.effect.type === "utility") {
           // Utilities are handled at branch level
           effectNode = new Tone.Gain().toDestination();
@@ -336,13 +322,18 @@ const App = () => {
         };
       } else {
         // Update any changed configs
+
         const { effectNode } = branchEffectNodesRef.current[branch.id];
         const effectConfig = _.mapValues(
           branch.effectConfig,
           (param) => param.value
         );
         if (effectNode && typeof effectNode.set === "function") {
-          effectNode.set(effectConfig);
+          try {
+            effectNode.set(effectConfig);
+          } catch (error) {
+            console.error("Error updating branch config:", error);
+          }
         }
       }
     });
@@ -417,6 +408,7 @@ const App = () => {
           postPanner,
           output: pathGain,
         };
+      } else {
       }
     });
 
@@ -425,12 +417,16 @@ const App = () => {
       if (!paths.find((p) => p.id === pathId)) {
         const pathEffects = pathEffectNodesRef.current[pathId];
         if (pathEffects) {
-          pathEffects.output.dispose();
-          pathEffects.chaosDelay.dispose();
-          pathEffects.distortion.dispose();
-          pathEffects.postVolume.dispose();
-          pathEffects.postPanner.dispose();
-          delete pathEffectNodesRef.current[pathId];
+          try {
+            pathEffects.output.dispose();
+            pathEffects.chaosDelay.dispose();
+            pathEffects.distortion.dispose();
+            pathEffects.postVolume.dispose();
+            pathEffects.postPanner.dispose();
+            delete pathEffectNodesRef.current[pathId];
+          } catch (error) {
+            console.error("Error cleaning up path effects:", error);
+          }
         }
       }
     });
@@ -462,10 +458,6 @@ const App = () => {
 
       // Calculate a safe duration
       const safeDuration = Math.max(duration || 0.25, 0.1);
-
-      console.log(
-        `Playing sample ${sampleName} at time ${finalStartTime} for duration ${safeDuration}s`
-      );
 
       // Start the player with the calculated safe times
       player.start(finalStartTime, 0, safeDuration);
@@ -584,9 +576,19 @@ const App = () => {
                   }
                 }
 
-                // (line ~388)
-                const currentHex = path[currentIndex];
+                // FIX: Only trigger samples when crossing whole number indices
+                const safeIndex = Math.floor(currentIndex);
+                const currentHex = path[safeIndex];
                 if (!currentHex) return;
+
+                // Check if we should trigger this step
+                // For fractional indices (slow speeds), only trigger when we're at or very close to a whole number
+                const isWholeNumberIndex =
+                  Math.abs(currentIndex - Math.round(currentIndex)) < 0.01;
+
+                if (!isWholeNumberIndex) {
+                  return; // Skip fractional indices
+                }
 
                 const hexToUpdate = _.find(updatedHexes, (h) =>
                   areCoordinatesEqual(h, currentHex)
@@ -683,9 +685,6 @@ const App = () => {
                       currentPath?.pan !== undefined ? currentPath.pan : 0;
                     const normalizedPan = panValue / 12;
 
-                    console.log("currentPath.pan", currentPath.pan);
-                    console.log("normalizedPan", normalizedPan);
-
                     // Get path effects node for this path
                     const pathEffects = pathEffectNodesRef.current[pathId];
 
@@ -729,42 +728,63 @@ const App = () => {
                         const randomFeedback =
                           Math.random() * 0.75 * chaosValue;
 
-                        // Apply values to the delay effect
-                        pathEffects.chaosDelay.delayTime.value =
-                          randomDelayTime;
-                        pathEffects.chaosDelay.feedback.value = randomFeedback;
-                        pathEffects.chaosDelay.wet.value = 0.8 * chaosValue; // Wet scaled from 0 to 80% by chaos amount
+                        const wetValue = 0.8 * chaosValue;
 
-                        // Debug log
-                        const chaosRandomized =
-                          currentPath?.chaosRandomization?.enabled;
-                        console.log(
-                          `Chaos applied: delay=${randomDelayMs.toFixed(
-                            1
-                          )}ms, feedback=${(randomFeedback * 100).toFixed(
-                            1
-                          )}%, wet=${(chaosValue * 100).toFixed(0)}%${
-                            chaosRandomized ? " (chaos value randomized)" : ""
-                          }`
-                        );
+                        // Apply values to the delay effect
+                        try {
+                          pathEffects.chaosDelay.delayTime.value =
+                            randomDelayTime;
+                          pathEffects.chaosDelay.feedback.value =
+                            randomFeedback;
+                          pathEffects.chaosDelay.wet.value = wetValue; // Wet scaled from 0 to 80% by chaos amount
+                        } catch (error) {
+                          console.error("Error setting chaos effect:", error);
+                        }
                       } else {
                         // Disable chaos when value is 0
-                        pathEffects.chaosDelay.wet.value = 0;
+                        try {
+                          pathEffects.chaosDelay.wet.value = 0;
+                        } catch (error) {
+                          console.error("Error disabling chaos effect:", error);
+                        }
                       }
 
                       // Apply Distortion effect
                       if (distortionValue > 0.01) {
-                        pathEffects.distortion.distortion = distortionValue;
-                        pathEffects.distortion.wet.value = 1; // Full wet when active
+                        try {
+                          pathEffects.distortion.distortion = distortionValue;
+                          pathEffects.distortion.wet.value = 1; // Full wet when active
+                        } catch (error) {
+                          console.error(
+                            "Error setting distortion effect:",
+                            error
+                          );
+                        }
                       } else {
-                        pathEffects.distortion.distortion = 0;
-                        pathEffects.distortion.wet.value = 0; // Bypass when zero
+                        try {
+                          pathEffects.distortion.distortion = 0;
+                          pathEffects.distortion.wet.value = 0; // Bypass when zero
+                        } catch (error) {
+                          console.error(
+                            "Error disabling distortion effect:",
+                            error
+                          );
+                        }
                       }
 
                       // Apply PitchShift effect
-                      pathEffects.pitchShift.pitch = pitchShiftValue;
-                      pathEffects.pitchShift.wet.value =
-                        Math.abs(pitchShiftValue) > 0.01 ? 1 : 0; // Wet is 1 when pitch shift is active (> 0.01), 0 when disabled
+                      const pitchShiftWet =
+                        Math.abs(pitchShiftValue) > 0.01 ? 1 : 0;
+
+                      try {
+                        pathEffects.pitchShift.pitch = pitchShiftValue;
+                        pathEffects.pitchShift.wet.value = pitchShiftWet; // Wet is 1 when pitch shift is active (> 0.01), 0 when disabled
+                      } catch (error) {
+                        console.error(
+                          "Error setting pitch shift effect:",
+                          error
+                        );
+                      }
 
                       // Apply EQ effect
                       if (currentPath?.eq) {
@@ -774,12 +794,6 @@ const App = () => {
                         pathEffects.eq.low.value = lowGain;
                         pathEffects.eq.mid.value = midGain;
                         pathEffects.eq.high.value = highGain;
-
-                        console.log(
-                          `EQ applied: gains=[${lowGain.toFixed(
-                            1
-                          )}, ${midGain.toFixed(1)}, ${highGain.toFixed(1)}]dB`
-                        );
                       } else {
                         // Reset to neutral when no EQ settings
                         pathEffects.eq.low.value = 0;
@@ -788,36 +802,12 @@ const App = () => {
                       }
 
                       // Apply post-effects volume and pan utilities
-                      pathEffects.postVolume.gain.value = pathVolume;
-                      pathEffects.postPanner.pan.value = normalizedPan;
-
-                      // Debug log with randomization info
-                      const chaosRandomized =
-                        currentPath?.chaosRandomization?.enabled;
-                      const distortionRandomized =
-                        currentPath?.distortionRandomization?.enabled;
-                      const pitchShiftRandomized =
-                        currentPath?.pitchShiftRandomization?.enabled;
-
-                      console.log(
-                        `Distortion applied: amount=${(
-                          distortionValue * 100
-                        ).toFixed(0)}%${
-                          distortionRandomized ? " (randomized)" : ""
-                        }, wet=${(distortionValue * 100).toFixed(0)}%`
-                      );
-                      console.log(
-                        `PitchShift applied: pitch=${pitchShiftValue.toFixed(
-                          1
-                        )} semitones${
-                          pitchShiftRandomized ? " (randomized)" : ""
-                        }, wet=${pitchShiftValue !== 0 ? 100 : 0}%`
-                      );
-                      console.log(
-                        `Post-effects utilities: volume=${pathVolume.toFixed(
-                          2
-                        )}, pan=${normalizedPan.toFixed(2)}`
-                      );
+                      try {
+                        pathEffects.postVolume.gain.value = pathVolume;
+                        pathEffects.postPanner.pan.value = normalizedPan;
+                      } catch (error) {
+                        console.error("Error setting post-effects:", error);
+                      }
                     }
                     // ...existing code for audio routing, etc...
 
@@ -844,6 +834,7 @@ const App = () => {
                             }
                             // Volume and pan now handled by post-effects nodes
                             player.mute = false;
+
                             triggerSampleWithValidation(
                               branchNode.players,
                               hexToUpdate.sampleName,
@@ -867,6 +858,7 @@ const App = () => {
                         }
                         // Volume and pan now handled by post-effects nodes
                         player.mute = false;
+
                         triggerSampleWithValidation(
                           samplerRef.current,
                           hexToUpdate.sampleName,
@@ -892,14 +884,30 @@ const App = () => {
             });
 
             // Update indices with speed rate consideration
+
             pathsToUse.forEach((pathObj) => {
               const { id: pathId, path } = pathObj;
               if (path?.length > 0) {
                 const speedRate = pathSpeedRatesRef.current[pathId] || 1;
                 const currentIndex = currentIndices[pathId] ?? 0;
-                const effectiveSpeedRate = Math.min(speedRate, path.length);
-                currentIndices[pathId] =
-                  (currentIndex + effectiveSpeedRate) % path.length;
+
+                // FIX: Handle fractional speed rates properly
+                // For speeds < 1, we need to accumulate fractional progress
+                let newIndex;
+                if (speedRate < 1) {
+                  // For slow speeds, add the fractional amount and only advance when we reach 1.0
+                  const fractionalProgress = currentIndex + speedRate;
+                  newIndex = fractionalProgress % path.length;
+                } else {
+                  // For normal speeds, use integer advancement
+                  const flooredCurrentIndex = Math.floor(currentIndex);
+                  const effectiveSpeedRate = Math.min(speedRate, path.length);
+                  newIndex =
+                    (flooredCurrentIndex + Math.floor(effectiveSpeedRate)) %
+                    path.length;
+                }
+
+                currentIndices[pathId] = newIndex;
               } else {
                 currentIndices[pathId] = 0;
               }
@@ -992,7 +1000,6 @@ const App = () => {
 
   // // In App.jsx, replace the sample loading useEffect
   useEffect(() => {
-    console.log("Starting sample initialization");
     const players = {};
     const allSamples = [...sampleStore, ...userSamples];
     let loadedCount = 0;
@@ -1003,8 +1010,6 @@ const App = () => {
 
     // Load each sample synchronously like in the original version
     allSamples.forEach((sample) => {
-      console.log(`Creating player for sample: ${sample.name}`);
-
       const player = new Tone.Player({
         url: sample.url,
         fadeOut: 0.01,
@@ -1012,13 +1017,10 @@ const App = () => {
         curve: "linear",
         onload: () => {
           loadedCount += 1;
-          console.log(
-            `Loaded sample ${sample.name} (${loadedCount}/${totalCount})`
-          );
+
           setLoadingProgress({ loaded: loadedCount, total: totalCount });
 
           if (loadedCount === totalCount) {
-            console.log("All samples loaded successfully");
             setIsLoadingSamples(false);
           }
         },

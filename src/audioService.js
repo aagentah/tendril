@@ -15,13 +15,7 @@ export const utilityHandlers = {
     // Calculate delay as a fraction of one step (8n)
     const oneStepDuration = Tone.Time("8n").toSeconds();
     const delay = stepFraction * oneStepDuration;
-    const originalTime = context.triggerTime;
     context.triggerTime += delay;
-
-    // Debug logging
-    console.log(
-      `Offset Debug: BPM=${Tone.Transport.bpm.value}, oneStep=${oneStepDuration}s, slider=${stepFraction}, delay=${delay}s, originalTime=${originalTime}, newTime=${context.triggerTime}`
-    );
 
     return context;
   },

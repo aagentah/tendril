@@ -184,9 +184,6 @@ export async function addUserSample(sample) {
       note: sample.note,
     });
 
-    console.log(
-      `Successfully added user sample ${sample.name} with note ${sample.note}`
-    );
     await tx.done;
   } catch (error) {
     console.error(`Error adding user sample ${sample.name}:`, error);

@@ -675,11 +675,8 @@ const ControlsContent = ({
     }
 
     if (selectedSample?.name === sample.name) {
-      console.log("Deselecting sample");
       setSelectedSample({ name: null });
     } else {
-      console.log("Selecting sample");
-
       if (sample.url) {
         await previewSample(sample.url, sample.name);
       }
@@ -692,17 +689,13 @@ const ControlsContent = ({
   };
 
   const handleEffectClick = (effect) => {
-    console.log("Effect clicked:", effect.name);
-
     if (guideStep === 6) {
       setGuideStep(7);
     }
 
     if (selectedEffect?.name === effect.name) {
-      console.log("Deselecting effect");
       setSelectedEffect({ type: null, name: null });
     } else {
-      console.log("Selecting effect");
       setSelectedEffect({
         type: effect.type,
         name: effect.name,

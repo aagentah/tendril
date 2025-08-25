@@ -38,11 +38,6 @@ const SliderComponent = ({
   const toggleRandomization = useCallback(() => {
     if (!supportsRandomization || !onRandomizationChange) return;
 
-    console.log(
-      `🎲 Toggling randomization for ${item.name}, current state:`,
-      randomizationSettings
-    );
-
     const currentEnabled = randomizationSettings?.enabled || false;
     const newRandomizationSettings = {
       enabled: !currentEnabled,
@@ -60,11 +55,6 @@ const SliderComponent = ({
           )
         : randomizationSettings?.max || (item.name === "PitchShift" ? 12 : 1),
     };
-
-    console.log(
-      `🎲 New randomization state for ${item.name}:`,
-      newRandomizationSettings
-    );
 
     onRandomizationChange(item.name, newRandomizationSettings);
   }, [
@@ -184,8 +174,6 @@ const SliderComponent = ({
     // Normal single-handle slider configuration
     return getBaseSliderConfig();
   }, [
-    item,
-    currentValue,
     isRandomMode,
     supportsRandomization,
     randomizationSettings,
@@ -900,6 +888,7 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
         effectConfig[configKey].value = newValue;
 
         if (!currentPath || !currentPath.path) return;
+
         const lastHex = currentPath.path[currentPath.path.length - 1];
 
         setBranches((prevBranches) => [
