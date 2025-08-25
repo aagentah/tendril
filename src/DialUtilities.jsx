@@ -414,6 +414,153 @@ SliderComponent.propTypes = {
   onRandomizationChange: PropTypes.func,
 };
 
+// Horizontal EQ component for frequency ranges and gain controls
+const EQComponent = ({ currentPath, onEQChange }) => {
+  const eqSettings = currentPath?.eq || {
+    lowGain: 0,
+    midGain: 0,
+    highGain: 0,
+  };
+
+  const handleGainChange = (band, value) => {
+    onEQChange({
+      ...eqSettings,
+      [`${band}Gain`]: value,
+    });
+  };
+
+  return (
+    <div className="mt-4">
+      <label className="block text-sm font-medium text-white mb-4">EQ</label>
+
+      {/* Gain Controls */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Low Gain */}
+        <div className="text-center">
+          <div className="text-xs text-gray-300 mb-2">Low</div>
+          <div
+            style={{
+              height: "80px",
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <div style={{ height: "80px", width: "16px" }}>
+              <Slider
+                vertical
+                min={-24}
+                max={6}
+                step={0.5}
+                value={eqSettings.lowGain}
+                onChange={(value) => handleGainChange("low", value)}
+                trackStyle={{ backgroundColor: "#10B981", width: "16px" }}
+                railStyle={{ backgroundColor: "#404040", width: "16px" }}
+                handleStyle={{
+                  borderColor: "#10B981",
+                  backgroundColor: "#10B981",
+                  width: "20px",
+                  height: "20px",
+                  marginLeft: "-2px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+                style={{ height: "80px" }}
+              />
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {eqSettings.lowGain >= 0 ? "+" : ""}
+            {eqSettings.lowGain.toFixed(1)}dB
+          </div>
+        </div>
+
+        {/* Mid Gain */}
+        <div className="text-center">
+          <div className="text-xs text-gray-300 mb-2">Mid</div>
+          <div
+            style={{
+              height: "80px",
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <div style={{ height: "80px", width: "16px" }}>
+              <Slider
+                vertical
+                min={-24}
+                max={6}
+                step={0.5}
+                value={eqSettings.midGain}
+                onChange={(value) => handleGainChange("mid", value)}
+                trackStyle={{ backgroundColor: "#10B981", width: "16px" }}
+                railStyle={{ backgroundColor: "#404040", width: "16px" }}
+                handleStyle={{
+                  borderColor: "#10B981",
+                  backgroundColor: "#10B981",
+                  width: "20px",
+                  height: "20px",
+                  marginLeft: "-2px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+                style={{ height: "80px" }}
+              />
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {eqSettings.midGain >= 0 ? "+" : ""}
+            {eqSettings.midGain.toFixed(1)}dB
+          </div>
+        </div>
+
+        {/* High Gain */}
+        <div className="text-center">
+          <div className="text-xs text-gray-300 mb-2">High</div>
+          <div
+            style={{
+              height: "80px",
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <div style={{ height: "80px", width: "16px" }}>
+              <Slider
+                vertical
+                min={-24}
+                max={6}
+                step={0.5}
+                value={eqSettings.highGain}
+                onChange={(value) => handleGainChange("high", value)}
+                trackStyle={{ backgroundColor: "#10B981", width: "16px" }}
+                railStyle={{ backgroundColor: "#404040", width: "16px" }}
+                handleStyle={{
+                  borderColor: "#10B981",
+                  backgroundColor: "#10B981",
+                  width: "20px",
+                  height: "20px",
+                  marginLeft: "-2px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+                style={{ height: "80px" }}
+              />
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {eqSettings.highGain >= 0 ? "+" : ""}
+            {eqSettings.highGain.toFixed(1)}dB
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+EQComponent.propTypes = {
+  currentPath: PropTypes.object,
+  onEQChange: PropTypes.func.isRequired,
+};
+
 const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
   const [, setHexes] = useAtom(hexesAtom);
   const pathUtilities = branches.filter(
@@ -445,6 +592,24 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
           newPaths[pathIndex] = {
             ...newPaths[pathIndex],
             [randomizationKey]: randomizationSettings,
+          };
+        }
+        return newPaths;
+      });
+    },
+    [pathId, setPaths]
+  );
+
+  // Handle EQ changes
+  const handleEQChange = useCallback(
+    (newEQSettings) => {
+      setPaths((prevPaths) => {
+        const newPaths = [...prevPaths];
+        const pathIndex = newPaths.findIndex((p) => p.id === pathId);
+        if (pathIndex !== -1) {
+          newPaths[pathIndex] = {
+            ...newPaths[pathIndex],
+            eq: newEQSettings,
           };
         }
         return newPaths;
@@ -790,19 +955,24 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
         Effects
       </label>
       <div className="relative" style={{ height: "120px", width: "270px" }}>
-        {availableEffects.map((item, index) => (
-          <SliderComponent
-            key={item.name}
-            item={item}
-            currentValue={getCurrentValue(item)}
-            onValueChange={(value) => handleValueChange(item, value)}
-            position={index}
-            isEffect={true}
-            currentPath={currentPath}
-            onRandomizationChange={handleRandomizationChange}
-          />
-        ))}
+        {availableEffects
+          .filter((effect) => effect.name !== "EQ")
+          .map((item, index) => (
+            <SliderComponent
+              key={item.name}
+              item={item}
+              currentValue={getCurrentValue(item)}
+              onValueChange={(value) => handleValueChange(item, value)}
+              position={index}
+              isEffect={true}
+              currentPath={currentPath}
+              onRandomizationChange={handleRandomizationChange}
+            />
+          ))}
       </div>
+
+      {/* EQ Section */}
+      <EQComponent currentPath={currentPath} onEQChange={handleEQChange} />
     </div>
   );
 };

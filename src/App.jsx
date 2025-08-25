@@ -385,15 +385,25 @@ const App = () => {
           wet: 0, // Start with no pitch shift effect
         });
 
+        // Create EQ3 effect with neutral settings and fixed frequency bands
+        const eq = new Tone.EQ3({
+          low: 0,
+          mid: 0,
+          high: 0,
+          lowFrequency: 400, // Fixed low-mid crossover at 400Hz
+          highFrequency: 2500, // Fixed mid-high crossover at 2.5kHz
+        });
+
         // Create post-effects utility nodes
         const postVolume = new Tone.Gain(path.volume ?? 1);
         const postPanner = new Tone.Panner((path.pan ?? 0) / 12);
         const pathGain = new Tone.Gain(1).toDestination();
 
-        // Chain the complete signal: input (chaosDelay) -> distortion -> pitchShift -> postVolume -> postPanner -> pathGain -> destination
+        // Chain the complete signal: input (chaosDelay) -> distortion -> pitchShift -> eq -> postVolume -> postPanner -> pathGain -> destination
         chaosDelay.connect(distortion);
         distortion.connect(pitchShift);
-        pitchShift.connect(postVolume);
+        pitchShift.connect(eq);
+        eq.connect(postVolume);
         postVolume.connect(postPanner);
         postPanner.connect(pathGain);
 
@@ -402,6 +412,7 @@ const App = () => {
           chaosDelay,
           distortion,
           pitchShift,
+          eq,
           postVolume,
           postPanner,
           output: pathGain,
@@ -754,6 +765,27 @@ const App = () => {
                       pathEffects.pitchShift.pitch = pitchShiftValue;
                       pathEffects.pitchShift.wet.value =
                         Math.abs(pitchShiftValue) > 0.01 ? 1 : 0; // Wet is 1 when pitch shift is active (> 0.01), 0 when disabled
+
+                      // Apply EQ effect
+                      if (currentPath?.eq) {
+                        const { lowGain, midGain, highGain } = currentPath.eq;
+
+                        // Update gains (Tone.js EQ3 expects dB values directly)
+                        pathEffects.eq.low.value = lowGain;
+                        pathEffects.eq.mid.value = midGain;
+                        pathEffects.eq.high.value = highGain;
+
+                        console.log(
+                          `EQ applied: gains=[${lowGain.toFixed(
+                            1
+                          )}, ${midGain.toFixed(1)}, ${highGain.toFixed(1)}]dB`
+                        );
+                      } else {
+                        // Reset to neutral when no EQ settings
+                        pathEffects.eq.low.value = 0;
+                        pathEffects.eq.mid.value = 0;
+                        pathEffects.eq.high.value = 0;
+                      }
 
                       // Apply post-effects volume and pan utilities
                       pathEffects.postVolume.gain.value = pathVolume;

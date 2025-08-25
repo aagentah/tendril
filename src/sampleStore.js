@@ -125,6 +125,15 @@ export const effectStore = [
       pitch: { value: 0, default: 0, min: -12, max: 12, step: 0.1 },
     },
   },
+  {
+    type: "effect",
+    name: "EQ",
+    config: {
+      lowGain: { value: 0, default: 0, min: -30, max: 6, step: 0.5 },
+      midGain: { value: 0, default: 0, min: -30, max: 6, step: 0.5 },
+      highGain: { value: 0, default: 0, min: -30, max: 6, step: 0.5 },
+    },
+  },
 ];
 
 // -----------------
