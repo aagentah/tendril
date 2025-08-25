@@ -469,16 +469,9 @@ export const clearPathCache = () => {
  * @param {Array} paths - All existing paths
  * @returns {Array} - Array of hexes that are considered reserved
  */
-export const getReservedHexes = (hexes, paths) => {
-  // Get all path end hexes
-  const existingPathEnds = paths
-    .map((path) => path.path[path.path.length - 1])
-    .filter(Boolean);
-
-  // Find all hexes adjacent to path ends - these should be treated as reserved
-  return _.flatMap(existingPathEnds, (endHex) =>
-    hexes.filter((h) => hexDistance(h, endHex) === 1)
-  );
+export const getReservedHexes = () => {
+  // No longer reserve hexes adjacent to path ends
+  return [];
 };
 
 /**
@@ -499,9 +492,9 @@ export const isHexInExistingPath = (hex, paths) => {
  * @param {Array} paths - All existing paths
  * @returns {boolean} - True if hex is adjacent to any path endpoint
  */
-export const isAdjacentToPathEnd = (hex, paths) => {
-  const pathEnds = getPathEdges(paths, "last").filter(Boolean);
-  return pathEnds.some((end) => hexDistance(hex, end) === 1);
+export const isAdjacentToPathEnd = () => {
+  // No longer restrict adjacency to path ends
+  return false;
 };
 
 /**
@@ -518,35 +511,18 @@ export const validatePathCreation = (draftPath, paths) => {
   // Get the last hex of the locked draft path
   const lastHexInDraft = draftPath[draftPath.length - 1];
 
-  // Get all existing path hexes and their end points
+  // Get all existing path hexes
   const existingPathHexes = paths.flatMap((path) => path.path);
-  const existingEndPoints = getPathEdges(paths, "last");
 
-  // Get adjacent positions for the draft path's end hex
-  const draftEndAdjacents = getAdjacentPositions(lastHexInDraft);
-
-  // Check for overlapping adjacents with existing path endpoints
-  const hasOverlappingAdjacents = existingEndPoints.some((endPoint) => {
-    if (!endPoint) return false;
-    const endPointAdjacents = getAdjacentPositions(endPoint);
-
-    return draftEndAdjacents.some((draftAdj) =>
-      endPointAdjacents.some(
-        (existingAdj) =>
-          existingAdj.q === draftAdj.q && existingAdj.r === draftAdj.r
-      )
-    );
-  });
-
-  // Check if the last hex would be adjacent to existing path hexes
-  const wouldBeAdjacentToPath = existingPathHexes.some(
-    (pathHex) => hexDistance(lastHexInDraft, pathHex) === 1
+  // Only check for direct overlap (not adjacency)
+  const isOverlap = existingPathHexes.some((pathHex) =>
+    areCoordinatesEqual(pathHex, lastHexInDraft)
   );
 
-  if (wouldBeAdjacentToPath || hasOverlappingAdjacents) {
+  if (isOverlap) {
     return {
       valid: false,
-      reason: "Invalid end hex position - too close to existing paths",
+      reason: "End hex overlaps with existing path",
     };
   }
 

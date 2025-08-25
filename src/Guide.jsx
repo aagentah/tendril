@@ -50,7 +50,7 @@ const Guide = () => {
 
   useEffect(() => {
     // When guide reaches the last step, mark it as completed
-    if (currentStep === 8) {
+    if (currentStep === 6) {
       Cookies.set(GUIDE_COOKIE_NAME, "true", { expires: COOKIE_EXPIRY_DAYS });
     }
   }, [currentStep]);
@@ -93,21 +93,7 @@ const Guide = () => {
       useTopLeft: isMobile ? false : true,
     },
     6: {
-      text: "6: Click an effect to add",
-      getTarget: (targetRefs) => targetRefs.effectPanel,
-      xOffset: isMobile ? 0 : -200,
-      yOffset: isMobile ? -75 : 75,
-      useTopLeft: isMobile ? false : true,
-    },
-    7: {
-      text: "7: Place effect on any neighbouring hex",
-      getTarget: (targetRefs) => targetRefs.effectDraft,
-      xOffset: 0,
-      yOffset: -75,
-      useTopLeft: isMobile ? false : false,
-    },
-    8: {
-      text: "8: That's the basics. Create more paths and have fun.",
+      text: "6: That's the basics. Create more paths and have fun.",
       getTarget: (targetRefs) => targetRefs.mainHex,
       xOffset: 0,
       yOffset: 75,

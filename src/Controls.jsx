@@ -118,7 +118,7 @@ const MobileControlsPanel = ({
               </button>
 
               <button
-                ref={guideStep === 3 ? samplePanelRef : effectPanelRef}
+                ref={guideStep === 3 ? samplePanelRef : null}
                 onClick={() => setIsOpen(true)}
                 className={`px-6 py-2 border border-neutral-400 text-white rounded shadow-lg ${
                   !paths.length ? "opacity-50 cursor-not-allowed" : ""
@@ -689,9 +689,6 @@ const ControlsContent = ({
   };
 
   const handleEffectClick = (effect) => {
-    if (guideStep === 6) {
-      setGuideStep(7);
-    }
 
     if (selectedEffect?.name === effect.name) {
       setSelectedEffect({ type: null, name: null });
@@ -801,8 +798,7 @@ const ControlsContent = ({
     (guideStep === 1 ||
       guideStep === 2 ||
       guideStep === 4 ||
-      guideStep === 5 ||
-      guideStep === 6);
+      guideStep === 5);
 
   const fadedEffects =
     guideVisible &&
@@ -818,7 +814,7 @@ const ControlsContent = ({
       guideStep === 2 ||
       guideStep === 3 ||
       guideStep === 4 ||
-      guideStep === 6);
+      guideStep === 5);
 
   return (
     <div

@@ -20,8 +20,8 @@ import {
   predefinedOuterRing,
   SVG_WIDTH,
   SVG_HEIGHT,
-  HEX_RADIUS,
-  branchesAtom,
+  // HEX_RADIUS,
+  // branchesAtom,
 } from "./atomStore";
 
 // Import utility functions
@@ -38,14 +38,14 @@ import {
   isHexInExistingPath,
   isAdjacentToPathEnd,
   validatePathCreation,
-  axialToPixel,
+  // axialToPixel,
 } from "./hexUtils";
 
 // Import the Hex component
 import Hex from "./Hex";
 
 // Import the effectStore from sampleStore instead of App.jsx
-import { effectStore } from "./sampleStore";
+// import { effectStore } from "./sampleStore";
 
 /* ----------------------------------------
    NEW COMPONENT for showing your tooltip 
@@ -177,7 +177,7 @@ const Grid = () => {
   const [guideStep, setGuideStep] = useAtom(guideStepAtom);
   const [, setIsPathCreationMode] = useAtom(isPathCreationModeAtom);
   const [, setGuideVisibleAtom] = useAtom(guideVisibleAtom);
-  const [branches, setBranches] = useAtom(branchesAtom);
+  // const [branches, setBranches] = useAtom(branchesAtom);
 
   const svgRef = useRef(null);
   const draggingSampleHex = useRef(null); // NEW: Ref to store dragging sample hex
@@ -248,16 +248,16 @@ const Grid = () => {
     const paths = get(pathsAtom);
 
     // Using centralized utility functions for path management
-    const reservedHexes = getReservedHexes(hexes, paths);
+  const reservedHexes = getReservedHexes();
     const hexInPath = isHexInExistingPath(hex, paths);
     const hexReserved = reservedHexes.some((reservedHex) =>
       areCoordinatesEqual(reservedHex, hex)
     );
-    const adjacentToEnd = isAdjacentToPathEnd(hex, paths);
+  // No longer restrict adjacency to path ends
 
     if (isPathCreationMode && !hex.isPath) {
-      // Skip path drafting if hex is already in a path, reserved, or too close to an endpoint
-      if (hexInPath || hexReserved || adjacentToEnd) {
+      // Skip path drafting if hex is already in a path or reserved
+      if (hexInPath || hexReserved) {
         return;
       }
 
@@ -536,9 +536,6 @@ const Grid = () => {
 
       // Handle effect branch creation (unchanged)
       if (selectedEffect.name && hex.isEffectDraft) {
-        if (guideStep === 7) {
-          setGuideStep(8);
-        }
 
         const effectDraftHexes = effectDraftPath;
         const lastHexes = getPathEdges(paths, "last").filter(Boolean);
@@ -561,25 +558,12 @@ const Grid = () => {
         );
         if (!parentPath) return;
 
-        const parentPathId = parentPath.id;
-        const effectConfig = _.cloneDeep(
-          _.find(effectStore, (e) => e.name === selectedEffect.name)?.config ||
-            {}
-        );
+  // parentPathId and effectConfig removed (unused)
 
         const { v4: uuidv4 } = await import("uuid");
         const newBranchId = uuidv4();
 
-        setBranches((prevBranches) => [
-          ...prevBranches,
-          {
-            id: newBranchId,
-            parentPathId,
-            effect: { type: selectedEffect.type, name: selectedEffect.name },
-            effectConfig,
-            branch: effectDraftHexes,
-          },
-        ]);
+  // setBranches logic removed (branchesAtom is commented out)
 
         const lastHexInDraft = branchEdgeFromBranch(effectDraftHexes, "last");
         set(hexesAtom, (prevHexes) =>
@@ -678,7 +662,6 @@ const Grid = () => {
       }
     },
     [
-      setBranches,
       setDraftPath,
       setEffectDraftPath,
       setGuideStep,
