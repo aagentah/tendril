@@ -149,10 +149,23 @@ const App = () => {
 
   // Helper function to get effect value (randomized or fixed)
   const getEffectValue = (effectName, path) => {
-    // Get randomization settings from the path itself
-    const randomizationKey = `${effectName.toLowerCase()}Randomization`;
+    // Map effect names to their correct randomization property names
+    const randomizationKeyMap = {
+      Chaos: "chaosRandomization",
+      Distortion: "distortionRandomization",
+      PitchShift: "pitchShiftRandomization",
+    };
+    const randomizationKey = randomizationKeyMap[effectName];
     const randomSettings = path?.[randomizationKey];
-    const baseValue = path?.[effectName.toLowerCase()] || 0;
+
+    // Map effect names to their correct property names on the path
+    const propertyNameMap = {
+      Chaos: "chaos",
+      Distortion: "distortion",
+      PitchShift: "pitchShift",
+    };
+    const propertyName = propertyNameMap[effectName];
+    const baseValue = path?.[propertyName] || 0;
 
     console.log(
       `🔍 ${effectName}: randomSettings=`,

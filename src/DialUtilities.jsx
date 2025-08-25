@@ -21,7 +21,14 @@ const SliderComponent = ({
   // Check if this item supports randomization (only effects: Chaos, Distortion, PitchShift)
   const supportsRandomization =
     isEffect && ["Chaos", "Distortion", "PitchShift"].includes(item.name);
-  const randomizationKey = `${item.name.toLowerCase()}Randomization`;
+
+  // Map effect names to their correct randomization property names
+  const randomizationKeyMap = {
+    Chaos: "chaosRandomization",
+    Distortion: "distortionRandomization",
+    PitchShift: "pitchShiftRandomization",
+  };
+  const randomizationKey = randomizationKeyMap[item.name];
   const randomizationSettings = supportsRandomization
     ? currentPath?.[randomizationKey]
     : null;
@@ -416,7 +423,14 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
   // Handle randomization changes
   const handleRandomizationChange = useCallback(
     (effectName, randomizationSettings) => {
-      const randomizationKey = `${effectName.toLowerCase()}Randomization`;
+      // Map effect names to their correct randomization property names
+      const randomizationKeyMap = {
+        Chaos: "chaosRandomization",
+        Distortion: "distortionRandomization",
+        PitchShift: "pitchShiftRandomization",
+      };
+      const randomizationKey = randomizationKeyMap[effectName];
+
       setPaths((prevPaths) => {
         const newPaths = [...prevPaths];
         const pathIndex = newPaths.findIndex((p) => p.id === pathId);
