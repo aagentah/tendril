@@ -13,12 +13,8 @@ export const samplesPendingLoadAtom = atom(0);
 export const samplesLoadedAtom = atom(0);
 export const isLoadingSamplesAtom = atom(true);
 
-// Effect randomization state
-export const effectRandomizationAtom = atom({
-  Chaos: { enabled: false, min: 0, max: 1 },
-  Distortion: { enabled: false, min: 0, max: 1 },
-  PitchShift: { enabled: false, min: -12, max: 12 },
-});
+// Effect randomization state is now stored per-path in path objects
+// No global randomization atom needed
 
 // Path and pattern state
 export const pathsAtom = atom([]); // [{ id, path: [{ q, r }, ...] }]

@@ -21,7 +21,6 @@ import {
   isLoadingSamplesAtom,
   draftPathAtom,
   effectDraftPathAtom,
-  effectRandomizationAtom,
   HEX_RADIUS,
   predefinedCenterRingHexes,
   predefinedOuterRing,
@@ -136,9 +135,6 @@ const App = () => {
   // Access user samples
   const [userSamples] = useAtom(userSamplesAtom);
 
-  // Access effect randomization settings
-  const [effectRandomization] = useAtom(effectRandomizationAtom);
-
   const samplerRef = useRef(null);
   const branchEffectNodesRef = useRef({});
   const pathEffectNodesRef = useRef({}); // For path-level effects like Chaos and Impala
@@ -150,19 +146,22 @@ const App = () => {
   const pathSpeedRatesRef = useRef({});
   const lastStartTimeRef = useRef({});
   const transportScheduleRef = useRef(null);
-  const effectRandomizationRef = useRef(effectRandomization);
 
   // Helper function to get effect value (randomized or fixed)
-  const getEffectValue = (effectName, pathValue) => {
-    // Use ref to get the latest state in Transport callbacks
-    const randomSettings = effectRandomizationRef.current[effectName];
+  const getEffectValue = (effectName, path) => {
+    // Get randomization settings from the path itself
+    const randomizationKey = `${effectName.toLowerCase()}Randomization`;
+    const randomSettings = path?.[randomizationKey];
+    const baseValue = path?.[effectName.toLowerCase()] || 0;
+
     console.log(
       `🔍 ${effectName}: randomSettings=`,
       randomSettings,
-      `pathValue=${pathValue}`
+      `baseValue=${baseValue}`
     );
+
     if (randomSettings?.enabled) {
-      // When randomization is enabled, use the random range directly (ignore base path value)
+      // When randomization is enabled, use the random range
       const { min, max } = randomSettings;
       const randomValue = min + Math.random() * (max - min);
       console.log(
@@ -173,8 +172,8 @@ const App = () => {
       return randomValue;
     }
     // When randomization is disabled, use the base path value
-    console.log(`❌ ${effectName} not randomized, using base: ${pathValue}`);
-    return pathValue;
+    console.log(`❌ ${effectName} not randomized, using base: ${baseValue}`);
+    return baseValue;
   };
 
   useEffect(() => {
@@ -188,10 +187,6 @@ const App = () => {
   useEffect(() => {
     currentIndicesRef.current = currentIndices;
   }, [currentIndices]);
-
-  useEffect(() => {
-    effectRandomizationRef.current = effectRandomization;
-  }, [effectRandomization]);
 
   useEffect(() => {
     const initialHexes = createHexGrid(size);
@@ -687,17 +682,14 @@ const App = () => {
                           : 0;
 
                       // Apply randomization if enabled
-                      const chaosValue = getEffectValue(
-                        "Chaos",
-                        baseChaosValue
-                      );
+                      const chaosValue = getEffectValue("Chaos", currentPath);
                       const distortionValue = getEffectValue(
                         "Distortion",
-                        baseDistortionValue
+                        currentPath
                       );
                       const pitchShiftValue = getEffectValue(
                         "PitchShift",
-                        basePitchShiftValue
+                        currentPath
                       );
 
                       // Always randomize delay time between 50ms and 125ms when chaos > 0
@@ -721,7 +713,7 @@ const App = () => {
 
                         // Debug log
                         const chaosRandomized =
-                          effectRandomization.Chaos?.enabled;
+                          currentPath?.chaosRandomization?.enabled;
                         console.log(
                           `Chaos applied: delay=${randomDelayMs.toFixed(
                             1
@@ -756,11 +748,11 @@ const App = () => {
 
                       // Debug log with randomization info
                       const chaosRandomized =
-                        effectRandomization.Chaos?.enabled;
+                        currentPath?.chaosRandomization?.enabled;
                       const distortionRandomized =
-                        effectRandomization.Distortion?.enabled;
+                        currentPath?.distortionRandomization?.enabled;
                       const pitchShiftRandomized =
-                        effectRandomization.PitchShift?.enabled;
+                        currentPath?.pitchShiftRandomization?.enabled;
 
                       console.log(
                         `Distortion applied: amount=${(

@@ -37,7 +37,7 @@ export const getHexStyling = (hex, state) => {
   let styling = {
     fillColor: "transparent",
     strokeColor: "#666666",
-    strokeOpacity: 0.2,
+    strokeOpacity: 1,
     strokeWidth: 0.5,
     cursor: "cursor-default",
     fontSize: 12,

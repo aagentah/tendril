@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import PropTypes from "prop-types";
 import { useAtom } from "jotai";
-import { hexesAtom, effectRandomizationAtom } from "./atomStore";
+import { hexesAtom } from "./atomStore";
 import { effectStore } from "./sampleStore";
 import _ from "lodash";
 import Slider from "rc-slider";
@@ -15,78 +15,80 @@ const SliderComponent = ({
   onValueChange,
   position,
   isEffect = false,
+  currentPath,
+  onRandomizationChange,
 }) => {
-  const [effectRandomization, setEffectRandomization] = useAtom(
-    effectRandomizationAtom
-  );
-
   // Check if this item supports randomization (only effects: Chaos, Distortion, PitchShift)
   const supportsRandomization =
     isEffect && ["Chaos", "Distortion", "PitchShift"].includes(item.name);
+  const randomizationKey = `${item.name.toLowerCase()}Randomization`;
   const randomizationSettings = supportsRandomization
-    ? effectRandomization[item.name]
+    ? currentPath?.[randomizationKey]
     : null;
   const isRandomMode = randomizationSettings?.enabled || false;
 
   // Toggle randomization mode
   const toggleRandomization = useCallback(() => {
-    if (!supportsRandomization) return;
+    if (!supportsRandomization || !onRandomizationChange) return;
 
     console.log(
       `🎲 Toggling randomization for ${item.name}, current state:`,
-      effectRandomization[item.name]
+      randomizationSettings
     );
 
-    setEffectRandomization((prev) => {
-      const newState = {
-        ...prev,
-        [item.name]: {
-          ...prev[item.name],
-          enabled: !prev[item.name].enabled,
-          // If enabling, set sensible defaults based on current value
-          min: !prev[item.name].enabled
-            ? Math.max(
-                item.name === "PitchShift" ? -12 : 0,
-                (currentValue || 0) - 0.2
-              )
-            : prev[item.name].min,
-          max: !prev[item.name].enabled
-            ? Math.min(
-                item.name === "PitchShift" ? 12 : 1,
-                (currentValue || 0) + 0.2
-              )
-            : prev[item.name].max,
-        },
-      };
-      console.log(
-        `🎲 New randomization state for ${item.name}:`,
-        newState[item.name]
-      );
-      return newState;
-    });
+    const currentEnabled = randomizationSettings?.enabled || false;
+    const newRandomizationSettings = {
+      enabled: !currentEnabled,
+      // If enabling, set sensible defaults based on current value
+      min: !currentEnabled
+        ? Math.max(
+            item.name === "PitchShift" ? -12 : 0,
+            (currentValue || 0) - 0.2
+          )
+        : randomizationSettings?.min || 0,
+      max: !currentEnabled
+        ? Math.min(
+            item.name === "PitchShift" ? 12 : 1,
+            (currentValue || 0) + 0.2
+          )
+        : randomizationSettings?.max || (item.name === "PitchShift" ? 12 : 1),
+    };
+
+    console.log(
+      `🎲 New randomization state for ${item.name}:`,
+      newRandomizationSettings
+    );
+
+    onRandomizationChange(item.name, newRandomizationSettings);
   }, [
     supportsRandomization,
     item.name,
     currentValue,
-    setEffectRandomization,
-    effectRandomization,
+    onRandomizationChange,
+    randomizationSettings,
   ]);
 
   // Update randomization range
   const updateRandomizationRange = useCallback(
     (newRange) => {
-      if (!supportsRandomization || !isRandomMode) return;
+      if (!supportsRandomization || !isRandomMode || !onRandomizationChange)
+        return;
 
-      setEffectRandomization((prev) => ({
-        ...prev,
-        [item.name]: {
-          ...prev[item.name],
-          min: newRange[0],
-          max: newRange[1],
-        },
-      }));
+      const newRandomizationSettings = {
+        ...randomizationSettings,
+        min: newRange[0],
+        max: newRange[1],
+      };
+
+      onRandomizationChange(item.name, newRandomizationSettings);
     },
-    [supportsRandomization, isRandomMode, item.name, setEffectRandomization]
+    [
+      supportsRandomization,
+      isRandomMode,
+      item.name,
+      onRandomizationChange,
+      randomizationSettings,
+    ]
   );
 
   const getBaseSliderConfig = useCallback(() => {
@@ -394,6 +396,8 @@ SliderComponent.propTypes = {
   onValueChange: PropTypes.func.isRequired,
   position: PropTypes.number.isRequired,
   isEffect: PropTypes.bool,
+  currentPath: PropTypes.object,
+  onRandomizationChange: PropTypes.func,
 };
 
 const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
@@ -408,6 +412,25 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
     (effect) => effect.type === "effect"
   );
   const currentPath = paths.find((p) => p.id === pathId);
+
+  // Handle randomization changes
+  const handleRandomizationChange = useCallback(
+    (effectName, randomizationSettings) => {
+      const randomizationKey = `${effectName.toLowerCase()}Randomization`;
+      setPaths((prevPaths) => {
+        const newPaths = [...prevPaths];
+        const pathIndex = newPaths.findIndex((p) => p.id === pathId);
+        if (pathIndex !== -1) {
+          newPaths[pathIndex] = {
+            ...newPaths[pathIndex],
+            [randomizationKey]: randomizationSettings,
+          };
+        }
+        return newPaths;
+      });
+    },
+    [pathId, setPaths]
+  );
 
   const getCurrentValue = useCallback(
     (item) => {
@@ -735,6 +758,8 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
             onValueChange={(value) => handleValueChange(item, value)}
             position={index}
             isEffect={false}
+            currentPath={currentPath}
+            onRandomizationChange={handleRandomizationChange}
           />
         ))}
       </div>
@@ -752,6 +777,8 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
             onValueChange={(value) => handleValueChange(item, value)}
             position={index}
             isEffect={true}
+            currentPath={currentPath}
+            onRandomizationChange={handleRandomizationChange}
           />
         ))}
       </div>
