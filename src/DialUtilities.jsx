@@ -4,6 +4,8 @@ import { useAtom } from "jotai";
 import { hexesAtom } from "./atomStore";
 import { effectStore } from "./sampleStore";
 import _ from "lodash";
+import Slider from "rc-slider";
+import "rc-slider/assets/index.css";
 
 // Simple vertical slider component for utilities and effects
 const SliderComponent = ({
@@ -38,12 +40,47 @@ const SliderComponent = ({
           step: 0.01,
           value: currentValue || 0,
         };
+      case "Distortion":
+        return {
+          min: item.config.amount.min,
+          max: item.config.amount.max,
+          step: 0.01,
+          value: currentValue || 0,
+        };
       case "Probability":
         return {
           min: item.config.chance.min,
           max: item.config.chance.max,
           step: 0.01,
           value: currentValue || 0,
+        };
+      case "Volume":
+        return {
+          min: item.config.volume.min,
+          max: item.config.volume.max,
+          step: item.config.volume.step,
+          value:
+            currentValue !== undefined
+              ? currentValue
+              : item.config.volume.default,
+        };
+      case "Pan":
+        return {
+          min: item.config.pan.min,
+          max: item.config.pan.max,
+          step: item.config.pan.step,
+          value:
+            currentValue !== undefined ? currentValue : item.config.pan.default,
+        };
+      case "PitchShift":
+        return {
+          min: item.config.pitch.min,
+          max: item.config.pitch.max,
+          step: item.config.pitch.step,
+          value:
+            currentValue !== undefined
+              ? currentValue
+              : item.config.pitch.default,
         };
       default:
         return { min: 0, max: 1, step: 0.01, value: currentValue || 0 };
@@ -63,8 +100,15 @@ const SliderComponent = ({
         }
         case "Offset":
         case "Chaos":
+        case "Distortion":
         case "Probability":
           return `${Math.round(value * 100)}%`;
+        case "Volume":
+          return value.toFixed(2);
+        case "Pan":
+          return `${value.toFixed(1)} dB`;
+        case "PitchShift":
+          return `${value >= 0 ? "+" : ""}${value.toFixed(1)} st`;
         default:
           return value.toFixed(2);
       }
@@ -89,8 +133,8 @@ const SliderComponent = ({
     [item]
   );
 
-  const handleSliderChange = (event) => {
-    const sliderValue = parseFloat(event.target.value);
+  const handleSliderChange = (value) => {
+    const sliderValue = parseFloat(value);
     const utilityValue = convertSliderValueToUtilityValue(sliderValue);
     onValueChange(utilityValue);
   };
@@ -102,9 +146,15 @@ const SliderComponent = ({
     { x: 0, label: "Offset" },
     { x: 90, label: "Speed" },
     { x: 180, label: "Probability" },
+    { x: 270, label: "Volume" },
+    { x: 360, label: "Pan" },
   ];
 
-  const effectPositions = [{ x: 0, label: "Chaos" }];
+  const effectPositions = [
+    { x: 0, label: "Chaos" },
+    { x: 90, label: "Distortion" },
+    { x: 180, label: "PitchShift" },
+  ];
 
   const positions = isEffect ? effectPositions : utilityPositions;
   const pos = positions[position] || { x: 0, label: "Unknown" };
@@ -127,24 +177,35 @@ const SliderComponent = ({
     >
       {/* Vertical slider container */}
       <div className="relative mb-2 flex flex-col items-center">
-        <input
-          type="range"
-          min={config.min}
-          max={config.max}
-          step={config.step}
-          value={config.value}
-          onChange={handleSliderChange}
-          className="h-16 w-3 bg-neutral-700 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-          style={{
-            writingMode: "bt-lr",
-            WebkitAppearance: "slider-vertical",
-            background: `linear-gradient(to top, ${sliderColor} 0%, ${sliderColor} ${
-              ((config.value - config.min) / (config.max - config.min)) * 100
-            }%, #404040 ${
-              ((config.value - config.min) / (config.max - config.min)) * 100
-            }%, #404040 100%)`,
-          }}
-        />
+        <div style={{ height: "64px", width: "12px" }}>
+          <Slider
+            vertical
+            min={config.min}
+            max={config.max}
+            step={config.step}
+            value={config.value}
+            onChange={handleSliderChange}
+            trackStyle={{
+              backgroundColor: sliderColor,
+              width: "12px",
+            }}
+            railStyle={{
+              backgroundColor: "#404040",
+              width: "12px",
+            }}
+            handleStyle={{
+              borderColor: sliderColor,
+              backgroundColor: sliderColor,
+              width: "16px",
+              height: "16px",
+              marginLeft: "-2px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+            }}
+            style={{
+              height: "64px",
+            }}
+          />
+        </div>
       </div>
 
       <div className="text-xs text-gray-300 font-medium text-center mb-1">
@@ -193,6 +254,10 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
       switch (item.name) {
         case "Chaos":
           return currentPath?.chaos || 0;
+        case "Distortion":
+          return currentPath?.distortion || 0;
+        case "PitchShift":
+          return currentPath?.pitchShift || 0;
         case "Probability":
           return currentPath?.probability || 0;
         case "Speed":
@@ -201,6 +266,10 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
             : 1;
         case "Offset":
           return existingBranch?.effectConfig?.amount?.value || 0;
+        case "Volume":
+          return currentPath?.volume !== undefined ? currentPath.volume : 1;
+        case "Pan":
+          return currentPath?.pan !== undefined ? currentPath.pan : 0;
         default:
           return 0;
       }
@@ -210,12 +279,23 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
 
   const handleValueChange = useCallback(
     async (item, newValue) => {
-      if (item.name === "Chaos") {
+      if (
+        item.name === "Chaos" ||
+        item.name === "Distortion" ||
+        item.name === "PitchShift"
+      ) {
         setPaths((prevPaths) => {
           const newPaths = [...prevPaths];
           const pathIndex = newPaths.findIndex((p) => p.id === pathId);
           if (pathIndex !== -1) {
-            newPaths[pathIndex] = { ...newPaths[pathIndex], chaos: newValue };
+            const pathProperty =
+              item.name === "PitchShift"
+                ? "pitchShift"
+                : item.name.toLowerCase();
+            newPaths[pathIndex] = {
+              ...newPaths[pathIndex],
+              [pathProperty]: newValue,
+            };
           }
           return newPaths;
         });
@@ -228,11 +308,16 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
             setBranches((prevBranches) =>
               prevBranches.map((b) => {
                 if (b.id === existingUtility.id) {
+                  const configKey =
+                    item.name === "PitchShift" ? "pitch" : "amount";
                   return {
                     ...b,
                     effectConfig: {
                       ...b.effectConfig,
-                      amount: { ...b.effectConfig.amount, value: newValue },
+                      [configKey]: {
+                        ...b.effectConfig[configKey],
+                        value: newValue,
+                      },
                     },
                   };
                 }
@@ -252,11 +337,12 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
               })
             );
           }
-        } else if (newValue > 0) {
+        } else if (newValue !== 0) {
           const { v4: uuidv4 } = await import("uuid");
           const newBranchId = uuidv4();
           const effectConfig = _.cloneDeep(item.config);
-          effectConfig.amount.value = newValue;
+          const configKey = item.name === "PitchShift" ? "pitch" : "amount";
+          effectConfig[configKey].value = newValue;
 
           if (!currentPath || !currentPath.path) return;
           const lastHex = currentPath.path[currentPath.path.length - 1];
@@ -361,6 +447,41 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
         return;
       }
 
+      if (item.name === "Volume") {
+        setPaths((prevPaths) => {
+          const newPaths = [...prevPaths];
+          const pathIndex = newPaths.findIndex((p) => p.id === pathId);
+          if (pathIndex !== -1) {
+            newPaths[pathIndex] = {
+              ...newPaths[pathIndex],
+              volume: newValue,
+            };
+          }
+          return newPaths;
+        });
+        return;
+      }
+
+      if (item.name === "Pan") {
+        setPaths((prevPaths) => {
+          const newPaths = [...prevPaths];
+          const pathIndex = newPaths.findIndex((p) => p.id === pathId);
+          if (pathIndex !== -1) {
+            newPaths[pathIndex] = {
+              ...newPaths[pathIndex],
+              pan: newValue,
+            };
+          }
+          return newPaths;
+        });
+
+        // Update post-effects panner for real-time feedback
+        // Note: Pan is now handled by the path effects chain's postPanner node
+        // which will be updated during the next audio trigger
+
+        return;
+      }
+
       const existingUtility = pathUtilities.find(
         (u) => u.effect.name === item.name
       );
@@ -441,7 +562,7 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
       </label>
       <div
         className="relative mb-6"
-        style={{ height: "120px", width: "270px" }}
+        style={{ height: "120px", width: "450px" }}
       >
         {availableUtilities.map((item, index) => (
           <SliderComponent
@@ -459,7 +580,7 @@ const DialUtilities = ({ pathId, paths, setPaths, branches, setBranches }) => {
       <label className="block text-sm font-medium text-white mb-4">
         Effects
       </label>
-      <div className="relative" style={{ height: "120px", width: "90px" }}>
+      <div className="relative" style={{ height: "120px", width: "270px" }}>
         {availableEffects.map((item, index) => (
           <SliderComponent
             key={item.name}

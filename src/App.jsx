@@ -257,11 +257,18 @@ const App = () => {
         console.log("effectConfig", effectConfig);
 
         if (branch.effect.type === "utility") {
+          // Utilities are handled at branch level
           effectNode = new Tone.Gain().toDestination();
         } else if (branch.effect.type === "effect") {
+          // Effects are handled at path level, so just use a gain node for the branch
           switch (branch.effect.name) {
             case "Chaos":
-              // Chaos is handled at path level, so just use a gain node for the branch
+              effectNode = new Tone.Gain().toDestination();
+              break;
+            case "Distortion":
+              effectNode = new Tone.Gain().toDestination();
+              break;
+            case "PitchShift":
               effectNode = new Tone.Gain().toDestination();
               break;
             default:
@@ -269,49 +276,8 @@ const App = () => {
               break;
           }
         } else {
-          // Traditional FX effects (for legacy support)
-          switch (branch.effect.name) {
-            case "Reverb":
-              effectNode = new Tone.Reverb(effectConfig).toDestination();
-              break;
-            case "AutoFilter":
-              effectNode = new Tone.AutoFilter(effectConfig).toDestination();
-              effectNode.start();
-              break;
-            case "AutoWah":
-              effectNode = new Tone.AutoWah(effectConfig).toDestination();
-              break;
-            case "BitCrusher":
-              effectNode = new Tone.BitCrusher(effectConfig).toDestination();
-              break;
-            case "Chorus":
-              effectNode = new Tone.Chorus(effectConfig).toDestination();
-              effectNode.start();
-              break;
-            case "Distortion":
-              effectNode = new Tone.Distortion(effectConfig).toDestination();
-              break;
-            case "FeedbackDelay":
-              effectNode = new Tone.FeedbackDelay(effectConfig).toDestination();
-              break;
-            case "FrequencyShifter":
-              effectNode = new Tone.FrequencyShifter(
-                effectConfig
-              ).toDestination();
-              break;
-            case "Phaser":
-              effectNode = new Tone.Phaser(effectConfig).toDestination();
-              break;
-            case "PingPongDelay":
-              effectNode = new Tone.PingPongDelay(effectConfig).toDestination();
-              break;
-            case "PitchShift":
-              effectNode = new Tone.PitchShift(effectConfig).toDestination();
-              break;
-            default:
-              effectNode = new Tone.Gain().toDestination();
-              break;
-          }
+          // Fallback for any unrecognized effect types
+          effectNode = new Tone.Gain().toDestination();
         }
 
         const branchPlayers = {};
@@ -354,7 +320,7 @@ const App = () => {
     });
   }, [branches, sampleStore, userSamples]);
 
-  // Path-level effects management (Chaos)
+  // Path-level effects management with post-effects utilities
   useEffect(() => {
     paths.forEach((path) => {
       if (!pathEffectNodesRef.current[path.id]) {
@@ -365,15 +331,37 @@ const App = () => {
           wet: 0.5, // Mix between dry (original) and wet (delayed) signal
         });
 
-        // Create a gain node as the final output
+        // Create Distortion effect with initial zero distortion
+        const distortion = new Tone.Distortion({
+          distortion: 0,
+          wet: 0, // Start with no distortion effect
+        });
+
+        // Create PitchShift effect with initial zero pitch shift
+        const pitchShift = new Tone.PitchShift({
+          pitch: 0,
+          wet: 0, // Start with no pitch shift effect
+        });
+
+        // Create post-effects utility nodes
+        const postVolume = new Tone.Gain(path.volume ?? 1);
+        const postPanner = new Tone.Panner((path.pan ?? 0) / 12);
         const pathGain = new Tone.Gain(1).toDestination();
 
-        // Chain the effects: input (chaosDelay) -> pathGain -> destination
-        chaosDelay.connect(pathGain);
+        // Chain the complete signal: input (chaosDelay) -> distortion -> pitchShift -> postVolume -> postPanner -> pathGain -> destination
+        chaosDelay.connect(distortion);
+        distortion.connect(pitchShift);
+        pitchShift.connect(postVolume);
+        postVolume.connect(postPanner);
+        postPanner.connect(pathGain);
 
         pathEffectNodesRef.current[path.id] = {
           input: chaosDelay,
           chaosDelay,
+          distortion,
+          pitchShift,
+          postVolume,
+          postPanner,
           output: pathGain,
         };
       }
@@ -386,6 +374,9 @@ const App = () => {
         if (pathEffects) {
           pathEffects.output.dispose();
           pathEffects.chaosDelay.dispose();
+          pathEffects.distortion.dispose();
+          pathEffects.postVolume.dispose();
+          pathEffects.postPanner.dispose();
           delete pathEffectNodesRef.current[pathId];
         }
       }
@@ -653,19 +644,19 @@ const App = () => {
                           : 1;
 
                       // Always randomize delay time between 35ms and 75ms
-                      const minDelayMs = 35;
-                      const maxDelayMs = 75;
+                      const minDelayMs = 50;
+                      const maxDelayMs = 125;
                       const randomDelayMs =
                         minDelayMs + Math.random() * (maxDelayMs - minDelayMs);
                       const randomDelayTime = randomDelayMs / 1000;
 
-                      // Feedback is random between 0 and 1
-                      const randomFeedback = Math.random();
+                      // Feedback is random between 0 and 0.75, scaled by chaos amount
+                      const randomFeedback = Math.random() * 0.75 * chaosValue;
 
                       // Apply values to the delay effect
                       pathEffects.chaosDelay.delayTime.value = randomDelayTime;
                       pathEffects.chaosDelay.feedback.value = randomFeedback;
-                      pathEffects.chaosDelay.wet.value = chaosValue; // Use slider value for wet/dry mix
+                      pathEffects.chaosDelay.wet.value = 0.8 * chaosValue; // Wet scaled from 0 to 80% by chaos amount
 
                       // Debug log
                       console.log(
@@ -674,6 +665,50 @@ const App = () => {
                         )}ms, feedback=${(randomFeedback * 100).toFixed(
                           1
                         )}%, wet=${(chaosValue * 100).toFixed(0)}%`
+                      );
+
+                      // Apply Distortion effect
+                      const distortionValue =
+                        currentPath?.distortion !== undefined
+                          ? currentPath.distortion
+                          : 0;
+
+                      // Apply distortion amount (0 to 1) directly to the distortion effect
+                      pathEffects.distortion.distortion = distortionValue;
+                      pathEffects.distortion.wet.value = distortionValue; // Wet amount matches distortion intensity
+
+                      // Apply PitchShift effect
+                      const pitchShiftValue =
+                        currentPath?.pitchShift !== undefined
+                          ? currentPath.pitchShift
+                          : 0;
+
+                      // Apply pitch shift amount (-12 to +12 semitones) directly to the pitch shift effect
+                      pathEffects.pitchShift.pitch = pitchShiftValue;
+                      pathEffects.pitchShift.wet.value =
+                        pitchShiftValue !== 0 ? 1 : 0; // Wet is 1 when pitch shift is active, 0 when disabled
+
+                      // Apply post-effects volume and pan utilities
+                      pathEffects.postVolume.gain.value = pathVolume;
+                      pathEffects.postPanner.pan.value = normalizedPan;
+
+                      // Debug log
+                      console.log(
+                        `Distortion applied: amount=${(
+                          distortionValue * 100
+                        ).toFixed(0)}%, wet=${(distortionValue * 100).toFixed(
+                          0
+                        )}%`
+                      );
+                      console.log(
+                        `PitchShift applied: pitch=${pitchShiftValue.toFixed(
+                          1
+                        )} semitones, wet=${pitchShiftValue !== 0 ? 100 : 0}%`
+                      );
+                      console.log(
+                        `Post-effects utilities: volume=${pathVolume.toFixed(
+                          2
+                        )}, pan=${normalizedPan.toFixed(2)}`
                       );
                     }
                     // ...existing code for audio routing, etc...
@@ -687,30 +722,25 @@ const App = () => {
                           const player =
                             branchNode.players[hexToUpdate.sampleName];
                           if (player && player.loaded) {
-                            // Set up audio routing: player -> panner -> path effects -> branch effects -> destination
-                            if (!player._panner || !player._pathConnected) {
+                            // Set up audio routing: player -> path effects -> branch effects -> destination
+                            if (!player._pathConnected) {
                               player.disconnect();
-                              const panner = new Tone.Panner(normalizedPan);
-                              player.connect(panner);
 
                               // Route through path effects if available
                               if (pathEffects) {
-                                panner.connect(pathEffects.input);
+                                player.connect(pathEffects.input);
                                 // Connect path effects output to branch effect
                                 pathEffects.output.disconnect();
                                 pathEffects.output.connect(
                                   branchNode.effectNode
                                 );
                               } else {
-                                panner.connect(branchNode.effectNode);
+                                player.connect(branchNode.effectNode);
                               }
 
-                              player._panner = panner;
                               player._pathConnected = true;
-                            } else {
-                              player._panner.pan.value = normalizedPan;
                             }
-                            player.volume.value = Tone.gainToDb(pathVolume);
+                            // Volume and pan now handled by post-effects nodes
                             player.mute = false;
                             triggerSampleWithValidation(
                               branchNode.players,
@@ -724,25 +754,20 @@ const App = () => {
                     } else {
                       const player = samplerRef.current[hexToUpdate.sampleName];
                       if (player && player.loaded) {
-                        // Set up audio routing: player -> panner -> path effects -> destination
-                        if (!player._panner || !player._pathConnected) {
+                        // Set up audio routing: player -> path effects -> destination
+                        if (!player._pathConnected) {
                           player.disconnect();
-                          const panner = new Tone.Panner(normalizedPan);
-                          player.connect(panner);
 
                           // Route through path effects if available
                           if (pathEffects) {
-                            panner.connect(pathEffects.input);
+                            player.connect(pathEffects.input);
                           } else {
-                            panner.toDestination();
+                            player.toDestination();
                           }
 
-                          player._panner = panner;
                           player._pathConnected = true;
-                        } else {
-                          player._panner.pan.value = normalizedPan;
                         }
-                        player.volume.value = Tone.gainToDb(pathVolume);
+                        // Volume and pan now handled by post-effects nodes
                         player.mute = false;
                         triggerSampleWithValidation(
                           samplerRef.current,

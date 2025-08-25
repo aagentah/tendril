@@ -973,99 +973,6 @@ const ControlsContent = ({
                         </button>
                       </div>
                       <div className="p-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            Volume
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={volume}
-                            onChange={(e) => {
-                              const newVolume = parseFloat(e.target.value);
-                              setPaths((prevPaths) => {
-                                const newPaths = [...prevPaths];
-                                const pathIndex = newPaths.findIndex(
-                                  (p) => p.id === pathId
-                                );
-                                if (pathIndex !== -1) {
-                                  newPaths[pathIndex] = {
-                                    ...newPaths[pathIndex],
-                                    volume: newVolume,
-                                  };
-                                }
-                                return newPaths;
-                              });
-                            }}
-                            className="w-full"
-                          />
-                          <span className="text-white">
-                            {volume.toFixed(2)}
-                          </span>
-                        </div>
-
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium mb-1 text-white">
-                            Pan (Left/Right)
-                          </label>
-                          <input
-                            type="range"
-                            min="-12"
-                            max="12"
-                            step="0.1"
-                            value={pan}
-                            onChange={(e) => {
-                              const newPan = parseFloat(e.target.value);
-                              setPaths((prevPaths) => {
-                                const newPaths = [...prevPaths];
-                                const pathIndex = newPaths.findIndex(
-                                  (p) => p.id === pathId
-                                );
-                                if (pathIndex !== -1) {
-                                  newPaths[pathIndex] = {
-                                    ...newPaths[pathIndex],
-                                    pan: newPan,
-                                  };
-                                }
-                                return newPaths;
-                              });
-                              const normalizedPan = newPan / 12;
-                              // Immediately update direct playback players' panner values.
-                              Object.values(samplerRef.current).forEach(
-                                (player) => {
-                                  if (player._panner) {
-                                    player._panner.pan.value = normalizedPan;
-                                  }
-                                }
-                              );
-                              // Immediately update branch effect players' panner values.
-                              if (
-                                samplerRef.current &&
-                                samplerRef.current.branchEffectNodes
-                              ) {
-                                Object.values(
-                                  samplerRef.current.branchEffectNodes
-                                ).forEach((branchNode) => {
-                                  Object.values(branchNode.players).forEach(
-                                    (player) => {
-                                      if (player._panner) {
-                                        player._panner.pan.value =
-                                          normalizedPan;
-                                      }
-                                    }
-                                  );
-                                });
-                              }
-                            }}
-                            className="w-full"
-                          />
-                          <span className="text-white">
-                            {pan.toFixed(1)} dB
-                          </span>
-                        </div>
-
                         {/* Utilities Section */}
                         <DialUtilities
                           pathId={pathId}
@@ -1255,11 +1162,15 @@ const ControlsContent = ({
 
                                       // Special handling for core path features
                                       if (
-                                        selectedBranch.effect.name ===
-                                          "Chaos" &&
+                                        (selectedBranch.effect.name ===
+                                          "Chaos" ||
+                                          selectedBranch.effect.name ===
+                                            "Distortion") &&
                                         paramName === "amount"
                                       ) {
-                                        // Sync with path chaos property
+                                        // Sync with path property (chaos or distortion)
+                                        const pathProperty =
+                                          selectedBranch.effect.name.toLowerCase();
                                         setPaths((prevPaths) => {
                                           const newPaths = [...prevPaths];
                                           const pathIndex = newPaths.findIndex(
@@ -1270,16 +1181,16 @@ const ControlsContent = ({
                                           if (pathIndex !== -1) {
                                             newPaths[pathIndex] = {
                                               ...newPaths[pathIndex],
-                                              chaos: newValue,
+                                              [pathProperty]: newValue,
                                             };
                                           }
                                           return newPaths;
                                         });
 
-                                        // If chaos is set to 0, keep the utility branch for configuration but mark chaos as disabled
+                                        // If effect is set to 0, keep the utility branch for configuration but mark effect as disabled
                                         if (newValue === 0) {
                                           // Keep utility branch so user can stay in configuration view
-                                          // The chaos hex will show as disabled because path.chaos = 0
+                                          // The effect hex will show as disabled because path property = 0
                                           // But the configuration interface remains accessible
                                           // No navigation changes - stay exactly where we are
                                           // This allows the user to continue adjusting the slider or see it at 0

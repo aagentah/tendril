@@ -1,7 +1,7 @@
 // audioService.js - Centralized audio functionality
 import * as Tone from "tone";
 
-// Audio manipulation handlers for utilities and effects
+// Audio manipulation handlers for branch-level utilities
 export const utilityHandlers = {
   Offset: (context, config) => {
     const { amount } = config;
@@ -38,6 +38,22 @@ export const effectHandlers = {
     // Chaos affects timing randomization - this is handled at path level
     // We store the chaos amount for use in timing calculations
     context.chaosAmount = chaosAmount;
+    return context;
+  },
+  Distortion: (context, config) => {
+    const { amount } = config;
+    const distortionAmount = parseFloat(amount.value);
+    // Distortion is handled at path level in the audio effect chain
+    // We store the distortion amount for use in the path effect setup
+    context.distortionAmount = distortionAmount;
+    return context;
+  },
+  PitchShift: (context, config) => {
+    const { pitch } = config;
+    const pitchShiftAmount = parseFloat(pitch.value);
+    // PitchShift is handled at path level in the audio effect chain
+    // We store the pitch shift amount for use in the path effect setup
+    context.pitchShiftAmount = pitchShiftAmount;
     return context;
   },
 };

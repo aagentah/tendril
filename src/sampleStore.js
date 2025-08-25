@@ -57,9 +57,9 @@ export const sampleStore = [
   { name: "808C Harmonic Beauty", url: harmonicBeauty },
 ];
 
-// Effect store - Contains both utilities and effects
+// Effect store - Contains utilities (branch-level) and effects (path-level)
 export const effectStore = [
-  // Utilities - timing and playback manipulation
+  // Utilities - branch-level timing and playback manipulation
   {
     type: "utility",
     name: "Offset",
@@ -89,12 +89,40 @@ export const effectStore = [
       chance: { value: 1, default: 1, min: 0, max: 1, step: 0.01 },
     },
   },
-  // Effects - audio processing and manipulation
+  {
+    type: "utility",
+    name: "Volume",
+    config: {
+      volume: { value: 1, default: 1, min: 0, max: 1, step: 0.01 },
+    },
+  },
+  {
+    type: "utility",
+    name: "Pan",
+    config: {
+      pan: { value: 0, default: 0, min: -12, max: 12, step: 0.1 },
+    },
+  },
+  // Effects - path-level audio processing and manipulation
   {
     type: "effect",
     name: "Chaos",
     config: {
       amount: { value: 0, default: 0, min: 0, max: 1, step: 0.01 },
+    },
+  },
+  {
+    type: "effect",
+    name: "Distortion",
+    config: {
+      amount: { value: 0, default: 0, min: 0, max: 1, step: 0.01 },
+    },
+  },
+  {
+    type: "effect",
+    name: "PitchShift",
+    config: {
+      pitch: { value: 0, default: 0, min: -12, max: 12, step: 0.1 },
     },
   },
 ];
